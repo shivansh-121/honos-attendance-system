@@ -1,0 +1,246 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../app_theme.dart';
+import '../../models/attendance.dart';
+import '../../models/guard.dart';
+import '../../services/db_service.dart';
+
+class ReportsScreen extends ConsumerStatefulWidget {
+  const ReportsScreen({super.key});
+
+  @override
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  String _selectedFilter = 'Today';
+  final List<String> _filters = ['Today', 'This Week', 'This Month', 'All'];
+
+  List<Attendance> _getFiltered(List<Attendance> all) {
+    final now = DateTime.now();
+    final today = DateFormat('yyyy-MM-dd').format(now);
+
+    switch (_selectedFilter) {
+      case 'Today':
+        return all.where((a) => a.date == today).toList();
+      case 'This Week':
+        final weekAgo = now.subtract(const Duration(days: 7));
+        return all.where((a) {
+          final d = DateTime.tryParse(a.date);
+          return d != null && d.isAfter(weekAgo);
+        }).toList();
+      case 'This Month':
+        return all
+            .where((a) => a.date.startsWith(DateFormat('yyyy-MM').format(now)))
+            .toList();
+      default:
+        return all;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final guardsAsync = ref.watch(guardsStreamProvider);
+    final attendanceAsync = ref.watch(attendanceStreamProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Attendance Reports')),
+      body: guardsAsync.when(
+        data: (guards) => attendanceAsync.when(
+          data: (allRecords) {
+            final filtered = _getFiltered(allRecords);
+            final totalGuards = guards.length;
+            final presentToday = _getFiltered(allRecords).length;
+
+            return Column(
+              children: [
+                // Summary Cards
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Row(
+                    children: [
+                      _buildSummaryCard('Total Guards', '$totalGuards', Icons.people, AppTheme.primary),
+                      const SizedBox(width: 12),
+                      _buildSummaryCard('Records', '${allRecords.length}', Icons.history, AppTheme.purple),
+                      const SizedBox(width: 12),
+                      _buildSummaryCard('Today\'s', '$presentToday', Icons.today, AppTheme.green),
+                    ],
+                  ),
+                ),
+
+                // Filter Chips
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _filters
+                          .map((f) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Text(f),
+                                  selected: _selectedFilter == f,
+                                  onSelected: (_) => setState(() => _selectedFilter = f),
+                                  selectedColor: AppTheme.primary.withOpacity(0.2),
+                                  checkmarkColor: AppTheme.primary,
+                                  backgroundColor: AppTheme.bgElevated,
+                                  labelStyle: TextStyle(
+                                    color: _selectedFilter == f ? AppTheme.primary : AppTheme.txtSec,
+                                    fontWeight: _selectedFilter == f ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    side: BorderSide(color: _selectedFilter == f ? AppTheme.primary : AppTheme.bord),
+                                  ),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                ),
+
+                // List header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('${filtered.length} records', style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+                      const Text('Tap to expand', style: TextStyle(color: AppTheme.txtMuted, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Records List
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.receipt_long_outlined, size: 72, color: AppTheme.txtMuted),
+                              const SizedBox(height: 12),
+                              Text('No records for "$_selectedFilter"', style: const TextStyle(color: AppTheme.txtSec)),
+                              const SizedBox(height: 8),
+                              const Text('Mark attendance to see reports here.', style: TextStyle(color: AppTheme.txtMuted, fontSize: 12)),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, i) {
+                            final record = filtered[i];
+                            final guard = guards.firstWhere(
+                              (g) => g.id == record.guardId,
+                              orElse: () => const Guard(id: '', name: 'Unknown', empId: '', siteId: '', supervisorId: '', phone: '', joinDate: '', salary: 0),
+                            );
+                            return _AttendanceCard(record: record, guard: guard);
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, __) => Center(child: Text('Rec Error: $e', style: const TextStyle(color: Colors.white))),
+        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, __) => Center(child: Text('Guard Error: $e', style: const TextStyle(color: Colors.white))),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+      String title, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
+            Text(value,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 20)),
+            Text(title,
+                style: const TextStyle(color: AppTheme.txtSec, fontSize: 10),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendanceCard extends StatelessWidget {
+  final Attendance record;
+  final Guard guard;
+
+  const _AttendanceCard({required this.record, required this.guard});
+
+  @override
+  Widget build(BuildContext context) {
+    final date = DateTime.tryParse(record.date);
+    final formattedDate = date != null
+        ? DateFormat('EEE, dd MMM yyyy').format(date)
+        : record.date;
+
+    return Card(
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        leading: CircleAvatar(
+          backgroundColor: AppTheme.green.withOpacity(0.15),
+          child: const Icon(Icons.check, color: AppTheme.green),
+        ),
+        title: Text(
+          guard.name.isEmpty ? 'Guard #${record.guardId}' : guard.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Row(children: [
+              const Icon(Icons.calendar_today,
+                  size: 12, color: AppTheme.txtMuted),
+              const SizedBox(width: 5),
+              Text(formattedDate,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
+            ]),
+            Row(children: [
+              const Icon(Icons.access_time, size: 12, color: AppTheme.txtMuted),
+              const SizedBox(width: 5),
+              Text(record.time,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
+            ]),
+          ],
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.green.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.green.withOpacity(0.4)),
+          ),
+          child: Text(
+            record.status.toUpperCase(),
+            style: const TextStyle(
+                color: AppTheme.green,
+                fontSize: 11,
+                fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+  }
+}
