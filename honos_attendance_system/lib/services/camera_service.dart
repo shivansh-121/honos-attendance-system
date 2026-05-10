@@ -6,9 +6,7 @@ List<CameraDescription> globalCameras = [];
 
 Future<void> initCameras() async {
   try {
-    if (!kIsWeb) {
-      globalCameras = await availableCameras();
-    }
+    globalCameras = await availableCameras();
   } catch (e) {
     debugPrint("Error initializing cameras: $e");
   }

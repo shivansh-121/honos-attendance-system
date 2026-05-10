@@ -9,9 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:camera/camera.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 import '../../app_theme.dart';
+import '../../services/face_match_service.dart';
 import '../../models/guard.dart';
 import '../../models/site.dart';
 import '../../models/attendance.dart';
@@ -156,18 +156,26 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           }),
         );
       case _Step.liveness:
-        return _FaceMatchStep(
-          guard: _selectedGuard!,
-          onVerified: (photo) => setState(() {
-            _livePhotoBase64 = photo;
-            _step = _Step.confirmation;
-          }),
+        return _StepShell(
+          stepNumber: '3',
+          title: 'Liveness & Face Match',
+          child: _FaceMatchStep(
+            guard: _selectedGuard!,
+            onVerified: (photo) => setState(() {
+              _livePhotoBase64 = photo;
+              _step = _Step.confirmation;
+            }),
+          ),
         );
       case _Step.confirmation:
-        return _ConfirmStep(
-          guard: _selectedGuard!,
-          site: widget.site,
-          onSubmit: _submit,
+        return _StepShell(
+          stepNumber: '4',
+          title: 'Confirmation',
+          child: _ConfirmStep(
+            guard: _selectedGuard!,
+            site: widget.site,
+            onSubmit: _submit,
+          ),
         );
     }
   }
@@ -356,84 +364,103 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
   CameraController? _ctrl;
   bool _ready = false;
   bool _busy = false;
-  String _msg = 'Align face and BLINK to start...';
+  String _msg = 'Ready...';
   bool _blinked = false;
-  final _detector = FaceDetector(options: FaceDetectorOptions(enableLandmarks: true, enableClassification: true, performanceMode: FaceDetectorMode.accurate));
 
   @override
-  void initState() { super.initState(); _init(); }
+  void initState() { 
+    super.initState(); 
+    // Do NOT initialize camera here. LivenessDetectorWidget is using it.
+  }
 
   Future<void> _init() async {
+    // Wait for the previous Liveness camera to fully release hardware
+    await Future.delayed(const Duration(milliseconds: 800));
+    
     if (globalCameras.isEmpty) await initCameras();
+    if (globalCameras.isEmpty) return;
     final front = globalCameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front, orElse: () => globalCameras.first);
     _ctrl = CameraController(front, ResolutionPreset.medium, enableAudio: false);
-    await _ctrl!.initialize();
-    if (mounted) setState(() => _ready = true);
+    
+    try {
+      await _ctrl!.initialize();
+      if (mounted) setState(() => _ready = true);
+    } catch (e) {
+      if (mounted) setState(() => _msg = 'Camera Error: $e');
+    }
   }
 
   @override
-  void dispose() { _ctrl?.dispose(); _detector.close(); super.dispose(); }
+  void dispose() { 
+    _ctrl?.dispose(); 
+    super.dispose(); 
+  }
 
   Future<void> _verify() async {
     if (_busy) return;
-    setState(() { _busy = true; _msg = 'Analyzing...'; });
+    setState(() { _busy = true; _msg = 'Capturing photo...'; });
     try {
       final xFile = await _ctrl!.takePicture();
-      final bytes = await File(xFile.path).readAsBytes();
+      final bytes = await xFile.readAsBytes();
       final b64 = base64Encode(bytes);
       
-      final faces = await _detector.processImage(InputImage.fromFile(File(xFile.path)));
-      if (faces.isEmpty) { setState(() { _msg = 'No face found.'; _busy = false; }); return; }
-      
-      final liveFace = faces.first;
-      
-      if (widget.guard.photo.length < 200) { widget.onVerified(b64); return; }
+      // Initialize FaceMatchService if not already done
+      await FaceMatchService.init();
+
+      // Extract embedding from live photo
+      final liveEmbedding = await FaceMatchService.getEmbeddings(File(xFile.path));
+      if (liveEmbedding == null) {
+        setState(() { _msg = 'Could not extract face from live photo.'; _busy = false; });
+        return;
+      }
+
+      // Extract embedding from reference photo (guard.photo is base64)
+      if (widget.guard.photo.length < 200) {
+        // No reference photo, we might just skip verification or fail
+        widget.onVerified(b64);
+        return;
+      }
 
       final refBytes = base64Decode(widget.guard.photo);
       final tempDir = await getTemporaryDirectory();
-      final refFile = File(p.join(tempDir.path, 'ref.jpg'));
+      final refFile = File(p.join(tempDir.path, 'ref_temp.jpg'));
       await refFile.writeAsBytes(refBytes);
-      final refFaces = await _detector.processImage(InputImage.fromFile(refFile));
 
-      if (refFaces.isEmpty) { widget.onVerified(b64); return; }
+      final refEmbedding = await FaceMatchService.getEmbeddings(refFile);
+      if (refEmbedding == null) {
+         // Proceeding if we can't get reference embedding might be a business rule.
+         // Let's assume fallback to supervisor override.
+         setState(() { _msg = 'Invalid reference photo. Use Override.'; _busy = false; });
+         return;
+      }
 
-      final score = _compare(refFaces.first, liveFace);
-      if (score > 0.93) { widget.onVerified(b64); } 
-      else { setState(() { _msg = 'Identity Mismatch!'; _busy = false; }); }
+      final score = FaceMatchService.compareFaces(refEmbedding, liveEmbedding);
+      
+      // Using a typical threshold for cosine similarity. Thresholds need tuning (e.g., 0.82)
+      if (score > 0.82) { 
+        widget.onVerified(b64); 
+      } else { 
+        setState(() { _msg = 'Identity Mismatch! (Score: ${(score*100).toStringAsFixed(1)}%)'; _busy = false; }); 
+      }
     } catch (e) { setState(() { _msg = 'Error: $e'; _busy = false; }); }
-  }
-
-  double _compare(Face a, Face b) {
-    final v1 = _profile(a), v2 = _profile(b);
-    if (v1.isEmpty || v2.isEmpty) return 0;
-    double dot = 0, m1 = 0, m2 = 0;
-    for (int i = 0; i < v1.length; i++) { dot += v1[i] * v2[i]; m1 += v1[i] * v1[i]; m2 += v2[i] * v2[i]; }
-    return (m1 == 0 || m2 == 0) ? 0 : (dot / (sqrt(m1) * sqrt(m2)));
-  }
-
-  List<double> _profile(Face f) {
-    final le = f.landmarks[FaceLandmarkType.leftEye]?.position;
-    final re = f.landmarks[FaceLandmarkType.rightEye]?.position;
-    final n = f.landmarks[FaceLandmarkType.noseBase]?.position;
-    final lm = f.landmarks[FaceLandmarkType.leftMouth]?.position;
-    final rm = f.landmarks[FaceLandmarkType.rightMouth]?.position;
-    if (le == null || re == null || n == null || lm == null || rm == null) return [];
-    double d(Point a, Point b) => sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
-    final unit = d(le, re); if (unit < 1) return [];
-    final midX = (le.x + re.x) / 2, midY = (le.y + re.y) / 2;
-    return [(n.x - midX) / unit, (n.y - midY) / unit, (lm.x - midX) / unit, (lm.y - midY) / unit, (rm.x - midX) / unit, (rm.y - midY) / unit, d(n, lm) / unit, d(n, rm) / unit];
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      if (!_blinked) LivenessDetectorWidget(onBlinkDetected: () => setState(() => _blinked = true))
+      if (!_blinked) 
+        LivenessDetectorWidget(
+          onBlinkDetected: () {
+            setState(() => _blinked = true);
+            _init();
+          }
+        )
       else ...[
         if (_ready) ClipRRect(borderRadius: BorderRadius.circular(20), child: SizedBox(height: 300, child: CameraPreview(_ctrl!))),
         const SizedBox(height: 20),
         Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
-        if (!_busy) ElevatedButton(onPressed: _verify, child: const Text('Verify Identity')),
+        if (!_busy) ElevatedButton(onPressed: _verify, child: const Text('Capture & Verify (To be replaced)')),
         TextButton(onPressed: () => widget.onVerified(''), child: const Text('Supervisor Override', style: TextStyle(color: AppTheme.red))),
       ]
     ]);

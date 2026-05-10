@@ -39,7 +39,6 @@ void main() async {
   }
 
   // Fire-and-forget non-critical inits
-  initCameras();
   initBackgroundService();
 
   runApp(
