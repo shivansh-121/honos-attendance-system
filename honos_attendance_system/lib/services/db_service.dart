@@ -112,63 +112,8 @@ class DbService {
     }
   }
 
-  // Seed Data fallback if empty (Cloud Check)
-  Future<void> seedInitialData() async {
-    final usersCount = await _firestore.collection('users').limit(1).get();
-    if (usersCount.docs.isEmpty) {
-      const admin = AppUser(
-        id: 'admin1',
-        name: 'Admin User',
-        username: 'admin',
-        password: 'honos123',
-        role: 'admin',
-      );
-      const supervisor = AppUser(
-        id: 'sup1',
-        name: 'Rajesh Kumar',
-        username: 'supervisor',
-        password: 'honos123',
-        role: 'supervisor',
-        siteId: 'site1',
-      );
-      await saveUser(admin);
-      await saveUser(supervisor);
-    }
-
-    final sitesCount = await _firestore.collection('sites').limit(1).get();
-    if (sitesCount.docs.isEmpty) {
-      const pulseHospital = Site(
-          id: 'site1',
-          name: 'Pulse Hospital',
-          address: 'Godhara Neher (Godadara Canal), Surat, Gujarat 395010',
-          lat: 21.1612,
-          lng: 72.8703,
-          radius: 250,
-          supervisorId: 'sup1');
-      await saveSite(pulseHospital);
-
-      const guard1 = Guard(
-        id: 'g1',
-        name: 'Suresh Yadav',
-        empId: 'HSS001',
-        siteId: 'site1',
-        supervisorId: 'sup1',
-        phone: '9812345670',
-        joinDate: '2023-03-01',
-        salary: 15000,
-      );
-      const guard2 = Guard(
-        id: 'g2',
-        name: 'Ramesh Singh',
-        empId: 'HSS002',
-        siteId: 'site1',
-        supervisorId: 'sup1',
-        phone: '9812345671',
-        joinDate: '2023-04-15',
-        salary: 14500,
-      );
-      await saveGuard(guard1);
-      await saveGuard(guard2);
-    }
+  Future<void> deleteAttendance(String recordId) async {
+    await _firestore.collection('attendance').doc(recordId).delete();
   }
+
 }

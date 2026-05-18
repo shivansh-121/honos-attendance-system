@@ -47,8 +47,6 @@ void main() async {
     ),
   );
 
-  // Background seed after UI is visible
-  DbService().seedInitialData().catchError((e) => debugPrint("Seed error: $e"));
 }
 
 class HonosApp extends ConsumerWidget {

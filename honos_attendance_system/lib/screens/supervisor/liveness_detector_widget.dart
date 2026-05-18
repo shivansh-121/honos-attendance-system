@@ -16,6 +16,7 @@ class LivenessDetectorWidget extends StatefulWidget {
 
 class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
   CameraController? _controller;
+  CameraLensDirection _currentDirection = CameraLensDirection.front;
 
   @override
   void initState() {
@@ -34,7 +35,7 @@ class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
       }
 
       var camera = globalCameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
+        (c) => c.lensDirection == _currentDirection,
         orElse: () => globalCameras.first,
       );
 
@@ -55,6 +56,20 @@ class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
         });
       }
     }
+  }
+
+  Future<void> _flipCamera() async {
+    if (globalCameras.length < 2) return;
+    
+    setState(() {
+      _currentDirection = _currentDirection == CameraLensDirection.front 
+          ? CameraLensDirection.back 
+          : CameraLensDirection.front;
+    });
+
+    await _controller?.dispose();
+    _controller = null;
+    await _initCamera();
   }
 
   @override
@@ -84,23 +99,43 @@ class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
 
     return Column(
       children: [
-        Container(
-          height: 300,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border.all(color: AppTheme.primary, width: 2),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: CameraPreview(_controller!),
-          ),
+        Stack(
+          children: [
+            Container(
+              height: 300,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppTheme.primary, width: 2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: CameraPreview(_controller!),
+              ),
+            ),
+            if (globalCameras.length > 1)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+                    onPressed: _flipCamera,
+                    tooltip: 'Flip Camera',
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 16),
         ElevatedButton.icon(
           onPressed: widget.onBlinkDetected,
           icon: const Icon(Icons.check_circle),
-          label: const Text('Simulate Liveness (To be replaced)'),
+          label: const Text('Confirm Presence'),
         )
       ],
     );

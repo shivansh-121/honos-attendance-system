@@ -27,7 +27,17 @@ enum _Step { location, guard, liveness, confirmation }
 
 class TakeAttendanceScreen extends ConsumerStatefulWidget {
   final Site site;
-  const TakeAttendanceScreen({super.key, required this.site});
+  final bool isCheckOutFlow;
+  final Guard? preselectedGuard;
+  final Attendance? existingRecord;
+
+  const TakeAttendanceScreen({
+    super.key, 
+    required this.site, 
+    this.isCheckOutFlow = false,
+    this.preselectedGuard,
+    this.existingRecord,
+  });
 
   @override
   ConsumerState<TakeAttendanceScreen> createState() => _TakeAttendanceScreenState();
@@ -40,10 +50,19 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
   String _gpsError = '';
   Guard? _selectedGuard;
   String? _livePhotoBase64;
+  bool _isCheckOut = false;
+  Attendance? _existingRecord;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.preselectedGuard != null) {
+      _selectedGuard = widget.preselectedGuard;
+      _isCheckOut = widget.isCheckOutFlow;
+      _existingRecord = widget.existingRecord;
+      _step = _Step.liveness;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkGps());
   }
 
@@ -84,53 +103,81 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
   }
 
   Future<void> _submit() async {
-    final db = ref.read(dbProvider);
-    final sync = ref.read(syncProvider);
-    final supervisor = ref.read(authProvider);
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
 
-    final record = Attendance(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      guardId: _selectedGuard!.id,
-      siteId: widget.site.id,
-      date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      time: DateFormat('HH:mm').format(DateTime.now()),
-      status: 'present',
-      supervisorId: supervisor?.id ?? '',
-      photoPath: _livePhotoBase64 ?? '',
-      markedAt: DateTime.now().toIso8601String(),
-      lat: widget.site.lat,
-      lng: widget.site.lng,
-    );
+    try {
+      final db = ref.read(dbProvider);
+      final sync = ref.read(syncProvider);
+      final supervisor = ref.read(authProvider);
 
-    await db.saveAttendance(record);
+      if (_isCheckOut && _existingRecord != null) {
+        final updatedRecord = Attendance(
+          id: _existingRecord!.id,
+          guardId: _existingRecord!.guardId,
+          siteId: _existingRecord!.siteId,
+          date: _existingRecord!.date,
+          time: _existingRecord!.time,
+          status: 'present',
+          supervisorId: _existingRecord!.supervisorId,
+          photoPath: _existingRecord!.photoPath,
+          markedAt: _existingRecord!.markedAt,
+          lat: _existingRecord!.lat,
+          lng: _existingRecord!.lng,
+          checkOutTime: DateFormat('HH:mm').format(DateTime.now()),
+          checkOutPhotoPath: _livePhotoBase64 ?? '',
+        );
 
-    final updatedGuard = Guard(
-      id: _selectedGuard!.id,
-      name: _selectedGuard!.name,
-      empId: _selectedGuard!.empId,
-      siteId: widget.site.id,
-      supervisorId: supervisor?.id ?? '',
-      photo: _selectedGuard!.photo,
-      phone: _selectedGuard!.phone,
-      joinDate: _selectedGuard!.joinDate,
-      salary: _selectedGuard!.salary,
-    );
-    await db.saveGuard(updatedGuard);
+        await db.saveAttendance(updatedRecord);
+        sync.pushAttendance(updatedRecord).catchError((e) => debugPrint('Firebase sync: $e'));
+      } else {
+        final record = Attendance(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          guardId: _selectedGuard!.id,
+          siteId: widget.site.id,
+          date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          time: DateFormat('HH:mm').format(DateTime.now()),
+          status: 'present',
+          supervisorId: supervisor?.id ?? '',
+          photoPath: _livePhotoBase64 ?? '',
+          markedAt: DateTime.now().toIso8601String(),
+          lat: widget.site.lat,
+          lng: widget.site.lng,
+        );
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Attendance marked successfully!'), backgroundColor: AppTheme.green),
+        await db.saveAttendance(record);
+        sync.pushAttendance(record).catchError((e) => debugPrint('Firebase sync: $e'));
+      }
+
+      final updatedGuard = Guard(
+        id: _selectedGuard!.id,
+        name: _selectedGuard!.name,
+        empId: _selectedGuard!.empId,
+        siteId: widget.site.id,
+        supervisorId: supervisor?.id ?? '',
+        photo: _selectedGuard!.photo,
+        phone: _selectedGuard!.phone,
+        joinDate: _selectedGuard!.joinDate,
+        salary: _selectedGuard!.salary,
       );
-    }
+      await db.saveGuard(updatedGuard);
 
-    sync.pushAttendance(record).catchError((e) => debugPrint('Firebase sync: $e'));
+      if (mounted) {
+        // Redirect to Home page (Dashboard) instead of just popping the current screen
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_isCheckOut ? 'Check-Out completed successfully!' : 'Check-In completed successfully!'), backgroundColor: AppTheme.green),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Take Attendance')),
+      appBar: AppBar(title: Text(widget.isCheckOutFlow ? 'Check-Out Attendance' : 'Check-In Attendance')),
       body: _checkingGps 
         ? const Center(child: CircularProgressIndicator())
         : _buildCurrentStep(),
@@ -150,8 +197,11 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       case _Step.guard:
         return _GuardStep(
           site: widget.site,
-          onNext: (g) => setState(() {
+          isCheckOutFlow: widget.isCheckOutFlow,
+          onNext: (g, isCheckOut, existingRecord) => setState(() {
             _selectedGuard = g;
+            _isCheckOut = isCheckOut;
+            _existingRecord = existingRecord;
             _step = _Step.liveness;
           }),
         );
@@ -161,6 +211,7 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           title: 'Liveness & Face Match',
           child: _FaceMatchStep(
             guard: _selectedGuard!,
+            isCheckOut: _isCheckOut,
             onVerified: (photo) => setState(() {
               _livePhotoBase64 = photo;
               _step = _Step.confirmation;
@@ -174,6 +225,8 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           child: _ConfirmStep(
             guard: _selectedGuard!,
             site: widget.site,
+            isCheckOut: _isCheckOut,
+            isSubmitting: _isSubmitting,
             onSubmit: _submit,
           ),
         );
@@ -235,8 +288,9 @@ class _LocationStep extends StatelessWidget {
 
 class _GuardStep extends StatefulWidget {
   final Site site;
-  final Function(Guard) onNext;
-  const _GuardStep({required this.site, required this.onNext});
+  final bool isCheckOutFlow;
+  final Function(Guard, bool, Attendance?) onNext;
+  const _GuardStep({required this.site, required this.isCheckOutFlow, required this.onNext});
 
   @override
   State<_GuardStep> createState() => _GuardStepState();
@@ -288,38 +342,89 @@ class _GuardStepState extends State<_GuardStep> {
                     ));
                   }
 
-                  return Column(
-                    children: filtered.map((g) {
-                      final isLocal = g.siteId == widget.site.id;
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: ClipOval(
-                          child: SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: g.photo.length > 200
-                                ? Base64ImageWidget(base64String: g.photo)
-                                : const Icon(Icons.person, color: AppTheme.txtMuted),
-                          ),
-                        ),
-                        title: Row(
-                          children: [
-                            Flexible(child: Text(g.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                            if (isLocal) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: AppTheme.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                                child: const Text('LOCAL', style: TextStyle(color: AppTheme.green, fontSize: 9, fontWeight: FontWeight.bold)),
-                              ),
+                  final attendanceAsync = ref.watch(todayAttendanceProvider);
+                  return attendanceAsync.when(
+                    data: (todayAttendance) {
+                      // Apply strict check-out / check-in filtering
+                      final strictlyFiltered = filtered.where((g) {
+                        final existingRecord = todayAttendance.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
+                        final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
+                        final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
+                        
+                        if (widget.isCheckOutFlow) {
+                          // Only show guards who are currently checked in
+                          return isCheckedIn && !isShiftCompleted;
+                        } else {
+                          // Check-In flow: Only show guards who haven't checked in yet today
+                          return !isCheckedIn && !isShiftCompleted;
+                        }
+                      }).toList();
+
+                      if (strictlyFiltered.isEmpty) {
+                        return Center(child: Padding(
+                          padding: const EdgeInsets.all(40.0),
+                          child: Column(
+                            children: [
+                              Icon(widget.isCheckOutFlow ? Icons.logout : Icons.login, size: 48, color: AppTheme.txtMuted),
+                              const SizedBox(height: 16),
+                              Text(widget.isCheckOutFlow ? 'No guards available for Check-Out.' : 'All guards are already checked in.', style: const TextStyle(color: AppTheme.txtMuted)),
                             ],
-                          ],
-                        ),
-                        subtitle: Text('ID: ${g.empId}', style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
-                        trailing: const Icon(Icons.chevron_right, color: AppTheme.txtMuted),
-                        onTap: () => widget.onNext(g),
+                          ),
+                        ));
+                      }
+
+                      return Column(
+                        children: strictlyFiltered.map((g) {
+                          final isLocal = g.siteId == widget.site.id;
+                          final existingRecord = todayAttendance.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
+                        final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
+                        final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
+
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: ClipOval(
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: g.photo.length > 200
+                                  ? Base64ImageWidget(base64String: g.photo)
+                                  : const Icon(Icons.person, color: AppTheme.txtMuted),
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Flexible(child: Text(g.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                              if (isLocal) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: AppTheme.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                  child: const Text('LOCAL', style: TextStyle(color: AppTheme.green, fontSize: 9, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ],
+                          ),
+                          subtitle: Text('ID: ${g.empId}', style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
+                          trailing: isShiftCompleted 
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                                child: const Text('Completed', style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.bold))
+                              )
+                            : isCheckedIn
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: AppTheme.yellow.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                                  child: const Text('Checked In', style: TextStyle(color: AppTheme.yellow, fontSize: 12, fontWeight: FontWeight.bold))
+                                )
+                              : const Icon(Icons.chevron_right, color: AppTheme.txtMuted),
+                          onTap: isShiftCompleted ? null : () => widget.onNext(g, isCheckedIn, existingRecord),
+                        );
+                      }).toList(),
                       );
-                    }).toList(),
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (_, __) => const SizedBox(),
                   );
                 },
                 loading: () => const Padding(
@@ -354,8 +459,9 @@ class _GuardStepState extends State<_GuardStep> {
 
 class _FaceMatchStep extends StatefulWidget {
   final Guard guard;
+  final bool isCheckOut;
   final Function(String photoBase64) onVerified;
-  const _FaceMatchStep({required this.guard, required this.onVerified});
+  const _FaceMatchStep({required this.guard, required this.isCheckOut, required this.onVerified});
   @override
   State<_FaceMatchStep> createState() => _FaceMatchStepState();
 }
@@ -366,6 +472,7 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
   bool _busy = false;
   String _msg = 'Ready...';
   bool _blinked = false;
+  CameraLensDirection _currentDirection = CameraLensDirection.front;
 
   @override
   void initState() { 
@@ -379,8 +486,11 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
     
     if (globalCameras.isEmpty) await initCameras();
     if (globalCameras.isEmpty) return;
-    final front = globalCameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front, orElse: () => globalCameras.first);
-    _ctrl = CameraController(front, ResolutionPreset.medium, enableAudio: false);
+    final camera = globalCameras.firstWhere(
+      (c) => c.lensDirection == _currentDirection, 
+      orElse: () => globalCameras.first
+    );
+    _ctrl = CameraController(camera, ResolutionPreset.medium, enableAudio: false);
     
     try {
       await _ctrl!.initialize();
@@ -388,6 +498,21 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
     } catch (e) {
       if (mounted) setState(() => _msg = 'Camera Error: $e');
     }
+  }
+
+  Future<void> _flipCamera() async {
+    if (globalCameras.length < 2 || _busy) return;
+    
+    setState(() {
+      _currentDirection = _currentDirection == CameraLensDirection.front 
+          ? CameraLensDirection.back 
+          : CameraLensDirection.front;
+      _ready = false;
+    });
+
+    await _ctrl?.dispose();
+    _ctrl = null;
+    await _init();
   }
 
   @override
@@ -430,7 +555,7 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
       if (refEmbedding == null) {
          // Proceeding if we can't get reference embedding might be a business rule.
          // Let's assume fallback to supervisor override.
-         setState(() { _msg = 'Invalid reference photo. Use Override.'; _busy = false; });
+         setState(() { _msg = 'Invalid reference photo. Please contact Admin.'; _busy = false; });
          return;
       }
 
@@ -456,12 +581,31 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
           }
         )
       else ...[
-        if (_ready) ClipRRect(borderRadius: BorderRadius.circular(20), child: SizedBox(height: 300, child: CameraPreview(_ctrl!))),
+        if (_ready) Stack(
+          children: [
+            ClipRRect(borderRadius: BorderRadius.circular(20), child: SizedBox(height: 300, width: double.infinity, child: CameraPreview(_ctrl!))),
+            if (globalCameras.length > 1)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+                    onPressed: _flipCamera,
+                    tooltip: 'Flip Camera',
+                  ),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 20),
         Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
-        if (!_busy) ElevatedButton(onPressed: _verify, child: const Text('Capture & Verify (To be replaced)')),
-        TextButton(onPressed: () => widget.onVerified(''), child: const Text('Supervisor Override', style: TextStyle(color: AppTheme.red))),
+        if (!_busy && _ready) ElevatedButton(onPressed: _verify, child: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In')),
       ]
     ]);
   }
@@ -470,16 +614,20 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
 class _ConfirmStep extends StatelessWidget {
   final Guard guard;
   final Site site;
+  final bool isCheckOut;
+  final bool isSubmitting;
   final VoidCallback onSubmit;
-  const _ConfirmStep({required this.guard, required this.site, required this.onSubmit});
+  const _ConfirmStep({required this.guard, required this.site, required this.isCheckOut, required this.isSubmitting, required this.onSubmit});
   @override
   Widget build(BuildContext context) {
     return Column(children: [
       const Icon(Icons.verified_user, color: AppTheme.green, size: 60),
       const SizedBox(height: 20),
-      Text('Ready to submit for ${guard.name}'),
+      Text(isCheckOut ? 'Ready to submit Check-Out for ${guard.name}' : 'Ready to submit Check-In for ${guard.name}'),
       const SizedBox(height: 30),
-      ElevatedButton(onPressed: onSubmit, style: ElevatedButton.styleFrom(backgroundColor: AppTheme.green, minimumSize: const Size(double.infinity, 50)), child: const Text('Submit Attendance')),
+      isSubmitting 
+          ? const CircularProgressIndicator()
+          : ElevatedButton(onPressed: onSubmit, style: ElevatedButton.styleFrom(backgroundColor: isCheckOut ? AppTheme.yellow : AppTheme.green, minimumSize: const Size(double.infinity, 50)), child: Text(isCheckOut ? 'Submit Check-Out' : 'Submit Check-In')),
     ]);
   }
 }

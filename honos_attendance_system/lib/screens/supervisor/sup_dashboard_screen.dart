@@ -176,29 +176,48 @@ class _SupervisorDashboardScreenState
                 .animate()
                 .fadeIn(delay: 200.ms),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                final sites = ref.read(sitesStreamProvider).value ?? [];
-                final pulseHospital = sites.firstWhere(
-                    (s) => s.id == user?.siteId,
-                    orElse: () => const Site(
-                        id: 'err',
-                        name: 'No Site Found',
-                        address: '',
-                        lat: 0,
-                        lng: 0,
-                        radius: 0,
-                        supervisorId: ''));
-
-                AppNav.push(context, TakeAttendanceScreen(site: pulseHospital));
-              },
-              icon: const Icon(Icons.how_to_reg),
-              label: const Text('Mark Attendance'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-                textStyle:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      final sites = ref.read(sitesStreamProvider).value ?? [];
+                      final pulseHospital = sites.firstWhere(
+                          (s) => s.id == user?.siteId,
+                          orElse: () => const Site(id: 'err', name: 'No Site Found', address: '', lat: 0, lng: 0, radius: 0, supervisorId: ''));
+                      AppNav.push(context, TakeAttendanceScreen(site: pulseHospital, isCheckOutFlow: false));
+                    },
+                    icon: const Icon(Icons.login),
+                    label: const Text('Check-In'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.green,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 56),
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      final sites = ref.read(sitesStreamProvider).value ?? [];
+                      final pulseHospital = sites.firstWhere(
+                          (s) => s.id == user?.siteId,
+                          orElse: () => const Site(id: 'err', name: 'No Site Found', address: '', lat: 0, lng: 0, radius: 0, supervisorId: ''));
+                      AppNav.push(context, TakeAttendanceScreen(site: pulseHospital, isCheckOutFlow: true));
+                    },
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Check-Out'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.red,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 56),
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
             ).animate().fadeIn(delay: 400.ms).scale(),
             const SizedBox(height: 24),
             Card(

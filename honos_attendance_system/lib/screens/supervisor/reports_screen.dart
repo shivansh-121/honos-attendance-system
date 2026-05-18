@@ -5,6 +5,7 @@ import '../../app_theme.dart';
 import '../../models/attendance.dart';
 import '../../models/guard.dart';
 import '../../services/db_service.dart';
+import '../../services/auth_service.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -43,9 +44,42 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Widget build(BuildContext context) {
     final guardsAsync = ref.watch(guardsStreamProvider);
     final attendanceAsync = ref.watch(attendanceStreamProvider);
+    final user = ref.watch(authProvider);
+    final isAdmin = user?.role == 'admin';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Attendance Reports')),
+      appBar: AppBar(
+        title: const Text('Attendance Reports'),
+        actions: isAdmin
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep, color: AppTheme.red),
+                  tooltip: 'Clear All Records',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Clear All Records?'),
+                        content: const Text('This will permanently delete ALL attendance records from the database. This action cannot be undone.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+                            onPressed: () {
+                              ref.read(dbProvider).clearAttendance();
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All records deleted.'), backgroundColor: AppTheme.red));
+                            },
+                            child: const Text('Delete All', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ]
+            : null,
+      ),
       body: guardsAsync.when(
         data: (guards) => attendanceAsync.when(
           data: (allRecords) {
@@ -138,7 +172,32 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                               (g) => g.id == record.guardId,
                               orElse: () => const Guard(id: '', name: 'Unknown', empId: '', siteId: '', supervisorId: '', phone: '', joinDate: '', salary: 0),
                             );
-                            return _AttendanceCard(record: record, guard: guard);
+                            return _AttendanceCard(
+                              record: record, 
+                              guard: guard,
+                              isAdmin: isAdmin,
+                              onDelete: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete Record?'),
+                                    content: const Text('Are you sure you want to delete this attendance record?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+                                        onPressed: () {
+                                          ref.read(dbProvider).deleteAttendance(record.id);
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record deleted.'), backgroundColor: AppTheme.red));
+                                        },
+                                        child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
                           },
                         ),
                 ),
@@ -184,8 +243,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 class _AttendanceCard extends StatelessWidget {
   final Attendance record;
   final Guard guard;
+  final bool isAdmin;
+  final VoidCallback onDelete;
 
-  const _AttendanceCard({required this.record, required this.guard});
+  const _AttendanceCard({required this.record, required this.guard, this.isAdmin = false, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -225,20 +286,35 @@ class _AttendanceCard extends StatelessWidget {
             ]),
           ],
         ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.green.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.green.withOpacity(0.4)),
-          ),
-          child: Text(
-            record.status.toUpperCase(),
-            style: const TextStyle(
-                color: AppTheme.green,
-                fontSize: 11,
-                fontWeight: FontWeight.bold),
-          ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.green.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.green.withOpacity(0.4)),
+              ),
+              child: Text(
+                record.status.toUpperCase(),
+                style: const TextStyle(
+                    color: AppTheme.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (isAdmin) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppTheme.red, size: 20),
+                onPressed: onDelete,
+                tooltip: 'Delete Record',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ],
         ),
       ),
     );
