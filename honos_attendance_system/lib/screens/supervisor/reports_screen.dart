@@ -6,6 +6,7 @@ import '../../models/attendance.dart';
 import '../../models/guard.dart';
 import '../../services/db_service.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/base64_image_widget.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -259,9 +260,17 @@ class _AttendanceCard extends StatelessWidget {
       child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        leading: CircleAvatar(
-          backgroundColor: AppTheme.green.withOpacity(0.15),
-          child: const Icon(Icons.check, color: AppTheme.green),
+        leading: ClipOval(
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: guard.photo.length > 200
+                ? Base64ImageWidget(base64String: guard.photo)
+                : Container(
+                    color: AppTheme.green.withOpacity(0.15),
+                    child: const Icon(Icons.person, color: AppTheme.green),
+                  ),
+          ),
         ),
         title: Text(
           guard.name.isEmpty ? 'Guard #${record.guardId}' : guard.name,
