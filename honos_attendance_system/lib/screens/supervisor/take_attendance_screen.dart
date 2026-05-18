@@ -561,8 +561,8 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
 
       final score = FaceMatchService.compareFaces(refEmbedding, liveEmbedding);
       
-      // Using a typical threshold for cosine similarity. Thresholds need tuning (e.g., 0.82)
-      if (score > 0.82) { 
+      // Using a typical threshold for cosine similarity. Lowered to 75% as requested.
+      if (score >= 0.75) { 
         widget.onVerified(b64); 
       } else { 
         setState(() { _msg = 'Identity Mismatch! (Score: ${(score*100).toStringAsFixed(1)}%)'; _busy = false; }); 
