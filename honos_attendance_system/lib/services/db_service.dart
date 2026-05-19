@@ -116,4 +116,32 @@ class DbService {
     await _firestore.collection('attendance').doc(recordId).delete();
   }
 
+  Future<void> cleanupOldAttendancePhotos() async {
+    try {
+      final now = DateTime.now();
+      final snapshot = await _firestore.collection('attendance').get();
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final markedAtStr = data['markedAt'] as String?;
+        if (markedAtStr != null && markedAtStr.isNotEmpty) {
+          final markedDate = DateTime.tryParse(markedAtStr);
+          if (markedDate != null && now.difference(markedDate).inHours >= 24) {
+            final hasPhoto = (data['photoPath'] as String?)?.isNotEmpty ?? false;
+            final hasCheckOutPhoto = (data['checkOutPhotoPath'] as String?)?.isNotEmpty ?? false;
+            
+            if (hasPhoto || hasCheckOutPhoto) {
+              await doc.reference.update({
+                'photoPath': '',
+                'checkOutPhotoPath': ''
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Silently ignore cleanup errors to not disrupt user experience
+    }
+  }
+
 }

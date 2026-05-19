@@ -22,6 +22,15 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Run background cleanup for old photos to save database storage
+    Future.microtask(() {
+      ref.read(dbProvider).cleanupOldAttendancePhotos();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);

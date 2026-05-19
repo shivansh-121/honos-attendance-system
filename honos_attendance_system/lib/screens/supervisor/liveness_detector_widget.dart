@@ -41,7 +41,7 @@ class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
 
       _controller = CameraController(
         camera,
-        ResolutionPreset.medium,
+        ResolutionPreset.low,
         enableAudio: false,
       );
 

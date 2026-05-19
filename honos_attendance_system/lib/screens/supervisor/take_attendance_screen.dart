@@ -129,7 +129,6 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         );
 
         await db.saveAttendance(updatedRecord);
-        sync.pushAttendance(updatedRecord).catchError((e) => debugPrint('Firebase sync: $e'));
       } else {
         final record = Attendance(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -146,7 +145,6 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         );
 
         await db.saveAttendance(record);
-        sync.pushAttendance(record).catchError((e) => debugPrint('Firebase sync: $e'));
       }
 
       final updatedGuard = Guard(
@@ -163,10 +161,15 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       await db.saveGuard(updatedGuard);
 
       if (mounted) {
-        // Redirect to Home page (Dashboard) instead of just popping the current screen
         Navigator.of(context).popUntil((route) => route.isFirst);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isCheckOut ? 'Check-Out completed successfully!' : 'Check-In completed successfully!'), backgroundColor: AppTheme.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving attendance: $e'), backgroundColor: AppTheme.red),
         );
       }
     } finally {
@@ -490,7 +493,7 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
       (c) => c.lensDirection == _currentDirection, 
       orElse: () => globalCameras.first
     );
-    _ctrl = CameraController(camera, ResolutionPreset.medium, enableAudio: false);
+    _ctrl = CameraController(camera, ResolutionPreset.low, enableAudio: false);
     
     try {
       await _ctrl!.initialize();
