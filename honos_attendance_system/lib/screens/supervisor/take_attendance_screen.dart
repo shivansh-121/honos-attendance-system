@@ -326,6 +326,7 @@ class _GuardStepState extends State<_GuardStep> {
               guardsAsync.when(
                 data: (allGuards) {
                   final filtered = allGuards.where((g) {
+                    if (g.siteId != widget.site.id) return false;
                     final q = _query.toLowerCase();
                     return g.name.toLowerCase().contains(q) || g.empId.toLowerCase().contains(q);
                   }).toList();
@@ -345,12 +346,16 @@ class _GuardStepState extends State<_GuardStep> {
                     ));
                   }
 
-                  final attendanceAsync = ref.watch(todayAttendanceProvider);
+                  final attendanceAsync = ref.watch(attendanceStreamProvider);
                   return attendanceAsync.when(
-                    data: (todayAttendance) {
+                    data: (allAttendance) {
+                      // Sort all attendance chronologically to safely get the true "last" record
+                      final sortedAtt = List<Attendance>.from(allAttendance)
+                        ..sort((a, b) => a.markedAt.compareTo(b.markedAt));
+                        
                       // Apply strict check-out / check-in filtering
                       final strictlyFiltered = filtered.where((g) {
-                        final existingRecord = todayAttendance.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
+                        final existingRecord = sortedAtt.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
                         final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
                         final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
                         
@@ -376,12 +381,12 @@ class _GuardStepState extends State<_GuardStep> {
                         ));
                       }
 
-                      return Column(
-                        children: strictlyFiltered.map((g) {
-                          final isLocal = g.siteId == widget.site.id;
-                          final existingRecord = todayAttendance.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
-                        final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
-                        final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
+                        return Column(
+                          children: strictlyFiltered.map((g) {
+                            final isLocal = g.siteId == widget.site.id;
+                            final existingRecord = sortedAtt.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
+                            final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
+                            final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
 
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
