@@ -80,10 +80,7 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
       ),
       body: guardsAsync.when(
         data: (allGuards) {
-          final authUser = ref.watch(authProvider);
-          final myGuards = allGuards.where((g) => g.siteId == authUser?.siteId).toList();
-          
-          return myGuards.isEmpty
+          return allGuards.isEmpty
             ? Center(
                 child: Padding(
                   padding: const EdgeInsets.all(32.0),
@@ -93,10 +90,11 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                       const Icon(Icons.people_outline,
                           size: 80, color: AppTheme.txtMuted),
                       const SizedBox(height: 24),
-                      Text('No guards assigned to this site.',
-                          style: const TextStyle(color: AppTheme.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Text('No guards registered yet.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppTheme.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      const Text('Use the "Add Guard" button below to register a new guard for this location.',
+                      const Text('Use the "Add Guard" button below to register a new guard.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: AppTheme.txtMuted, fontSize: 14)),
                     ],
@@ -105,12 +103,12 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
               )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                itemCount: myGuards.length,
+                itemCount: allGuards.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) => _GuardCard(
-                  guard: myGuards[i],
+                  guard: allGuards[i],
                   onEdit: () =>
-                      _openGuardForm(context, db, existing: myGuards[i]),
+                      _openGuardForm(context, db, existing: allGuards[i]),
                 ),
               );
         },

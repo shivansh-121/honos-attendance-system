@@ -43,10 +43,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final guardsAsync = ref.watch(guardsStreamProvider);
-    final attendanceAsync = ref.watch(attendanceStreamProvider);
     final user = ref.watch(authProvider);
     final isAdmin = user?.role == 'admin';
+    final guardsAsync = ref.watch(guardsStreamProvider);
+    final attendanceAsync = ref.watch(attendanceStreamProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -157,9 +157,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             children: [
                               const Icon(Icons.receipt_long_outlined, size: 72, color: AppTheme.txtMuted),
                               const SizedBox(height: 12),
-                              Text('No records for "$_selectedFilter"', style: const TextStyle(color: AppTheme.txtSec)),
+                              Text('No records for "$_selectedFilter"', textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.txtSec)),
                               const SizedBox(height: 8),
-                              const Text('Mark attendance to see reports here.', style: TextStyle(color: AppTheme.txtMuted, fontSize: 12)),
+                              const Text('Mark attendance to see reports here.', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.txtMuted, fontSize: 12)),
                             ],
                           ),
                         )
@@ -249,80 +249,153 @@ class _AttendanceCard extends StatelessWidget {
 
   const _AttendanceCard({required this.record, required this.guard, this.isAdmin = false, required this.onDelete});
 
+  String _calcWorkingHours() {
+    if (record.time.isEmpty || record.checkOutTime.isEmpty) return '';
+    try {
+      final inParts = record.time.split(':');
+      final outParts = record.checkOutTime.split(':');
+      if (inParts.length < 2 || outParts.length < 2) return '';
+      final inMin = int.parse(inParts[0]) * 60 + int.parse(inParts[1]);
+      final outMin = int.parse(outParts[0]) * 60 + int.parse(outParts[1]);
+      final diff = outMin - inMin;
+      if (diff <= 0) return '';
+      final h = diff ~/ 60;
+      final m = diff % 60;
+      return '${h}h ${m}m';
+    } catch (_) {
+      return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final date = DateTime.tryParse(record.date);
     final formattedDate = date != null
         ? DateFormat('EEE, dd MMM yyyy').format(date)
         : record.date;
+    final workingHours = _calcWorkingHours();
+    final hasCheckOut = record.checkOutTime.isNotEmpty;
 
     return Card(
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        leading: ClipOval(
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: guard.photo.length > 200
-                ? Base64ImageWidget(base64String: guard.photo)
-                : Container(
-                    color: AppTheme.green.withOpacity(0.15),
-                    child: const Icon(Icons.person, color: AppTheme.green),
-                  ),
-          ),
-        ),
-        title: Text(
-          guard.name.isEmpty ? 'Guard #${record.guardId}' : guard.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
+            // Top row: avatar, name, status badge, delete
+            Row(
+              children: [
+                ClipOval(
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: guard.photo.length > 200
+                        ? Base64ImageWidget(base64String: guard.photo)
+                        : Container(
+                            color: AppTheme.green.withOpacity(0.15),
+                            child: const Icon(Icons.person, color: AppTheme.green),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        guard.name.isEmpty ? 'Guard #${record.guardId}' : guard.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      if (guard.empId.isNotEmpty)
+                        Text('ID: ${guard.empId}', style: const TextStyle(fontSize: 11, color: AppTheme.txtMuted)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.green.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.green.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    record.status.toUpperCase(),
+                    style: const TextStyle(
+                        color: AppTheme.green,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (isAdmin) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppTheme.red, size: 20),
+                    onPressed: onDelete,
+                    tooltip: 'Delete Record',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Date row
             Row(children: [
-              const Icon(Icons.calendar_today,
-                  size: 12, color: AppTheme.txtMuted),
+              const Icon(Icons.calendar_today, size: 12, color: AppTheme.txtMuted),
               const SizedBox(width: 5),
-              Text(formattedDate,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
+              Text(formattedDate, style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
             ]),
-            Row(children: [
-              const Icon(Icons.access_time, size: 12, color: AppTheme.txtMuted),
-              const SizedBox(width: 5),
-              Text(record.time,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
-            ]),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+            const SizedBox(height: 6),
+            // Check-in / Check-out / Working hours row
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.green.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.green.withOpacity(0.4)),
+                color: AppTheme.bgElevated,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(
-                record.status.toUpperCase(),
-                style: const TextStyle(
-                    color: AppTheme.green,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold),
+              child: Row(
+                children: [
+                  // Check-In
+                  Expanded(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.login, size: 16, color: AppTheme.green),
+                        const SizedBox(height: 4),
+                        const Text('Check-In', style: TextStyle(fontSize: 10, color: AppTheme.txtMuted)),
+                        Text(record.time.isNotEmpty ? record.time : '--:--',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.green)),
+                      ],
+                    ),
+                  ),
+                  Container(width: 1, height: 36, color: AppTheme.bord),
+                  // Check-Out
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Icon(Icons.logout, size: 16, color: hasCheckOut ? AppTheme.yellow : AppTheme.txtMuted),
+                        const SizedBox(height: 4),
+                        const Text('Check-Out', style: TextStyle(fontSize: 10, color: AppTheme.txtMuted)),
+                        Text(hasCheckOut ? record.checkOutTime : '--:--',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: hasCheckOut ? AppTheme.yellow : AppTheme.txtMuted)),
+                      ],
+                    ),
+                  ),
+                  Container(width: 1, height: 36, color: AppTheme.bord),
+                  // Working Hours
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Icon(Icons.timer_outlined, size: 16, color: workingHours.isNotEmpty ? AppTheme.primary : AppTheme.txtMuted),
+                        const SizedBox(height: 4),
+                        const Text('Working Hrs', style: TextStyle(fontSize: 10, color: AppTheme.txtMuted)),
+                        Text(workingHours.isNotEmpty ? workingHours : '--',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: workingHours.isNotEmpty ? AppTheme.primary : AppTheme.txtMuted)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (isAdmin) ...[
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppTheme.red, size: 20),
-                onPressed: onDelete,
-                tooltip: 'Delete Record',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
           ],
         ),
       ),

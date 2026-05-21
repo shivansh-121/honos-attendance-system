@@ -57,3 +57,6 @@ firebase.exe
 
 # Node
 node_modules/
+
+# Release APKs
+Releases/

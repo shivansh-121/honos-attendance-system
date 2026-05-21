@@ -36,6 +36,18 @@ final todayAttendanceProvider = StreamProvider<List<Attendance>>((ref) {
   return ref.watch(dbProvider).attendanceStreamForDate(today);
 });
 
+/// Scoped to a specific guard only — loaded on guard profile screen
+final guardAttendanceProvider = StreamProvider.family<List<Attendance>, String>((ref, guardId) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).attendanceStreamForGuard(guardId);
+});
+
+/// Scoped to a specific site only — loaded on supervisor reports screen
+final siteAttendanceStreamProvider = StreamProvider.family<List<Attendance>, String>((ref, siteId) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).attendanceStreamForSite(siteId);
+});
+
 class DbService {
   final _firestore = FirebaseFirestore.instance;
 
@@ -96,6 +108,26 @@ class DbService {
     return _firestore
         .collection('attendance')
         .where('date', isEqualTo: date)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());
+  }
+
+  /// Scoped guard attendance query
+  Stream<List<Attendance>> attendanceStreamForGuard(String guardId) {
+    return _firestore
+        .collection('attendance')
+        .where('guardId', isEqualTo: guardId)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());
+  }
+
+  /// Scoped site attendance query
+  Stream<List<Attendance>> attendanceStreamForSite(String siteId) {
+    return _firestore
+        .collection('attendance')
+        .where('siteId', isEqualTo: siteId)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());

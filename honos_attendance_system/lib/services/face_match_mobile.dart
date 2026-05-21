@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
-import 'package:image/image.dart' as img;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 /// Service for Face Recognition using MobileFaceNet (TFLite) and ML Kit for Cropping.
@@ -51,30 +52,45 @@ class FaceMatchService {
       final face = faces.first;
       final boundingBox = face.boundingBox;
 
-      // 2. Read Image for Cropping
+      // 2. Fast Decode using Native Engine
       final bytes = await imageFile.readAsBytes();
-      final image = img.decodeImage(bytes);
-      if (image == null) return null;
+      final ui.Image fullImage = await decodeImageFromList(bytes);
 
-      // 3. Crop Image tightly to the face
-      int x = max(0, boundingBox.left.toInt());
-      int y = max(0, boundingBox.top.toInt());
-      int w = min(image.width - x, boundingBox.width.toInt());
-      int h = min(image.height - y, boundingBox.height.toInt());
+      // 3. Hardware-Accelerated Crop and Scale to 112x112
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      final dstRect = const ui.Rect.fromLTWH(0, 0, 112, 112);
+      
+      final srcRect = ui.Rect.fromLTRB(
+        max(0, boundingBox.left),
+        max(0, boundingBox.top),
+        min(fullImage.width.toDouble(), boundingBox.right),
+        min(fullImage.height.toDouble(), boundingBox.bottom),
+      );
 
-      final croppedImage = img.copyCrop(image, x: x, y: y, width: w, height: h);
-
-      // 4. Resize for MobileFaceNet standard input
-      final resizedImage = img.copyResize(croppedImage, width: 112, height: 112);
+      canvas.drawImageRect(fullImage, srcRect, dstRect, ui.Paint());
+      final picture = recorder.endRecording();
+      final croppedUiImage = await picture.toImage(112, 112);
+      
+      // 4. Extract Raw RGBA Pixels
+      final byteData = await croppedUiImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (byteData == null) return null;
 
       // 5. Convert image to float32 tensor [1, 112, 112, 3] with normalization
       var input = List.generate(1, (i) => List.generate(112, (y) => List.generate(112, (x) => List.generate(3, (c) => 0.0))));
+      
+      int offset = 0;
       for (int py = 0; py < 112; py++) {
         for (int px = 0; px < 112; px++) {
-          final pixel = resizedImage.getPixel(px, py);
-          input[0][py][px][0] = (pixel.r - 127.5) / 128.0; 
-          input[0][py][px][1] = (pixel.g - 127.5) / 128.0; 
-          input[0][py][px][2] = (pixel.b - 127.5) / 128.0; 
+          final r = byteData.getUint8(offset);
+          final g = byteData.getUint8(offset + 1);
+          final b = byteData.getUint8(offset + 2);
+          
+          input[0][py][px][0] = (r - 127.5) / 128.0; 
+          input[0][py][px][1] = (g - 127.5) / 128.0; 
+          input[0][py][px][2] = (b - 127.5) / 128.0; 
+          
+          offset += 4; // Skip Alpha
         }
       }
 

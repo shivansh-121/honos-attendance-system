@@ -35,7 +35,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final attendanceAsync = ref.watch(attendanceStreamProvider);
+    final attendanceAsync = ref.watch(guardAttendanceProvider(widget.guard.id));
     final sitesAsync = ref.watch(sitesStreamProvider);
     final authUser = ref.watch(authProvider);
     final isAdmin = authUser?.role == 'admin';

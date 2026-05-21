@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:camera/camera.dart';
+import 'package:image/image.dart' as img;
 
 import '../../app_theme.dart';
 import '../../services/face_match_service.dart';
@@ -269,22 +270,28 @@ class _LocationStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _StepShell(stepNumber: '1', title: 'GPS Verification',
-      child: Column(children: [
-        if (checking) const CircularProgressIndicator()
-        else if (ok) ...[
-          const Icon(Icons.check_circle, color: AppTheme.green, size: 80),
-          const SizedBox(height: 16),
-          const Text('Location Verified', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          const SizedBox(height: 20),
-          ElevatedButton(onPressed: onNext, child: const Text('Continue')),
-        ] else ...[
-          const Icon(Icons.location_off, color: AppTheme.red, size: 80),
-          const SizedBox(height: 16),
-          Text(error, textAlign: TextAlign.center),
-          const SizedBox(height: 20),
-          ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
-        ]
-      ]),
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (checking) const CircularProgressIndicator()
+            else if (ok) ...[
+              const Icon(Icons.check_circle, color: AppTheme.green, size: 80),
+              const SizedBox(height: 16),
+              const Text('Location Verified', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              ElevatedButton(onPressed: onNext, child: const Text('Continue')),
+            ] else ...[
+              const Icon(Icons.location_off, color: AppTheme.red, size: 80),
+              const SizedBox(height: 16),
+              Text(error, textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+            ]
+          ],
+        ),
+      ),
     );
   }
 }
@@ -326,7 +333,6 @@ class _GuardStepState extends State<_GuardStep> {
               guardsAsync.when(
                 data: (allGuards) {
                   final filtered = allGuards.where((g) {
-                    if (g.siteId != widget.site.id) return false;
                     final q = _query.toLowerCase();
                     return g.name.toLowerCase().contains(q) || g.empId.toLowerCase().contains(q);
                   }).toList();
@@ -346,7 +352,7 @@ class _GuardStepState extends State<_GuardStep> {
                     ));
                   }
 
-                  final attendanceAsync = ref.watch(attendanceStreamProvider);
+                  final attendanceAsync = ref.watch(todayAttendanceProvider);
                   return attendanceAsync.when(
                     data: (allAttendance) {
                       // Sort all attendance chronologically to safely get the true "last" record
@@ -550,7 +556,10 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
       // Extract embedding from reference photo (guard.photo is base64)
       if (widget.guard.photo.length < 200) {
         // No reference photo, we might just skip verification or fail
-        widget.onVerified(b64);
+        setState(() => _msg = 'Optimizing verification photo...');
+        final compressedBytes = await compute(_compressImageBytes, bytes);
+        final finalB64 = compressedBytes != null ? base64Encode(compressedBytes) : b64;
+        widget.onVerified(finalB64);
         return;
       }
 
@@ -571,7 +580,10 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
       
       // Using a typical threshold for cosine similarity. Lowered to 75% as requested.
       if (score >= 0.75) { 
-        widget.onVerified(b64); 
+        setState(() => _msg = 'Optimizing verification photo...');
+        final compressedBytes = await compute(_compressImageBytes, bytes);
+        final finalB64 = compressedBytes != null ? base64Encode(compressedBytes) : b64;
+        widget.onVerified(finalB64); 
       } else { 
         setState(() { _msg = 'Identity Mismatch! (Score: ${(score*100).toStringAsFixed(1)}%)'; _busy = false; }); 
       }
@@ -580,42 +592,48 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      if (!_blinked) 
-        LivenessDetectorWidget(
-          onBlinkDetected: () {
-            setState(() => _blinked = true);
-            _init();
-          }
-        )
-      else ...[
-        if (_ready) Stack(
-          children: [
-            ClipRRect(borderRadius: BorderRadius.circular(20), child: SizedBox(height: 300, width: double.infinity, child: CameraPreview(_ctrl!))),
-            if (globalCameras.length > 1)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (!_blinked) 
+            LivenessDetectorWidget(
+              onBlinkDetected: () {
+                setState(() => _blinked = true);
+                _init();
+              }
+            )
+          else ...[
+            if (_ready) Stack(
+              children: [
+                ClipRRect(borderRadius: BorderRadius.circular(20), child: SizedBox(height: 300, width: double.infinity, child: CameraPreview(_ctrl!))),
+                if (globalCameras.length > 1)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+                        onPressed: _flipCamera,
+                        tooltip: 'Flip Camera',
+                      ),
+                    ),
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
-                    onPressed: _flipCamera,
-                    tooltip: 'Flip Camera',
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 20),
-        if (!_busy && _ready) ElevatedButton(onPressed: _verify, child: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In')),
-      ]
-    ]);
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            if (!_busy && _ready) ElevatedButton(onPressed: _verify, child: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In')),
+          ]
+        ],
+      ),
+    );
   }
 }
 
@@ -628,14 +646,43 @@ class _ConfirmStep extends StatelessWidget {
   const _ConfirmStep({required this.guard, required this.site, required this.isCheckOut, required this.isSubmitting, required this.onSubmit});
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      const Icon(Icons.verified_user, color: AppTheme.green, size: 60),
-      const SizedBox(height: 20),
-      Text(isCheckOut ? 'Ready to submit Check-Out for ${guard.name}' : 'Ready to submit Check-In for ${guard.name}'),
-      const SizedBox(height: 30),
-      isSubmitting 
-          ? const CircularProgressIndicator()
-          : ElevatedButton(onPressed: onSubmit, style: ElevatedButton.styleFrom(backgroundColor: isCheckOut ? AppTheme.yellow : AppTheme.green, minimumSize: const Size(double.infinity, 50)), child: Text(isCheckOut ? 'Submit Check-Out' : 'Submit Check-In')),
-    ]);
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.verified_user, color: AppTheme.green, size: 60),
+          const SizedBox(height: 20),
+          Text(
+            isCheckOut ? 'Ready to submit Check-Out for ${guard.name}' : 'Ready to submit Check-In for ${guard.name}',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 30),
+          isSubmitting 
+              ? const CircularProgressIndicator()
+              : ElevatedButton(onPressed: onSubmit, style: ElevatedButton.styleFrom(backgroundColor: isCheckOut ? AppTheme.yellow : AppTheme.green, minimumSize: const Size(double.infinity, 50)), child: Text(isCheckOut ? 'Submit Check-Out' : 'Submit Check-In')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Top-level CPU-intensive function to resize and compress captured photos in a background Isolate.
+Uint8List? _compressImageBytes(Uint8List bytes) {
+  try {
+    final image = img.decodeImage(bytes);
+    if (image == null) return null;
+
+    img.Image resized;
+    if (image.width > image.height) {
+      resized = img.copyResize(image, width: 400);
+    } else {
+      resized = img.copyResize(image, height: 400);
+    }
+
+    return img.encodeJpg(resized, quality: 70);
+  } catch (e) {
+    debugPrint('Error in background photo compression: $e');
+    return null;
   }
 }
