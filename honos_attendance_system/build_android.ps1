@@ -34,9 +34,48 @@ $yesStr | & $SdkManager --licenses --sdk_root=$SdkPath
 Write-Host "5/6 Configuring Flutter to use this SDK..." -ForegroundColor Cyan
 flutter config --android-sdk $SdkPath | Out-Null
 
-Write-Host "6/6 Building the Android APK..." -ForegroundColor Cyan
-flutter build apk --debug
+Write-Host "6/6 Select Android Build Type:" -ForegroundColor Cyan
+Write-Host "  [1] Split-ABI Release APKs (RECOMMENDED: Generates separate ~35MB APKs for each architecture)" -ForegroundColor Green
+Write-Host "  [2] Android App Bundle (.aab) (Production release format for Google Play Store)" -ForegroundColor Gray
+Write-Host "  [3] Fat Release APK (Single ~114MB APK containing all architectures)" -ForegroundColor Gray
+Write-Host "  [4] Debug APK (Unoptimized development build with VM & hot reload tools, ~120MB)" -ForegroundColor Gray
 
-Write-Host "`n✅ SUCCESS! Your APK has been built." -ForegroundColor Green
-Write-Host "You can find it here: build\app\outputs\flutter-apk\app-debug.apk" -ForegroundColor Yellow
-Write-Host "Connect your phone with a USB cable, copy this file over, and install it to test the real AI!" -ForegroundColor White
+$choice = Read-Host "Enter your choice (1-4, default is 1)"
+if ([string]::IsNullOrWhiteSpace($choice)) { $choice = "1" }
+
+switch ($choice) {
+    "1" {
+        Write-Host "`nBuilding Split-ABI Release APKs..." -ForegroundColor Cyan
+        flutter build apk --release --split-per-abi
+        Write-Host "`n✅ SUCCESS! Split APKs have been built successfully." -ForegroundColor Green
+        Write-Host "You can find the optimized APKs here: build\app\outputs\flutter-apk\" -ForegroundColor Yellow
+        Write-Host "  - For 64-bit phones (most modern devices): app-arm64-v8a-release.apk (approx 35-40MB)" -ForegroundColor White
+        Write-Host "  - For 32-bit phones (older devices): app-armeabi-v7a-release.apk (approx 30-35MB)" -ForegroundColor White
+        Write-Host "  - For emulators/PC: app-x86_64-release.apk (approx 40MB)" -ForegroundColor White
+        Write-Host "Connect your phone, copy the correct APK, and install a lightweight build with 100% performance!" -ForegroundColor Gray
+    }
+    "2" {
+        Write-Host "`nBuilding Android App Bundle (.aab)..." -ForegroundColor Cyan
+        flutter build appbundle --release
+        Write-Host "`n✅ SUCCESS! App Bundle (.aab) has been built successfully." -ForegroundColor Green
+        Write-Host "You can find it here: build\app\outputs\bundle\release\app-release.aab" -ForegroundColor Yellow
+        Write-Host "Upload this file to the Google Play Console to distribute the smallest possible device-tailored APKs to users." -ForegroundColor White
+    }
+    "3" {
+        Write-Host "`nBuilding Fat Release APK..." -ForegroundColor Cyan
+        flutter build apk --release
+        Write-Host "`n✅ SUCCESS! Fat Release APK has been built successfully." -ForegroundColor Green
+        Write-Host "You can find it here: build\app\outputs\flutter-apk\app-release.apk" -ForegroundColor Yellow
+        Write-Host "Note: This single file contains all architectures, so it remains ~114MB." -ForegroundColor Gray
+    }
+    "4" {
+        Write-Host "`nBuilding Debug APK..." -ForegroundColor Cyan
+        flutter build apk --debug
+        Write-Host "`n✅ SUCCESS! Debug APK has been built." -ForegroundColor Green
+        Write-Host "You can find it here: build\app\outputs\flutter-apk\app-debug.apk" -ForegroundColor Yellow
+    }
+    default {
+        Write-Error "Invalid choice selected."
+    }
+}
+
