@@ -43,6 +43,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
           children: [
             Text(
                 'Location Acquired:\nLat: ${lat.toStringAsFixed(4)}\nLng: ${lng.toStringAsFixed(4)}',
+                textAlign: TextAlign.center,
                 style: const TextStyle(color: AppTheme.green, fontSize: 12)),
             const SizedBox(height: 16),
             TextField(

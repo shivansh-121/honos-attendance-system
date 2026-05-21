@@ -9,6 +9,8 @@ import '../../models/guard.dart';
 import '../../services/db_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/base64_image_widget.dart';
+import '../admin/guard_profile_screen.dart';
+import '../../services/app_nav.dart';
 
 class GuardsListScreen extends ConsumerStatefulWidget {
   const GuardsListScreen({super.key});
@@ -78,10 +80,7 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
       ),
       body: guardsAsync.when(
         data: (allGuards) {
-          final authUser = ref.watch(authProvider);
-          final myGuards = allGuards.where((g) => g.siteId == authUser?.siteId).toList();
-          
-          return myGuards.isEmpty
+          return allGuards.isEmpty
             ? Center(
                 child: Padding(
                   padding: const EdgeInsets.all(32.0),
@@ -91,10 +90,11 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                       const Icon(Icons.people_outline,
                           size: 80, color: AppTheme.txtMuted),
                       const SizedBox(height: 24),
-                      Text('No guards assigned to this site.',
-                          style: const TextStyle(color: AppTheme.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Text('No guards registered yet.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppTheme.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      const Text('Use the "Add Guard" button below to register a new guard for this location.',
+                      const Text('Use the "Add Guard" button below to register a new guard.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: AppTheme.txtMuted, fontSize: 14)),
                     ],
@@ -103,35 +103,12 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
               )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                itemCount: myGuards.length,
+                itemCount: allGuards.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) => _GuardCard(
-                  guard: myGuards[i],
+                  guard: allGuards[i],
                   onEdit: () =>
-                      _openGuardForm(context, db, existing: myGuards[i]),
-                  onDelete: () async {
-                    final ok = await showDialog<bool>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: const Text('Delete Guard'),
-                        content: Text('Remove ${myGuards[i].name}?'),
-                        actions: [
-                          TextButton(
-                              onPressed: () => Navigator.pop(c, false),
-                              child: const Text('Cancel')),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.red),
-                            onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (ok == true) {
-                      await db.deleteGuard(myGuards[i].id);
-                    }
-                  },
+                      _openGuardForm(context, db, existing: allGuards[i]),
                 ),
               );
         },
@@ -396,10 +373,10 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
 // ── Guard Card ────────────────────────────────────────────────────────────────
 class _GuardCard extends StatelessWidget {
   final Guard guard;
-  final VoidCallback onEdit, onDelete;
+  final VoidCallback onEdit;
 
   const _GuardCard(
-      {required this.guard, required this.onEdit, required this.onDelete});
+      {required this.guard, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -411,9 +388,12 @@ class _GuardCard extends StatelessWidget {
     final hasPhoto = guard.photo.length > 200;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(children: [
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => AppNav.push(context, GuardProfileScreen(guard: guard)),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
           // Avatar with photo or initial
           ClipRRect(
             borderRadius: BorderRadius.circular(30),
@@ -481,12 +461,11 @@ class _GuardCard extends StatelessWidget {
                 icon: const Icon(Icons.edit_outlined,
                     color: AppTheme.primary, size: 20),
                 onPressed: onEdit),
-            IconButton(
-                icon: const Icon(Icons.delete_outline,
-                    color: AppTheme.red, size: 20),
-                onPressed: onDelete),
+            const SizedBox(height: 12),
+            const Icon(Icons.chevron_right, color: AppTheme.txtMuted),
           ]),
         ]),
+        ),
       ),
     );
   }

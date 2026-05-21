@@ -48,7 +48,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
   @override
   Widget build(BuildContext context) {
     final guardsAsync = ref.watch(guardsStreamProvider);
-    final attendanceAsync = ref.watch(attendanceStreamProvider);
+    final attendanceAsync = ref.watch(todayAttendanceProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -124,25 +124,99 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
     if (allAtt.isNotEmpty && !_editingGuards.contains(guardId)) {
       final latest = allAtt.last;
       final isPresent = latest.status == 'Present';
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      final hasCheckIn = latest.time.isNotEmpty;
+      final hasCheckOut = latest.checkOutTime.isNotEmpty;
+
+      // Calculate working hours
+      String workingHours = '';
+      if (hasCheckIn && hasCheckOut) {
+        try {
+          final inParts = latest.time.split(':');
+          final outParts = latest.checkOutTime.split(':');
+          if (inParts.length >= 2 && outParts.length >= 2) {
+            final inMin = int.parse(inParts[0]) * 60 + int.parse(inParts[1]);
+            final outMin = int.parse(outParts[0]) * 60 + int.parse(outParts[1]);
+            final diff = outMin - inMin;
+            if (diff > 0) {
+              workingHours = '${diff ~/ 60}h ${diff % 60}m';
+            }
+          }
+        } catch (_) {}
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(isPresent ? Icons.check_circle : Icons.cancel, color: isPresent ? AppTheme.green : AppTheme.red, size: 20),
-              const SizedBox(width: 8),
-              Text('Marked ${latest.status}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  Icon(isPresent ? Icons.check_circle : Icons.cancel, color: isPresent ? AppTheme.green : AppTheme.red, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Marked ${latest.status}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _editingGuards.add(guardId);
+                  });
+                },
+                icon: const Icon(Icons.edit, size: 16, color: Colors.blueAccent),
+                label: const Text('Edit', style: TextStyle(color: Colors.blueAccent)),
+              )
             ],
           ),
-          TextButton.icon(
-            onPressed: () {
-              setState(() {
-                _editingGuards.add(guardId);
-              });
-            },
-            icon: const Icon(Icons.edit, size: 16, color: Colors.blueAccent),
-            label: const Text('Edit', style: TextStyle(color: Colors.blueAccent)),
-          )
+          if (hasCheckIn || hasCheckOut) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.login, size: 14, color: AppTheme.green),
+                        const SizedBox(height: 2),
+                        const Text('Check-In', style: TextStyle(fontSize: 9, color: Colors.white54)),
+                        Text(hasCheckIn ? latest.time : '--:--',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckIn ? AppTheme.green : Colors.white38)),
+                      ],
+                    ),
+                  ),
+                  Container(width: 1, height: 30, color: Colors.white12),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Icon(Icons.logout, size: 14, color: hasCheckOut ? AppTheme.yellow : Colors.white38),
+                        const SizedBox(height: 2),
+                        const Text('Check-Out', style: TextStyle(fontSize: 9, color: Colors.white54)),
+                        Text(hasCheckOut ? latest.checkOutTime : '--:--',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckOut ? AppTheme.yellow : Colors.white38)),
+                      ],
+                    ),
+                  ),
+                  Container(width: 1, height: 30, color: Colors.white12),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Icon(Icons.timer_outlined, size: 14, color: workingHours.isNotEmpty ? AppTheme.primary : Colors.white38),
+                        const SizedBox(height: 2),
+                        const Text('Working Hrs', style: TextStyle(fontSize: 9, color: Colors.white54)),
+                        Text(workingHours.isNotEmpty ? workingHours : '--',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: workingHours.isNotEmpty ? AppTheme.primary : Colors.white38)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       );
     }

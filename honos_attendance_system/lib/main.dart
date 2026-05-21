@@ -39,7 +39,6 @@ void main() async {
   }
 
   // Fire-and-forget non-critical inits
-  initCameras();
   initBackgroundService();
 
   runApp(
@@ -48,8 +47,6 @@ void main() async {
     ),
   );
 
-  // Background seed after UI is visible
-  DbService().seedInitialData().catchError((e) => debugPrint("Seed error: $e"));
 }
 
 class HonosApp extends ConsumerWidget {

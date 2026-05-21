@@ -8,6 +8,7 @@ import '../../services/db_service.dart';
 import '../../models/guard.dart';
 import '../../models/attendance.dart';
 import '../../app_theme.dart';
+import '../../services/auth_service.dart';
 
 class GuardProfileScreen extends ConsumerStatefulWidget {
   final Guard guard;
@@ -34,14 +35,45 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final attendanceAsync = ref.watch(attendanceStreamProvider);
+    final attendanceAsync = ref.watch(guardAttendanceProvider(widget.guard.id));
     final sitesAsync = ref.watch(sitesStreamProvider);
+    final authUser = ref.watch(authProvider);
+    final isAdmin = authUser?.role == 'admin';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Guard Profile'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: isAdmin 
+          ? [
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppTheme.red),
+                tooltip: 'Delete Guard',
+                onPressed: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: const Text('Delete Guard Profile?'),
+                      content: Text('Are you sure you want to permanently delete ${widget.guard.name}? This cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+                          onPressed: () => Navigator.pop(c, true),
+                          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (ok == true) {
+                    await ref.read(dbProvider).deleteGuard(widget.guard.id);
+                    if (context.mounted) Navigator.pop(context);
+                  }
+                },
+              )
+            ]
+          : null,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -63,6 +95,8 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                     _buildMetricsSection(guardAttendance),
                     const SizedBox(height: 24),
                     _buildCalendarGrid(guardAttendance),
+                    const SizedBox(height: 24),
+                    _buildWorkingHoursSection(guardAttendance),
                   ],
                 );
               },
@@ -339,5 +373,117 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
         Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.txtSec)),
       ],
     );
+  }
+
+  Widget _buildWorkingHoursSection(List<Attendance> attendance) {
+    // Filter to attendance that has BOTH check-in and check-out time
+    final completedShifts = attendance.where((a) => a.time.isNotEmpty && a.checkOutTime.isNotEmpty).toList();
+    
+    // Sort descending by date
+    completedShifts.sort((a, b) => b.date.compareTo(a.date));
+
+    // Get the top 14 most recent shifts
+    final recentShifts = completedShifts.take(14).toList();
+
+    if (recentShifts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Text('Recent Working Hours', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        ),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: recentShifts.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, i) {
+            final shift = recentShifts[i];
+            
+            // Calculate duration
+            int durationMinutes = 0;
+            try {
+              final inParts = shift.time.split(':');
+              final outParts = shift.checkOutTime.split(':');
+              
+              final inTime = DateTime(2000, 1, 1, int.parse(inParts[0]), int.parse(inParts[1]));
+              var outTime = DateTime(2000, 1, 1, int.parse(outParts[0]), int.parse(outParts[1]));
+              
+              // Handle overnight shifts if checkout is next day
+              if (outTime.isBefore(inTime)) {
+                outTime = outTime.add(const Duration(days: 1));
+              }
+              
+              durationMinutes = outTime.difference(inTime).inMinutes;
+            } catch (e) {
+              // Ignore parse errors
+            }
+
+            final hours = durationMinutes ~/ 60;
+            final mins = durationMinutes % 60;
+            final durationStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
+
+            final date = DateTime.tryParse(shift.date);
+            final dateStr = date != null ? DateFormat('MMM dd, yyyy').format(date) : shift.date;
+
+            return Card(
+              color: AppTheme.bgElevated,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.access_time, color: AppTheme.primary, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.login, size: 12, color: AppTheme.txtMuted),
+                              const SizedBox(width: 4),
+                              Text(shift.time, style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
+                              const SizedBox(width: 12),
+                              const Icon(Icons.logout, size: 12, color: AppTheme.txtMuted),
+                              const SizedBox(width: 4),
+                              Text(shift.checkOutTime, style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.green.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        durationStr,
+                        style: const TextStyle(color: AppTheme.green, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0);
   }
 }

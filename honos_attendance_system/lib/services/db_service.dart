@@ -36,6 +36,18 @@ final todayAttendanceProvider = StreamProvider<List<Attendance>>((ref) {
   return ref.watch(dbProvider).attendanceStreamForDate(today);
 });
 
+/// Scoped to a specific guard only — loaded on guard profile screen
+final guardAttendanceProvider = StreamProvider.family<List<Attendance>, String>((ref, guardId) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).attendanceStreamForGuard(guardId);
+});
+
+/// Scoped to a specific site only — loaded on supervisor reports screen
+final siteAttendanceStreamProvider = StreamProvider.family<List<Attendance>, String>((ref, siteId) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).attendanceStreamForSite(siteId);
+});
+
 class DbService {
   final _firestore = FirebaseFirestore.instance;
 
@@ -101,6 +113,26 @@ class DbService {
             snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());
   }
 
+  /// Scoped guard attendance query
+  Stream<List<Attendance>> attendanceStreamForGuard(String guardId) {
+    return _firestore
+        .collection('attendance')
+        .where('guardId', isEqualTo: guardId)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());
+  }
+
+  /// Scoped site attendance query
+  Stream<List<Attendance>> attendanceStreamForSite(String siteId) {
+    return _firestore
+        .collection('attendance')
+        .where('siteId', isEqualTo: siteId)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());
+  }
+
   Future<void> saveAttendance(Attendance record) async {
     await _firestore.collection('attendance').doc(record.id).set(record.toJson());
   }
@@ -112,63 +144,36 @@ class DbService {
     }
   }
 
-  // Seed Data fallback if empty (Cloud Check)
-  Future<void> seedInitialData() async {
-    final usersCount = await _firestore.collection('users').limit(1).get();
-    if (usersCount.docs.isEmpty) {
-      const admin = AppUser(
-        id: 'admin1',
-        name: 'Admin User',
-        username: 'admin',
-        password: 'honos123',
-        role: 'admin',
-      );
-      const supervisor = AppUser(
-        id: 'sup1',
-        name: 'Rajesh Kumar',
-        username: 'supervisor',
-        password: 'honos123',
-        role: 'supervisor',
-        siteId: 'site1',
-      );
-      await saveUser(admin);
-      await saveUser(supervisor);
-    }
+  Future<void> deleteAttendance(String recordId) async {
+    await _firestore.collection('attendance').doc(recordId).delete();
+  }
 
-    final sitesCount = await _firestore.collection('sites').limit(1).get();
-    if (sitesCount.docs.isEmpty) {
-      const pulseHospital = Site(
-          id: 'site1',
-          name: 'Pulse Hospital',
-          address: 'Godhara Neher (Godadara Canal), Surat, Gujarat 395010',
-          lat: 21.1612,
-          lng: 72.8703,
-          radius: 250,
-          supervisorId: 'sup1');
-      await saveSite(pulseHospital);
-
-      const guard1 = Guard(
-        id: 'g1',
-        name: 'Suresh Yadav',
-        empId: 'HSS001',
-        siteId: 'site1',
-        supervisorId: 'sup1',
-        phone: '9812345670',
-        joinDate: '2023-03-01',
-        salary: 15000,
-      );
-      const guard2 = Guard(
-        id: 'g2',
-        name: 'Ramesh Singh',
-        empId: 'HSS002',
-        siteId: 'site1',
-        supervisorId: 'sup1',
-        phone: '9812345671',
-        joinDate: '2023-04-15',
-        salary: 14500,
-      );
-      await saveGuard(guard1);
-      await saveGuard(guard2);
+  Future<void> cleanupOldAttendancePhotos() async {
+    try {
+      final now = DateTime.now();
+      final snapshot = await _firestore.collection('attendance').get();
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final markedAtStr = data['markedAt'] as String?;
+        if (markedAtStr != null && markedAtStr.isNotEmpty) {
+          final markedDate = DateTime.tryParse(markedAtStr);
+          if (markedDate != null && now.difference(markedDate).inHours >= 24) {
+            final hasPhoto = (data['photoPath'] as String?)?.isNotEmpty ?? false;
+            final hasCheckOutPhoto = (data['checkOutPhotoPath'] as String?)?.isNotEmpty ?? false;
+            
+            if (hasPhoto || hasCheckOutPhoto) {
+              await doc.reference.update({
+                'photoPath': '',
+                'checkOutPhotoPath': ''
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Silently ignore cleanup errors to not disrupt user experience
     }
   }
+
 }

@@ -54,3 +54,9 @@ firebase_options.dart
 /firebase-debug.log
 /firebase-hosting-*.log
 firebase.exe
+
+# Node
+node_modules/
+
+# Release APKs
+Releases/
