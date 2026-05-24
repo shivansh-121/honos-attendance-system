@@ -68,10 +68,17 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 // ── Main background isolate entry point ──────────────────────────────────────
 @pragma('vm:entry-point')
 void onBackgroundServiceStart(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
 
   // Re-initialize Firebase in the background isolate
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    debugPrint('Background Firebase init failed: $e');
+    // We cannot continue without Firebase, so we return to let the isolate stop cleanly
+    return;
+  }
 
   final firestore = FirebaseFirestore.instance;
   StreamSubscription<Position>? positionSub;

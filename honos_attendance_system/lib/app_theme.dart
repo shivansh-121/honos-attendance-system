@@ -20,6 +20,15 @@ class AppTheme {
   static const cardBg     = Color(0xFF1E202B);
   static const glass      = Color(0x30FFFFFF);
   static const glassBorder = Color(0x20FFFFFF);
+  static const blue       = Color(0xFF3B82F6);
+
+  static LinearGradient accentGradient(Color color) => LinearGradient(
+        colors: [color, color.withValues(alpha: 0.6)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+  static LinearGradient get darkHeaderGradient => const LinearGradient(colors: [bgBase, bgSurface]);
+  static Color get shimmer => Colors.white24;
 
   static BoxDecoration get glassDecoration => BoxDecoration(
     color: glass,

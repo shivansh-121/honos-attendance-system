@@ -9,6 +9,7 @@ import '../../models/guard.dart';
 import '../../models/attendance.dart';
 import '../../app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../services/pdf_service.dart';
 
 class GuardProfileScreen extends ConsumerStatefulWidget {
   final Guard guard;
@@ -20,6 +21,7 @@ class GuardProfileScreen extends ConsumerStatefulWidget {
 
 class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
   late DateTime _selectedMonth;
+  bool _isGeneratingPdf = false;
 
   @override
   void initState() {
@@ -37,6 +39,8 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
   Widget build(BuildContext context) {
     final attendanceAsync = ref.watch(guardAttendanceProvider(widget.guard.id));
     final sitesAsync = ref.watch(sitesStreamProvider);
+    final usersAsync = ref.watch(usersStreamProvider);
+    final advancesAsync = ref.watch(advancesStreamProvider);
     final authUser = ref.watch(authProvider);
     final isAdmin = authUser?.role == 'admin';
 
@@ -75,6 +79,47 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             ]
           : null,
       ),
+      floatingActionButton: attendanceAsync.hasValue ? FloatingActionButton.extended(
+        backgroundColor: AppTheme.primary,
+        onPressed: _isGeneratingPdf ? null : () async {
+          setState(() => _isGeneratingPdf = true);
+          try {
+            final allAttendance = attendanceAsync.value ?? [];
+            final monthAttendance = allAttendance.where((a) {
+              final d = DateTime.parse(a.markedAt);
+              return d.year == _selectedMonth.year && d.month == _selectedMonth.month;
+            }).toList();
+
+            final siteNames = <String, String>{};
+            if (sitesAsync.value != null) {
+              for (var s in sitesAsync.value!) {
+                siteNames[s.id] = s.name;
+              }
+            }
+
+            final supervisorNames = <String, String>{};
+            if (usersAsync.value != null) {
+              for (var u in usersAsync.value!) {
+                supervisorNames[u.id] = u.name;
+              }
+            }
+
+            await PdfService.generateAndPrintGuardReport(
+              guard: widget.guard,
+              month: _selectedMonth,
+              attendanceRecords: monthAttendance,
+              siteNames: siteNames,
+              supervisorNames: supervisorNames,
+            );
+          } finally {
+            if (mounted) setState(() => _isGeneratingPdf = false);
+          }
+        },
+        icon: _isGeneratingPdf 
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Icon(Icons.picture_as_pdf, color: Colors.white),
+        label: const Text('Export Reports', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ) : null,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -84,15 +129,19 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             _buildProfileHeader(sitesAsync),
             const SizedBox(height: 24),
 
-            // 2. Metrics & Grid loaded from Attendance Data
+            // 2.5. Advances Section
+            _buildAdvancesSection(advancesAsync),
+            const SizedBox(height: 24),
+
+            // 3. Metrics Sectiond loaded from Attendance Data
             attendanceAsync.when(
               data: (allAttendance) {
-                // Filter attendance specifically for this guard
                 final guardAttendance = allAttendance.where((a) => a.guardId == widget.guard.id).toList();
-                
                 return Column(
                   children: [
                     _buildMetricsSection(guardAttendance),
+                    const SizedBox(height: 24),
+                    _buildPersonalInfoSection(),
                     const SizedBox(height: 24),
                     _buildCalendarGrid(guardAttendance),
                     const SizedBox(height: 24),
@@ -119,7 +168,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
               tag: 'avatar_${widget.guard.id}',
               child: CircleAvatar(
                 radius: 40,
-                backgroundColor: AppTheme.primary.withOpacity(0.2),
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
                 backgroundImage: widget.guard.photo.length > 200 ? MemoryImage(base64Decode(widget.guard.photo)) : null,
                 child: widget.guard.photo.length <= 200 ? Text(widget.guard.name[0], style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.primary)) : null,
               ),
@@ -161,17 +210,16 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             if (widget.guard.phone.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.phone, color: AppTheme.green),
-                style: IconButton.styleFrom(backgroundColor: AppTheme.green.withOpacity(0.1)),
+                style: IconButton.styleFrom(backgroundColor: AppTheme.green.withValues(alpha: 0.1)),
                 onPressed: () async {
                   final uri = Uri.parse('tel:${widget.guard.phone}');
+                  final messenger = ScaffoldMessenger.of(context);
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri);
                   } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Could not launch dialer')),
-                      );
-                    }
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Could not launch dialer')),
+                    );
                   }
                 },
               ),
@@ -181,12 +229,74 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
     ).animate().fadeIn().slideY(begin: 0.1, end: 0);
   }
 
+  Widget _buildAdvancesSection(AsyncValue<List<dynamic>> advancesAsync) {
+    return advancesAsync.when(
+      data: (allAdvances) {
+        final monthAdvances = allAdvances.where((a) {
+          if (a.userId != widget.guard.id || a.userType != 'guard') return false;
+          final d = DateTime.tryParse(a.date);
+          return d != null && d.year == _selectedMonth.year && d.month == _selectedMonth.month;
+        }).toList();
+
+        final totalAdvance = monthAdvances.fold<double>(0, (sum, a) => sum + a.amount);
+
+        return Card(
+          color: AppTheme.bgSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Advances Taken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text('Total: INR ${totalAdvance.toStringAsFixed(0)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.red)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (monthAdvances.isEmpty)
+                  const Text('No advances taken this month.', style: TextStyle(color: AppTheme.txtSec))
+                else
+                  ...monthAdvances.map((a) {
+                    final d = DateTime.parse(a.date);
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(DateFormat('dd MMM yyyy').format(d), style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              if (a.reason.isNotEmpty)
+                                Text(a.reason, style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
+                            ],
+                          ),
+                          Text('INR ${a.amount.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.red, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+              ],
+            ),
+          ),
+        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1, end: 0);
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildMetricsSection(List<Attendance> attendance) {
-    // 1. Overall Credibility (Percentage)
-    // Assume 30 days in a month for simplicity if joinDate isn't set perfectly,
-    // but a better way is to check the first attendance record date.
-    int totalPossibleDays = 30; // Default
-    if (attendance.isNotEmpty) {
+    // 1. Total possible days — use joinDate if set, else first attendance date
+    int totalPossibleDays = 1;
+    final joinDate = DateTime.tryParse(widget.guard.joinDate);
+    if (joinDate != null) {
+      totalPossibleDays = DateTime.now().difference(joinDate).inDays + 1;
+      if (totalPossibleDays < 1) totalPossibleDays = 1;
+    } else if (attendance.isNotEmpty) {
       attendance.sort((a, b) => a.date.compareTo(b.date));
       final firstDate = DateTime.tryParse(attendance.first.date);
       if (firstDate != null) {
@@ -234,10 +344,105 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
     ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1, end: 0);
   }
 
+  Widget _buildPersonalInfoSection() {
+    final g = widget.guard;
+
+    // Masking helpers
+    String maskAadhaar(String v) {
+      if (v.length < 4) return v.isEmpty ? '—' : v;
+      return 'XXXX-XXXX-${v.substring(v.length - 4)}';
+    }
+
+    String maskAccount(String v) {
+      if (v.length < 4) return v.isEmpty ? '—' : v;
+      return '****${v.substring(v.length - 4)}';
+    }
+
+    Widget row(IconData icon, String label, String value, {Color? valueColor}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: AppTheme.txtMuted),
+          const SizedBox(width: 10),
+          SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppTheme.txtSec, fontSize: 12))),
+          Expanded(child: Text(value.isEmpty ? '—' : value, style: TextStyle(color: valueColor ?? Colors.white, fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis, maxLines: 2)),
+        ],
+      ),
+    );
+
+    Widget divider() => const Divider(color: AppTheme.bord, height: 1);
+
+    Widget sectionTitle(String title, IconData icon) => Padding(
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      child: Row(children: [
+        Container(padding: const EdgeInsets.all(5), decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+          child: Icon(icon, size: 12, color: AppTheme.primary)),
+        const SizedBox(width: 8),
+        Text(title, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+      ]),
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Guard Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 16),
+
+            // Personal
+            sectionTitle('Personal Information', Icons.person),
+            row(Icons.phone, 'Phone', g.phone),
+            divider(),
+            row(Icons.cake, 'Date of Birth', g.dob),
+            divider(),
+            row(Icons.home, 'Address', g.address),
+            divider(),
+            row(Icons.calendar_today, 'Joined On', g.joinDate),
+            divider(),
+            row(Icons.currency_rupee, 'Monthly Salary', g.salary > 0 ? '₹${g.salary.toStringAsFixed(0)}' : '—', valueColor: AppTheme.green),
+            const SizedBox(height: 16),
+
+            // Identity
+            sectionTitle('Identity', Icons.credit_card),
+            row(Icons.credit_card, 'Aadhaar No.', maskAadhaar(g.aadharNo)),
+            divider(),
+            row(Icons.badge, 'UAN No.', g.uanNo.isNotEmpty ? g.uanNo : '—'),
+            const SizedBox(height: 16),
+
+            // Bank
+            sectionTitle('Bank Details', Icons.account_balance),
+            row(Icons.account_balance, 'Bank Name', g.bankName),
+            divider(),
+            row(Icons.code, 'IFSC Code', g.ifsc),
+            divider(),
+            row(Icons.numbers, 'Account No.', maskAccount(g.accountNo)),
+            divider(),
+            row(Icons.location_city, 'Branch', g.branch),
+            const SizedBox(height: 16),
+
+            // Notes
+            if (g.passbookPhoto.isNotEmpty) ...[
+              sectionTitle('Notes', Icons.notes),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppTheme.bgElevated, borderRadius: BorderRadius.circular(10)),
+                child: Text(g.passbookPhoto, style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.1, end: 0);
+  }
+
   Widget _buildMetricCard({required String title, required String value, required String subtitle, required IconData icon, required Color color}) {
     return Card(
-      color: color.withOpacity(0.05),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: color.withOpacity(0.2))),
+      color: color.withValues(alpha: 0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: color.withValues(alpha: 0.2))),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -306,17 +511,15 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                 final attRecord = attendance.where((a) => a.date == dateStr).toList();
                 
                 Color blockColor = AppTheme.bgElevated; // Default/No data
-                String statusText = '';
                 
                 if (attRecord.isNotEmpty) {
                   final isPresent = attRecord.any((a) => a.status.toLowerCase() == 'present');
                   blockColor = isPresent ? AppTheme.green : AppTheme.red;
-                  statusText = isPresent ? 'P' : 'A';
                 } else {
                   // If it's a past date and no record, mark as absent/red
                   final checkDate = DateTime(_selectedMonth.year, _selectedMonth.month, day);
                   if (checkDate.isBefore(DateTime(now.year, now.month, now.day))) {
-                    blockColor = AppTheme.red.withOpacity(0.3); // Missed attendance
+                    blockColor = AppTheme.red.withValues(alpha: 0.3); // Missed attendance
                   }
                 }
 
@@ -354,7 +557,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                 const SizedBox(width: 16),
                 _buildLegendItem(AppTheme.red, 'Absent'),
                 const SizedBox(width: 16),
-                _buildLegendItem(AppTheme.red.withOpacity(0.3), 'Missed'),
+                _buildLegendItem(AppTheme.red.withValues(alpha: 0.3), 'Missed'),
                 const SizedBox(width: 16),
                 _buildLegendItem(AppTheme.bgElevated, 'Future'),
               ],
@@ -439,7 +642,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.1),
+                        color: AppTheme.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.access_time, color: AppTheme.primary, size: 20),
@@ -468,9 +671,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppTheme.green.withOpacity(0.1),
+                        color: AppTheme.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.green.withOpacity(0.3)),
+                        border: Border.all(color: AppTheme.green.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         durationStr,

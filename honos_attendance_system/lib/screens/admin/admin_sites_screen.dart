@@ -7,6 +7,7 @@ import '../../services/db_service.dart';
 import '../../services/app_nav.dart';
 import '../../models/site.dart';
 import '../../app_theme.dart';
+import '../../services/excel_service.dart';
 import 'map_picker_screen.dart';
 
 class AdminSitesScreen extends ConsumerStatefulWidget {
@@ -17,7 +18,6 @@ class AdminSitesScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
-  final bool _gettingLocation = false;
 
   Future<void> _addNewSite(BuildContext context) async {
     final result = await AppNav.push(context, const MapPickerScreen());
@@ -27,7 +27,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
     final lng = result['lng'] as double;
     final mapAddress = result['address'] as String;
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     final nameCtrl = TextEditingController();
     final addressCtrl = TextEditingController(text: mapAddress);
@@ -156,7 +156,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(color: const Color(0xFF1B3B60).withOpacity(0.5)),
+            child: Container(color: const Color(0xFF1B3B60).withValues(alpha: 0.5)),
           ),
         ),
       ),
@@ -180,7 +180,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
               final site = sites[i];
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -213,26 +213,73 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              minimumSize: Size.zero,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
+                              foregroundColor: AppTheme.primary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              minimumSize: const Size(0, 36),
                             ),
                             onPressed: () => _adjustRadius(site),
-                            child: const Text('Adjust',
+                            icon: const Icon(Icons.tune, size: 16),
+                            label: const Text('Adjust',
                                 style: TextStyle(
-                                    color: AppTheme.primary,
-                                    fontWeight: FontWeight.bold)),
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
                           ),
                           const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.delete,
-                                color: AppTheme.red, size: 22),
-                            constraints: const BoxConstraints(),
-                            padding: const EdgeInsets.all(8),
-                            onPressed: () async {
+                          Container(
+                            height: 36,
+                            width: 36,
+                            decoration: BoxDecoration(
+                              color: AppTheme.green.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Download Excel',
+                              icon: const Icon(Icons.file_download_outlined, color: AppTheme.green, size: 20),
+                              onPressed: () async {
+                                final selectedDate = await showDatePicker(
+                                  context: context,
+                                  initialDate: DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                  helpText: 'Select Month for Payroll',
+                                );
+                                if (selectedDate == null) return;
+                                
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Generating Excel for ${site.name}...')),
+                                  );
+                                }
+                                try {
+                                  await ExcelService.exportSiteAttendance(site, selectedDate);
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Failed: $e'), backgroundColor: AppTheme.red),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            height: 36,
+                            width: 36,
+                            decoration: BoxDecoration(
+                              color: AppTheme.red.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Delete Site',
+                              icon: const Icon(Icons.delete_outline, color: AppTheme.red, size: 20),
+                              onPressed: () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
@@ -260,6 +307,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                                 ref.read(dbProvider).deleteSite(site.id);
                               }
                             },
+                          ),
                           ),
                         ],
                       ),

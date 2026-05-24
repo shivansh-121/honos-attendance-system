@@ -4,6 +4,8 @@ import '../models/guard.dart';
 import '../models/site.dart';
 import '../models/attendance.dart';
 import '../models/app_user.dart';
+import '../models/app_notification.dart';
+import '../models/advance.dart';
 
 final dbProvider = Provider<DbService>((ref) => DbService());
 
@@ -46,6 +48,16 @@ final guardAttendanceProvider = StreamProvider.family<List<Attendance>, String>(
 final siteAttendanceStreamProvider = StreamProvider.family<List<Attendance>, String>((ref, siteId) {
   ref.keepAlive();
   return ref.watch(dbProvider).attendanceStreamForSite(siteId);
+});
+
+final notificationsStreamProvider = StreamProvider<List<AppNotification>>((ref) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).notificationsStream();
+});
+
+final advancesStreamProvider = StreamProvider<List<Advance>>((ref) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).advancesStream();
 });
 
 class DbService {
@@ -174,6 +186,44 @@ class DbService {
     } catch (e) {
       // Silently ignore cleanup errors to not disrupt user experience
     }
+  }
+
+  // --- Notifications ---
+  Stream<List<AppNotification>> notificationsStream() {
+    return _firestore.collection('notifications').orderBy('timestamp', descending: true).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => AppNotification.fromJson(doc.data())).toList();
+    });
+  }
+
+  Future<void> saveNotification(AppNotification notif) async {
+    await _firestore.collection('notifications').doc(notif.id).set(notif.toJson());
+  }
+
+  Future<void> markNotificationAsRead(String id) async {
+    await _firestore.collection('notifications').doc(id).update({'isRead': true});
+  }
+
+  Future<void> updateNotificationStatus(String id, String status) async {
+    await _firestore.collection('notifications').doc(id).update({'status': status});
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await _firestore.collection('notifications').doc(id).delete();
+  }
+
+  // --- Advances ---
+  Stream<List<Advance>> advancesStream() {
+    return _firestore.collection('advances').snapshots().map(
+          (snap) => snap.docs.map((d) => Advance.fromJson(d.data())).toList(),
+        );
+  }
+
+  Future<void> saveAdvance(Advance advance) async {
+    await _firestore.collection('advances').doc(advance.id).set(advance.toJson());
+  }
+
+  Future<void> deleteAdvance(String id) async {
+    await _firestore.collection('advances').doc(id).delete();
   }
 
 }

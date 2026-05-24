@@ -15,6 +15,7 @@ import '../../app_theme.dart';
 import 'take_attendance_screen.dart';
 import 'guards_list_screen.dart';
 import 'reports_screen.dart';
+import 'sup_notifications_screen.dart';
 
 class SupervisorDashboardScreen extends ConsumerStatefulWidget {
   const SupervisorDashboardScreen({super.key});
@@ -63,6 +64,48 @@ class _SupervisorDashboardScreenState
           ),
         ),
         actions: [
+          // Notification Bell
+          Consumer(
+            builder: (context, ref, child) {
+              final notificationsAsync = ref.watch(notificationsStreamProvider);
+              final user = ref.watch(authProvider);
+
+              int unreadCount = 0;
+              if (notificationsAsync.value != null) {
+                unreadCount = notificationsAsync.value!
+                    .where((n) => !n.isRead && n.supervisorId == user?.id && (n.type == 'edit_approved' || n.type == 'edit_rejected'))
+                    .length;
+              }
+
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SupNotificationsScreen()));
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.red,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: AppTheme.red.withValues(alpha: 0.6), blurRadius: 8, spreadRadius: 2)
+                          ],
+                        ),
+                        constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () => ref.read(authProvider.notifier).logout(),

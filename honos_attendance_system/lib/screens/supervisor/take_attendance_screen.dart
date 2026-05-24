@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +17,7 @@ import '../../models/site.dart';
 import '../../models/attendance.dart';
 import '../../services/db_service.dart';
 import '../../services/auth_service.dart';
-import '../../services/sync_service.dart';
+
 import '../../services/camera_service.dart';
 import '../../services/permission_service.dart';
 import '../../widgets/base64_image_widget.dart';
@@ -85,10 +84,8 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       if (!hasPerms) throw Exception('Location and Camera permissions are required.');
 
       Position? pos = await Geolocator.getLastKnownPosition();
-      if (pos == null) {
-        pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
+      pos ??= await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
             .timeout(const Duration(seconds: 5));
-      }
           
       final dist = Geolocator.distanceBetween(pos.latitude, pos.longitude, widget.site.lat, widget.site.lng);
       if (dist <= widget.site.radius) {
@@ -109,7 +106,6 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
 
     try {
       final db = ref.read(dbProvider);
-      final sync = ref.read(syncProvider);
       final supervisor = ref.read(authProvider);
 
       if (_isCheckOut && _existingRecord != null) {
@@ -158,6 +154,17 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         phone: _selectedGuard!.phone,
         joinDate: _selectedGuard!.joinDate,
         salary: _selectedGuard!.salary,
+        dob: _selectedGuard!.dob,
+        address: _selectedGuard!.address,
+        aadharNo: _selectedGuard!.aadharNo,
+        aadharPhoto: _selectedGuard!.aadharPhoto,
+        bankName: _selectedGuard!.bankName,
+        accountNo: _selectedGuard!.accountNo,
+        ifsc: _selectedGuard!.ifsc,
+        branch: _selectedGuard!.branch,
+        passbookPhoto: _selectedGuard!.passbookPhoto,
+        status: _selectedGuard!.status,
+        isEditableBySupervisor: _selectedGuard!.isEditableBySupervisor,
       );
       await db.saveGuard(updatedGuard);
 
@@ -314,6 +321,7 @@ class _GuardStepState extends State<_GuardStep> {
     return Consumer(
       builder: (context, ref, child) {
         final guardsAsync = ref.watch(guardsStreamProvider);
+        final supervisor = ref.watch(authProvider);
         return _StepShell(
           stepNumber: '2',
           title: 'Select Guard',
@@ -363,14 +371,17 @@ class _GuardStepState extends State<_GuardStep> {
                       final strictlyFiltered = filtered.where((g) {
                         final existingRecord = sortedAtt.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
                         final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
-                        final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
                         
                         if (widget.isCheckOutFlow) {
-                          // Only show guards who are currently checked in
-                          return isCheckedIn && !isShiftCompleted;
+                          // Only show guards who are currently checked in AT THIS SITE
+                          // AND checked in by THIS EXACT supervisor.
+                          return isCheckedIn && 
+                                 existingRecord.siteId == widget.site.id && 
+                                 existingRecord.supervisorId == supervisor?.id;
                         } else {
-                          // Check-In flow: Only show guards who haven't checked in yet today
-                          return !isCheckedIn && !isShiftCompleted;
+                          // Check-In flow: Only show guards who are NOT currently checked in anywhere.
+                          // (This allows them to check in again for a second shift if they previously checked out)
+                          return !isCheckedIn;
                         }
                       }).toList();
 
@@ -381,7 +392,7 @@ class _GuardStepState extends State<_GuardStep> {
                             children: [
                               Icon(widget.isCheckOutFlow ? Icons.logout : Icons.login, size: 48, color: AppTheme.txtMuted),
                               const SizedBox(height: 16),
-                              Text(widget.isCheckOutFlow ? 'No guards available for Check-Out.' : 'All guards are already checked in.', style: const TextStyle(color: AppTheme.txtMuted)),
+                              Text(widget.isCheckOutFlow ? 'No guards available for Check-Out.' : 'No guards available for Check-In.', style: const TextStyle(color: AppTheme.txtMuted)),
                             ],
                           ),
                         ));
@@ -392,7 +403,6 @@ class _GuardStepState extends State<_GuardStep> {
                             final isLocal = g.siteId == widget.site.id;
                             final existingRecord = sortedAtt.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
                             final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
-                            final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
 
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
@@ -412,27 +422,21 @@ class _GuardStepState extends State<_GuardStep> {
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: AppTheme.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                  decoration: BoxDecoration(color: AppTheme.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                                   child: const Text('LOCAL', style: TextStyle(color: AppTheme.green, fontSize: 9, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ],
                           ),
                           subtitle: Text('ID: ${g.empId}', style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
-                          trailing: isShiftCompleted 
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                                child: const Text('Completed', style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.bold))
-                              )
-                            : isCheckedIn
+                          trailing: isCheckedIn
                               ? Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: AppTheme.yellow.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                                  decoration: BoxDecoration(color: AppTheme.yellow.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
                                   child: const Text('Checked In', style: TextStyle(color: AppTheme.yellow, fontSize: 12, fontWeight: FontWeight.bold))
                                 )
                               : const Icon(Icons.chevron_right, color: AppTheme.txtMuted),
-                          onTap: isShiftCompleted ? null : () => widget.onNext(g, isCheckedIn, existingRecord),
+                          onTap: () => widget.onNext(g, isCheckedIn, existingRecord),
                         );
                       }).toList(),
                       );

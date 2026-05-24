@@ -85,7 +85,7 @@ class ActionTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               // Arrow
-              Icon(
+              const Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 14,
                 color: AppTheme.txtMuted,

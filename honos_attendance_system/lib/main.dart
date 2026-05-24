@@ -7,9 +7,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'app_theme.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
-import 'services/db_service.dart';
-import 'services/camera_service.dart';
 import 'services/background_location_service.dart';
+import 'services/local_push_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/supervisor/sup_dashboard_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
@@ -24,29 +23,85 @@ void main() async {
     debugPrint("Hive error: $e");
   }
 
+  bool firebaseInitialized = false;
+  String? firebaseInitError;
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-
-    // ── Enable Firestore offline persistence (huge speed boost) ──
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
   } catch (e) {
-    debugPrint("Firebase init failed: $e");
+    if (e.toString().contains('duplicate-app')) {
+      debugPrint("Firebase CORE already initialized natively.");
+    } else {
+      debugPrint("Firebase CORE init failed: $e");
+      firebaseInitError = "Firebase Core Error: $e";
+    }
+  }
+
+  if (firebaseInitError == null) {
+    try {
+      // ── Enable Firestore offline persistence (huge speed boost) ──
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+      firebaseInitialized = true;
+    } catch (e) {
+      debugPrint("Firestore init failed: $e");
+      firebaseInitError = "Firestore Error: $e";
+    }
   }
 
   // Fire-and-forget non-critical inits
   initBackgroundService();
+  LocalPushService.initialize();
 
   runApp(
-    const ProviderScope(
-      child: HonosApp(),
+    ProviderScope(
+      child: firebaseInitialized 
+          ? const HonosApp() 
+          : InitializationErrorApp(error: firebaseInitError),
     ),
   );
+}
 
+class InitializationErrorApp extends StatelessWidget {
+  final String? error;
+  const InitializationErrorApp({super.key, this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Honos Attendance',
+      theme: AppTheme.dark,
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 64),
+                const SizedBox(height: 16),
+                const Text(
+                  'Initialization Error',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to initialize Firebase. If you just added Firebase to the project, please completely stop the app and run it again (Hot Restart is not enough).\n\nDetails: $error',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class HonosApp extends ConsumerWidget {
@@ -55,6 +110,11 @@ class HonosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authUser = ref.watch(authProvider);
+    
+    // Watch the push notification manager so it stays alive while the app is running
+    if (authUser != null) {
+      ref.watch(pushNotificationManagerProvider);
+    }
 
     return MaterialApp(
       title: 'Honos Attendance',

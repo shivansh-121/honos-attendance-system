@@ -25,7 +25,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.honos_attendance_system"
-        minSdk = flutter.minSdkVersion // Required for local notifications desugaring
+        minSdk = 24 // Updated for Firebase compatibility
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

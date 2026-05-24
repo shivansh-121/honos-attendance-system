@@ -18,6 +18,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _loading = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _username.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
   void _login() async {
     final userText = _username.text.trim();
     if (userText.isEmpty || _password.text.isEmpty) {
@@ -30,14 +37,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
-    final error = await ref.read(authProvider.notifier).login(
-          userText,
-          _password.text,
-        );
+    try {
+      final error = await ref.read(authProvider.notifier).login(
+            userText,
+            _password.text,
+          );
 
-    if (mounted) {
-      setState(() => _loading = false);
-      if (error != null) setState(() => _error = error);
+      if (mounted) {
+        setState(() => _loading = false);
+        if (error != null) setState(() => _error = error);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'System error: ${e.toString()}';
+        });
+      }
     }
   }
 
@@ -54,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   center: const Alignment(-0.8, -0.6),
                   radius: 1.2,
                   colors: [
-                    const Color(0xFF1B3B60).withOpacity(0.2),
+                    const Color(0xFF1B3B60).withValues(alpha: 0.2),
                     Colors.transparent
                   ],
                 ),
@@ -75,10 +91,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 24, vertical: 40),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(28),
                         border:
-                            Border.all(color: Colors.white.withOpacity(0.1)),
+                            Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -91,7 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withValues(alpha: 0.1),
                                     blurRadius: 10),
                               ],
                             ),
@@ -135,12 +151,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .error
-                                    .withOpacity(0.1),
+                                    .withValues(alpha: 0.1),
                                 border: Border.all(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .error
-                                        .withOpacity(0.3)),
+                                        .withValues(alpha: 0.3)),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(

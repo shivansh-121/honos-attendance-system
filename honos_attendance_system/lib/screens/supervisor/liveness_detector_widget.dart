@@ -1,9 +1,7 @@
-import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import '../../services/camera_service.dart';
 import '../../app_theme.dart';
-import 'package:flutter/foundation.dart';
 
 class LivenessDetectorWidget extends StatefulWidget {
   final VoidCallback onBlinkDetected;

@@ -59,7 +59,7 @@ class FaceMatchService {
       // 3. Hardware-Accelerated Crop and Scale to 112x112
       final recorder = ui.PictureRecorder();
       final canvas = ui.Canvas(recorder);
-      final dstRect = const ui.Rect.fromLTWH(0, 0, 112, 112);
+      const dstRect = ui.Rect.fromLTWH(0, 0, 112, 112);
       
       final srcRect = ui.Rect.fromLTRB(
         max(0, boundingBox.left),

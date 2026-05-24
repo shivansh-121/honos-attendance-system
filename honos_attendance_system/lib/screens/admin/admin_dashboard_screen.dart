@@ -9,8 +9,10 @@ import 'admin_sites_screen.dart';
 import '../supervisor/reports_screen.dart';
 import 'admin_guards_list_screen.dart';
 import 'admin_guards_management_screen.dart';
+import 'admin_advances_screen.dart';
 import '../../services/db_service.dart';
 import '../../services/app_nav.dart';
+import 'notifications_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -41,6 +43,35 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         actions: [
+          Consumer(
+            builder: (context, ref, child) {
+              final notificationsAsync = ref.watch(notificationsStreamProvider);
+              final unreadCount = notificationsAsync.value?.where((n) => !n.isRead).length ?? 0;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () => AppNav.push(context, const NotificationsScreen()),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.blue,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+                      ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                       .scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 1.seconds),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => ref.read(authProvider.notifier).logout(),
@@ -79,7 +110,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold)),
                     selected: true,
-                    selectedTileColor: Colors.white.withOpacity(0.1),
+                    selectedTileColor: Colors.white.withValues(alpha: 0.1),
                     onTap: () {})
                 .animate()
                 .fadeIn(delay: 200.ms)
@@ -130,6 +161,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     onTap: () {
                       Navigator.pop(context);
                       AppNav.push(context, const AdminGuardsManagementScreen());
+                    })
+                .animate()
+                .fadeIn(delay: 650.ms)
+                .slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
+
+            ListTile(
+                    leading: const Icon(Icons.account_balance_wallet, color: Color(0xFFCAD4E0)),
+                    title: const Text('Manage Advances',
+                        style: TextStyle(color: Color(0xFFCAD4E0))),
+                    onTap: () {
+                      Navigator.pop(context);
+                      AppNav.push(context, const AdminAdvancesScreen());
                     })
                 .animate()
                 .fadeIn(delay: 500.ms)
@@ -337,7 +380,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
+              color: AppTheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, color: AppTheme.primary),
         ),

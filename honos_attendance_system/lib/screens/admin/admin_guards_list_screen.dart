@@ -18,7 +18,7 @@ class AdminGuardsListScreen extends ConsumerStatefulWidget {
 
 class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
   final Set<String> _editingGuards = {};
-  void _markAttendance(String guardId, String status) {
+  void _markAttendance(String guardId, String status, String siteId) {
     final auth = ref.read(authProvider);
     if (auth == null) return;
 
@@ -26,7 +26,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
     final record = Attendance(
       id: const Uuid().v4(),
       guardId: guardId,
-      siteId: 'site1', // Demo scope
+      siteId: siteId, // Use actual siteId from the guard
       date: now.toIso8601String().split('T').first,
       time: '${now.hour}:${now.minute.toString().padLeft(2, '0')}',
       status: status,
@@ -58,7 +58,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(color: const Color(0xFF1B3B60).withOpacity(0.5)),
+            child: Container(color: const Color(0xFF1B3B60).withValues(alpha: 0.5)),
           ),
         ),
       ),
@@ -73,7 +73,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                   final g = guards[i];
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -99,7 +99,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          _buildActionRow(g.id, attendance),
+                          _buildActionRow(g.id, g.siteId, attendance),
                         ],
                       ),
                     ),
@@ -115,7 +115,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
     );
   }
 
-  Widget _buildActionRow(String guardId, List<Attendance> attendance) {
+  Widget _buildActionRow(String guardId, String siteId, List<Attendance> attendance) {
     // Check if attendance is already marked today
     final today = DateTime.now().toIso8601String().split('T').first;
     final allAtt = attendance.where((a) => a.guardId == guardId && a.date == today).toList();
@@ -173,7 +173,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -227,7 +227,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
         Expanded(
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2A9D8F), foregroundColor: Colors.white),
-            onPressed: () => _markAttendance(guardId, 'Present'),
+            onPressed: () => _markAttendance(guardId, 'Present', siteId),
             icon: const Icon(Icons.check),
             label: const Text('Present'),
           ),
@@ -236,7 +236,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
         Expanded(
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE63946), foregroundColor: Colors.white),
-            onPressed: () => _markAttendance(guardId, 'Absent'),
+            onPressed: () => _markAttendance(guardId, 'Absent', siteId),
             icon: const Icon(Icons.close),
             label: const Text('Absent'),
           ),

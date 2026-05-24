@@ -187,7 +187,7 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: colour.withOpacity(0.85),
+                color: colour.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -218,7 +218,8 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              subdomains: const ['0', '1', '2', '3'],
               userAgentPackageName: 'com.honos.attendance',
             ),
 
@@ -228,7 +229,7 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
                   .map((site) => CircleMarker(
                         point: LatLng((site.lat as num).toDouble(),
                             (site.lng as num).toDouble()),
-                        color: AppTheme.primary.withOpacity(0.15),
+                        color: AppTheme.primary.withValues(alpha: 0.15),
                         borderStrokeWidth: 2,
                         borderColor: AppTheme.primary,
                         radius: (site.radius as num).toDouble(),
@@ -266,7 +267,7 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
                   ),
                 )
               : Card(
-                  color: AppTheme.cardBg.withOpacity(0.92),
+                  color: AppTheme.cardBg.withValues(alpha: 0.92),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(

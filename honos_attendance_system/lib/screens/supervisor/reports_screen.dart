@@ -117,7 +117,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                   label: Text(f),
                                   selected: _selectedFilter == f,
                                   onSelected: (_) => setState(() => _selectedFilter = f),
-                                  selectedColor: AppTheme.primary.withOpacity(0.2),
+                                  selectedColor: AppTheme.primary.withValues(alpha: 0.2),
                                   checkmarkColor: AppTheme.primary,
                                   backgroundColor: AppTheme.bgElevated,
                                   labelStyle: TextStyle(
@@ -220,9 +220,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -292,7 +292,7 @@ class _AttendanceCard extends StatelessWidget {
                     child: guard.photo.length > 200
                         ? Base64ImageWidget(base64String: guard.photo)
                         : Container(
-                            color: AppTheme.green.withOpacity(0.15),
+                            color: AppTheme.green.withValues(alpha: 0.15),
                             child: const Icon(Icons.person, color: AppTheme.green),
                           ),
                   ),
@@ -314,9 +314,9 @@ class _AttendanceCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.green.withOpacity(0.15),
+                    color: AppTheme.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.green.withOpacity(0.4)),
+                    border: Border.all(color: AppTheme.green.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     record.status.toUpperCase(),

@@ -99,7 +99,7 @@ class _DrawerHeader extends StatelessWidget {
     final isAdmin = user?.role == 'admin';
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(gradient: AppTheme.darkHeaderGradient),
+      decoration: BoxDecoration(gradient: AppTheme.darkHeaderGradient),
       child: SafeArea(
         bottom: false,
         child: Padding(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,20 +25,43 @@ class AuthNotifier extends StateNotifier<AppUser?> {
   }
 
   Future<String?> login(String username, String password) async {
-    final db = FirebaseFirestore.instance;
-
     try {
+      final db = FirebaseFirestore.instance;
       final snapshot = await db
           .collection('users')
           .where('username', isEqualTo: username)
-          .where('password', isEqualTo: password)
           .limit(1)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 8), onTimeout: () {
+            throw Exception("Network timeout. Please check your internet connection and try again.");
+          });
 
       if (snapshot.docs.isNotEmpty) {
-        final user = AppUser.fromJson(snapshot.docs.first.data());
-        await _saveSession(user);
-        return null; // Success
+        final userData = snapshot.docs.first.data();
+        final dbPassword = userData['password'] as String? ?? '';
+        final hashedInput = sha256.convert(utf8.encode(password)).toString();
+
+        if (dbPassword == hashedInput || dbPassword == password) {
+          var user = AppUser.fromJson(userData);
+          
+          // Seamless migration: If plaintext matches, upgrade DB to hash
+          if (dbPassword == password) {
+             await db.collection('users').doc(user.id).update({'password': hashedInput});
+             user = AppUser(
+              id: user.id,
+              name: user.name,
+              username: user.username,
+              role: user.role,
+              siteId: user.siteId,
+              password: hashedInput,
+            );
+          }
+          
+          await _saveSession(user);
+          return null; // Success
+        } else {
+          return 'Invalid username or password.';
+        }
       } else {
         return 'Invalid username or password.';
       }
