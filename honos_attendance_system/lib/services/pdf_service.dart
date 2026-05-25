@@ -17,8 +17,12 @@ class PdfService {
   }) async {
     final pdf = pw.Document();
 
-    // Sort attendance by date ascending
-    attendanceRecords.sort((a, b) => a.markedAt.compareTo(b.markedAt));
+    // Sort attendance by date ascending safely
+    attendanceRecords.sort((a, b) {
+      final d1 = DateTime.tryParse(a.markedAt) ?? DateTime.tryParse(a.date) ?? DateTime.now();
+      final d2 = DateTime.tryParse(b.markedAt) ?? DateTime.tryParse(b.date) ?? DateTime.now();
+      return d1.compareTo(d2);
+    });
 
     // Try to load the guard's face photo
     pw.MemoryImage? profileImage;
@@ -62,44 +66,51 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Guard Shift Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                    pw.SizedBox(height: 4),
-                    pw.Text('Month: $monthStr', style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+                    pw.Text('GUARD SHIFT REPORT', style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
+                    pw.SizedBox(height: 6),
+                    pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
                 ),
                 if (profileImage != null)
                   pw.Container(
-                    width: 60,
-                    height: 60,
+                    width: 65,
+                    height: 65,
                     decoration: pw.BoxDecoration(
                       shape: pw.BoxShape.circle,
+                      border: pw.Border.all(color: PdfColor.fromHex('#1a237e'), width: 2),
                       image: pw.DecorationImage(image: profileImage, fit: pw.BoxFit.cover),
                     ),
                   )
                 else
                   pw.Container(
-                    width: 60,
-                    height: 60,
-                    decoration: const pw.BoxDecoration(shape: pw.BoxShape.circle, color: PdfColors.grey300),
-                    child: pw.Center(child: pw.Text(guard.name.isNotEmpty ? guard.name[0] : '?', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+                    width: 65,
+                    height: 65,
+                    decoration: pw.BoxDecoration(
+                      shape: pw.BoxShape.circle, 
+                      color: PdfColor.fromHex('#e0e0e0'),
+                      border: pw.Border.all(color: PdfColor.fromHex('#1a237e'), width: 2),
+                    ),
+                    child: pw.Center(child: pw.Text(guard.name.isNotEmpty ? guard.name[0].toUpperCase() : '?', style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e')))),
                   ),
               ],
             ),
             pw.SizedBox(height: 24),
+            pw.Divider(color: PdfColor.fromHex('#b0bec5'), thickness: 1.5),
+            pw.SizedBox(height: 20),
 
             // Guard Details Section
             pw.Container(
-              padding: const pw.EdgeInsets.all(12),
+              padding: const pw.EdgeInsets.all(16),
               decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                border: pw.Border.all(color: PdfColors.grey300),
+                color: PdfColor.fromHex('#f5f7fa'),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                border: pw.Border.all(color: PdfColor.fromHex('#cfd8dc')),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('Guard Profile Details', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
-                  pw.SizedBox(height: 12),
+                  pw.Text('GUARD PROFILE DETAILS', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1565c0'))),
+                  pw.SizedBox(height: 16),
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
@@ -108,7 +119,7 @@ class PdfService {
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             _buildDetailRow('Name', guard.name),
-                            _buildDetailRow('Emp ID', guard.empId),
+                            _buildDetailRow('Employee ID', guard.empId),
                             _buildDetailRow('Phone', guard.phone),
                             _buildDetailRow('DOB', guard.dob),
                             _buildDetailRow('Address', guard.address),
@@ -117,17 +128,17 @@ class PdfService {
                           ],
                         ),
                       ),
-                      pw.SizedBox(width: 16),
+                      pw.SizedBox(width: 20),
                       pw.Expanded(
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             _buildDetailRow('Status', guard.status.toUpperCase()),
                             _buildDetailRow('Join Date', guard.joinDate),
-                            _buildDetailRow('Salary', guard.salary > 0 ? 'INR ${guard.salary.toStringAsFixed(0)}' : '--'),
+                            _buildDetailRow('Monthly Salary', guard.salary > 0 ? 'INR ${guard.salary.toStringAsFixed(0)}' : '--'),
                             _buildDetailRow('Bank Name', guard.bankName),
                             _buildDetailRow('Account No', guard.accountNo),
-                            _buildDetailRow('IFSC', guard.ifsc),
+                            _buildDetailRow('IFSC Code', guard.ifsc),
                             _buildDetailRow('Branch', guard.branch),
                           ],
                         ),
@@ -137,21 +148,29 @@ class PdfService {
                 ],
               ),
             ),
-            pw.SizedBox(height: 24),
+            pw.SizedBox(height: 28),
+
+            pw.Text('ATTENDANCE LOG', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1565c0'))),
+            pw.SizedBox(height: 12),
 
             // Table
             _buildAttendanceTable(attendanceRecords, siteNames, supervisorNames),
 
-            pw.SizedBox(height: 24),
-            pw.Divider(),
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 28),
+            pw.Divider(color: PdfColor.fromHex('#b0bec5'), thickness: 1.5),
+            pw.SizedBox(height: 12),
 
             // Footer / Totals
             pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Total Working Hours: ', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                pw.Text('${totalHours.toStringAsFixed(1)} hrs', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                pw.Text('Report Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+                pw.Row(
+                  children: [
+                    pw.Text('Total Working Hours: ', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('${totalHours.toStringAsFixed(1)} hrs', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#d32f2f'))),
+                  ]
+                ),
               ],
             ),
           ];
@@ -175,8 +194,12 @@ class PdfService {
   }) async {
     final pdf = pw.Document();
 
-    // Sort attendance by date ascending
-    attendanceRecords.sort((a, b) => a.markedAt.compareTo(b.markedAt));
+    // Sort attendance by date ascending safely
+    attendanceRecords.sort((a, b) {
+      final d1 = DateTime.tryParse(a.markedAt) ?? DateTime.tryParse(a.date) ?? DateTime.now();
+      final d2 = DateTime.tryParse(b.markedAt) ?? DateTime.tryParse(b.date) ?? DateTime.now();
+      return d1.compareTo(d2);
+    });
 
     // Try to load the face photo
     pw.MemoryImage? profileImage;
@@ -190,6 +213,7 @@ class PdfService {
     }
 
     final monthStr = DateFormat('MMMM yyyy').format(month);
+    final displayRole = supervisor.role.toUpperCase();
     
     // Calculate total hours
     double totalHours = 0;
@@ -220,44 +244,51 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Supervisor Shift Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                    pw.SizedBox(height: 4),
-                    pw.Text('Month: $monthStr', style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+                    pw.Text('$displayRole SHIFT REPORT', style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
+                    pw.SizedBox(height: 6),
+                    pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
                 ),
                 if (profileImage != null)
                   pw.Container(
-                    width: 60,
-                    height: 60,
+                    width: 65,
+                    height: 65,
                     decoration: pw.BoxDecoration(
                       shape: pw.BoxShape.circle,
+                      border: pw.Border.all(color: PdfColor.fromHex('#1a237e'), width: 2),
                       image: pw.DecorationImage(image: profileImage, fit: pw.BoxFit.cover),
                     ),
                   )
                 else
                   pw.Container(
-                    width: 60,
-                    height: 60,
-                    decoration: const pw.BoxDecoration(shape: pw.BoxShape.circle, color: PdfColors.grey300),
-                    child: pw.Center(child: pw.Text(supervisor.name.isNotEmpty ? supervisor.name[0] : '?', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+                    width: 65,
+                    height: 65,
+                    decoration: pw.BoxDecoration(
+                      shape: pw.BoxShape.circle, 
+                      color: PdfColor.fromHex('#e0e0e0'),
+                      border: pw.Border.all(color: PdfColor.fromHex('#1a237e'), width: 2),
+                    ),
+                    child: pw.Center(child: pw.Text(supervisor.name.isNotEmpty ? supervisor.name[0].toUpperCase() : '?', style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e')))),
                   ),
               ],
             ),
             pw.SizedBox(height: 24),
+            pw.Divider(color: PdfColor.fromHex('#b0bec5'), thickness: 1.5),
+            pw.SizedBox(height: 20),
 
             // Supervisor Details Section
             pw.Container(
-              padding: const pw.EdgeInsets.all(12),
+              padding: const pw.EdgeInsets.all(16),
               decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                border: pw.Border.all(color: PdfColors.grey300),
+                color: PdfColor.fromHex('#f5f7fa'),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                border: pw.Border.all(color: PdfColor.fromHex('#cfd8dc')),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('Supervisor Profile Details', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
-                  pw.SizedBox(height: 12),
+                  pw.Text('$displayRole PROFILE DETAILS', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1565c0'))),
+                  pw.SizedBox(height: 16),
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
@@ -265,6 +296,7 @@ class PdfService {
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
+                            _buildDetailRow('Employee ID', supervisor.empId),
                             _buildDetailRow('Name', supervisor.name),
                             _buildDetailRow('Username', supervisor.username),
                             _buildDetailRow('Phone', supervisor.phone),
@@ -275,17 +307,17 @@ class PdfService {
                           ],
                         ),
                       ),
-                      pw.SizedBox(width: 16),
+                      pw.SizedBox(width: 20),
                       pw.Expanded(
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             _buildDetailRow('Status', supervisor.status.toUpperCase()),
                             _buildDetailRow('Join Date', supervisor.joinDate.split('T').first),
-                            _buildDetailRow('Salary', supervisor.salary > 0 ? 'INR ${supervisor.salary.toStringAsFixed(0)}' : '--'),
+                            _buildDetailRow('Monthly Salary', supervisor.salary > 0 ? 'INR ${supervisor.salary.toStringAsFixed(0)}' : '--'),
                             _buildDetailRow('Bank Name', supervisor.bankName),
                             _buildDetailRow('Account No', supervisor.accountNo),
-                            _buildDetailRow('IFSC', supervisor.ifsc),
+                            _buildDetailRow('IFSC Code', supervisor.ifsc),
                             _buildDetailRow('Branch', supervisor.branch),
                           ],
                         ),
@@ -295,21 +327,29 @@ class PdfService {
                 ],
               ),
             ),
-            pw.SizedBox(height: 24),
+            pw.SizedBox(height: 28),
+            
+            pw.Text('ATTENDANCE LOG', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1565c0'))),
+            pw.SizedBox(height: 12),
 
             // Table
             _buildAttendanceTable(attendanceRecords, siteNames, supervisorNames),
 
-            pw.SizedBox(height: 24),
-            pw.Divider(),
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 28),
+            pw.Divider(color: PdfColor.fromHex('#b0bec5'), thickness: 1.5),
+            pw.SizedBox(height: 12),
 
             // Footer / Totals
             pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Total Working Hours: ', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                pw.Text('${totalHours.toStringAsFixed(1)} hrs', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                pw.Text('Report Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+                pw.Row(
+                  children: [
+                    pw.Text('Total Working Hours: ', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('${totalHours.toStringAsFixed(1)} hrs', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#d32f2f'))),
+                  ]
+                ),
               ],
             ),
           ];
@@ -326,16 +366,24 @@ class PdfService {
 
   static pw.Widget _buildAttendanceTable(List<Attendance> records, Map<String, String> siteNames, Map<String, String> supervisorNames) {
     if (records.isEmpty) {
-      return pw.Center(child: pw.Text('No shifts recorded for this month.', style: const pw.TextStyle(color: PdfColors.grey600)));
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(24),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColor.fromHex('#cfd8dc')),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+          color: PdfColor.fromHex('#fafafa')
+        ),
+        child: pw.Center(child: pw.Text('No shifts recorded for this month.', style: pw.TextStyle(color: PdfColor.fromHex('#757575'), fontStyle: pw.FontStyle.italic))),
+      );
     }
 
-    final headers = ['Date', 'Site', 'Supervisor', 'Check In', 'Check Out', 'Hours'];
+    final headers = ['Date', 'Site', 'Supervisor', 'Check In', 'Check Out', 'Status', 'Hours'];
 
     final data = records.map((a) {
-      final date = DateTime.parse(a.markedAt);
+      final date = DateTime.tryParse(a.markedAt) ?? DateTime.tryParse(a.date) ?? DateTime.now();
       final site = siteNames[a.siteId] ?? 'Unknown Site';
-      final supervisor = supervisorNames[a.supervisorId] ?? 'Unknown Supervisor';
-      final checkIn = DateFormat('hh:mm a').format(date);
+      final supervisor = supervisorNames[a.supervisorId] ?? 'Unknown';
+      final checkIn = a.time.isNotEmpty ? a.time : '--';
       
       String checkOut = '--';
       double hoursValue = 0;
@@ -348,7 +396,7 @@ class PdfService {
           var outTime = DateTime(2000, 1, 1, int.parse(outParts[0]), int.parse(outParts[1]));
           if (outTime.isBefore(inTime)) outTime = outTime.add(const Duration(days: 1));
           
-          checkOut = DateFormat('hh:mm a').format(outTime);
+          checkOut = a.checkOutTime;
           hoursValue = outTime.difference(inTime).inMinutes / 60.0;
         } catch (_) {
           checkOut = a.checkOutTime; // Fallback
@@ -363,6 +411,7 @@ class PdfService {
         supervisor,
         checkIn,
         checkOut,
+        a.status.toUpperCase(),
         hoursStr,
       ];
     }).toList();
@@ -370,34 +419,37 @@ class PdfService {
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: data,
-      border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+      border: pw.TableBorder.all(color: PdfColor.fromHex('#cfd8dc'), width: 1),
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
-      cellStyle: const pw.TextStyle(fontSize: 10),
-      cellHeight: 24,
+      headerDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#1976d2')),
+      rowDecoration: const pw.BoxDecoration(color: PdfColors.white),
+      oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#f1f8ff')),
+      cellStyle: const pw.TextStyle(fontSize: 10, color: PdfColors.black),
+      cellHeight: 28,
       cellAlignments: {
         0: pw.Alignment.centerLeft,
         1: pw.Alignment.centerLeft,
         2: pw.Alignment.centerLeft,
         3: pw.Alignment.center,
         4: pw.Alignment.center,
-        5: pw.Alignment.centerRight,
+        5: pw.Alignment.center,
+        6: pw.Alignment.centerRight,
       },
     );
   }
 
   static pw.Widget _buildDetailRow(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 4),
+      padding: const pw.EdgeInsets.only(bottom: 6),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
-            width: 70,
-            child: pw.Text('$label:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+            width: 85,
+            child: pw.Text('$label:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#546e7a'))),
           ),
           pw.Expanded(
-            child: pw.Text(value.isEmpty ? '--' : value, style: const pw.TextStyle(fontSize: 10, color: PdfColors.black)),
+            child: pw.Text(value.isEmpty ? '--' : value, style: pw.TextStyle(fontSize: 10, color: PdfColor.fromHex('#212121'))),
           ),
         ],
       ),

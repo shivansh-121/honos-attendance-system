@@ -171,13 +171,13 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isCheckOut ? 'Check-Out completed successfully!' : 'Check-In completed successfully!'), backgroundColor: AppTheme.green),
+          SnackBar(content: Text(_isCheckOut ? 'Check-Out completed successfully!' : 'Check-In completed successfully!'), backgroundColor: context.colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving attendance: $e'), backgroundColor: AppTheme.red),
+          SnackBar(content: Text('Error saving attendance: $e'), backgroundColor: context.colors.red),
         );
       }
     } finally {
@@ -284,13 +284,13 @@ class _LocationStep extends StatelessWidget {
           children: [
             if (checking) const CircularProgressIndicator()
             else if (ok) ...[
-              const Icon(Icons.check_circle, color: AppTheme.green, size: 80),
+              Icon(Icons.check_circle, color: context.colors.green, size: 80),
               const SizedBox(height: 16),
               const Text('Location Verified', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
               const SizedBox(height: 20),
               ElevatedButton(onPressed: onNext, child: const Text('Continue')),
             ] else ...[
-              const Icon(Icons.location_off, color: AppTheme.red, size: 80),
+              Icon(Icons.location_off, color: context.colors.red, size: 80),
               const SizedBox(height: 16),
               Text(error, textAlign: TextAlign.center),
               const SizedBox(height: 20),
@@ -333,7 +333,7 @@ class _GuardStepState extends State<_GuardStep> {
                   hintText: 'Search guard by name or ID...',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
-                  fillColor: AppTheme.bgSurface,
+                  fillColor: context.colors.bgSurface,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -350,9 +350,9 @@ class _GuardStepState extends State<_GuardStep> {
                       padding: const EdgeInsets.all(40.0),
                       child: Column(
                         children: [
-                          const Icon(Icons.search_off, size: 48, color: AppTheme.txtMuted),
+                          Icon(Icons.search_off, size: 48, color: context.colors.txtMuted),
                           const SizedBox(height: 16),
-                          const Text('No matching guards found.', style: TextStyle(color: AppTheme.txtMuted)),
+                          Text('No matching guards found.', style: TextStyle(color: context.colors.txtMuted)),
                           const SizedBox(height: 12),
                           if (_query.isNotEmpty) TextButton(onPressed: () => setState(() => _query = ''), child: const Text('Clear Search')),
                         ],
@@ -390,9 +390,9 @@ class _GuardStepState extends State<_GuardStep> {
                           padding: const EdgeInsets.all(40.0),
                           child: Column(
                             children: [
-                              Icon(widget.isCheckOutFlow ? Icons.logout : Icons.login, size: 48, color: AppTheme.txtMuted),
+                              Icon(widget.isCheckOutFlow ? Icons.logout : Icons.login, size: 48, color: context.colors.txtMuted),
                               const SizedBox(height: 16),
-                              Text(widget.isCheckOutFlow ? 'No guards available for Check-Out.' : 'No guards available for Check-In.', style: const TextStyle(color: AppTheme.txtMuted)),
+                              Text(widget.isCheckOutFlow ? 'No guards available for Check-Out.' : 'No guards available for Check-In.', style: TextStyle(color: context.colors.txtMuted)),
                             ],
                           ),
                         ));
@@ -412,7 +412,7 @@ class _GuardStepState extends State<_GuardStep> {
                               height: 44,
                               child: g.photo.length > 200
                                   ? Base64ImageWidget(base64String: g.photo)
-                                  : const Icon(Icons.person, color: AppTheme.txtMuted),
+                                  : Icon(Icons.person, color: context.colors.txtMuted),
                             ),
                           ),
                           title: Row(
@@ -422,20 +422,20 @@ class _GuardStepState extends State<_GuardStep> {
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: AppTheme.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                                  child: const Text('LOCAL', style: TextStyle(color: AppTheme.green, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  decoration: BoxDecoration(color: context.colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                                  child: Text('LOCAL', style: TextStyle(color: context.colors.green, fontSize: 9, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ],
                           ),
-                          subtitle: Text('ID: ${g.empId}', style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
+                          subtitle: Text('ID: ${g.empId}', style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
                           trailing: isCheckedIn
                               ? Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: AppTheme.yellow.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                                  child: const Text('Checked In', style: TextStyle(color: AppTheme.yellow, fontSize: 12, fontWeight: FontWeight.bold))
+                                  decoration: BoxDecoration(color: context.colors.yellow.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                                  child: Text('Checked In', style: TextStyle(color: context.colors.yellow, fontSize: 12, fontWeight: FontWeight.bold))
                                 )
-                              : const Icon(Icons.chevron_right, color: AppTheme.txtMuted),
+                              : Icon(Icons.chevron_right, color: context.colors.txtMuted),
                           onTap: () => widget.onNext(g, isCheckedIn, existingRecord),
                         );
                       }).toList(),
@@ -454,9 +454,9 @@ class _GuardStepState extends State<_GuardStep> {
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       children: [
-                        const Icon(Icons.error_outline, color: AppTheme.red, size: 40),
+                        Icon(Icons.error_outline, color: context.colors.red, size: 40),
                         const SizedBox(height: 12),
-                        const Text('Connection error. Please check your internet.', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.txtSec)),
+                        Text('Connection error. Please check your internet.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtSec)),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () => ref.invalidate(guardsStreamProvider),
@@ -655,7 +655,7 @@ class _ConfirmStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.verified_user, color: AppTheme.green, size: 60),
+          Icon(Icons.verified_user, color: context.colors.green, size: 60),
           const SizedBox(height: 20),
           Text(
             isCheckOut ? 'Ready to submit Check-Out for ${guard.name}' : 'Ready to submit Check-In for ${guard.name}',
@@ -664,7 +664,7 @@ class _ConfirmStep extends StatelessWidget {
           const SizedBox(height: 30),
           isSubmitting 
               ? const CircularProgressIndicator()
-              : ElevatedButton(onPressed: onSubmit, style: ElevatedButton.styleFrom(backgroundColor: isCheckOut ? AppTheme.yellow : AppTheme.green, minimumSize: const Size(double.infinity, 50)), child: Text(isCheckOut ? 'Submit Check-Out' : 'Submit Check-In')),
+              : ElevatedButton(onPressed: onSubmit, style: ElevatedButton.styleFrom(backgroundColor: isCheckOut ? context.colors.yellow : context.colors.green, minimumSize: const Size(double.infinity, 50)), child: Text(isCheckOut ? 'Submit Check-Out' : 'Submit Check-In')),
         ],
       ),
     );

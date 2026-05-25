@@ -229,9 +229,9 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
                   .map((site) => CircleMarker(
                         point: LatLng((site.lat as num).toDouble(),
                             (site.lng as num).toDouble()),
-                        color: AppTheme.primary.withValues(alpha: 0.15),
+                        color: context.colors.primary.withValues(alpha: 0.15),
                         borderStrokeWidth: 2,
-                        borderColor: AppTheme.primary,
+                        borderColor: context.colors.primary,
                         radius: (site.radius as num).toDouble(),
                         useRadiusInMeter: true,
                       ))
@@ -252,22 +252,22 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
           left: 16,
           right: 16,
           child: widget.activeSupervisors.isEmpty
-              ? const Card(
-                  color: AppTheme.cardBg,
+              ? Card(
+                  color: context.colors.cardBg,
                   child: Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: AppTheme.txtMuted),
-                        SizedBox(width: 12),
-                        Text('No supervisors currently On‑Duty.',
+                        Icon(Icons.info_outline, color: context.colors.txtMuted),
+                        const SizedBox(width: 12),
+                        const Text('No supervisors currently On‑Duty.',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
                 )
               : Card(
-                  color: AppTheme.cardBg.withValues(alpha: 0.92),
+                  color: context.colors.cardBg.withValues(alpha: 0.92),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
@@ -297,9 +297,9 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
                                     style: const TextStyle(fontSize: 12)),
                                 const Spacer(),
                                 Text('$pathLen pts',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 11,
-                                        color: AppTheme.txtMuted)),
+                                        color: context.colors.txtMuted)),
                               ],
                             ),
                           );

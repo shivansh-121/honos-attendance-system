@@ -26,7 +26,7 @@ class ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppTheme.bgCard,
+      color: context.colors.bgCard,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -35,7 +35,7 @@ class ActionTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.bord, width: 1),
+            border: Border.all(color: context.colors.bord, width: 1),
           ),
           child: Row(
             children: [
@@ -44,7 +44,7 @@ class ActionTile extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  gradient: AppTheme.accentGradient(accentColor),
+                  gradient: context.colors.accentGradient(accentColor),
                   borderRadius: BorderRadius.circular(13),
                   boxShadow: [
                     BoxShadow(
@@ -65,7 +65,7 @@ class ActionTile extends StatelessWidget {
                     Text(
                       title,
                       style: GoogleFonts.plusJakartaSans(
-                        color: AppTheme.txtPrimary,
+                        color: context.colors.txtPrimary,
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
@@ -74,7 +74,7 @@ class ActionTile extends StatelessWidget {
                     Text(
                       subtitle,
                       style: GoogleFonts.inter(
-                        color: AppTheme.txtMuted,
+                        color: context.colors.txtMuted,
                         fontSize: 12,
                       ),
                       maxLines: 1,
@@ -85,10 +85,10 @@ class ActionTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               // Arrow
-              const Icon(
+              Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 14,
-                color: AppTheme.txtMuted,
+                color: context.colors.txtMuted,
               ),
             ],
           ),

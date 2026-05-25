@@ -35,7 +35,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.bgSurface,
+        backgroundColor: context.colors.bgSurface,
         title: const Text('New Geofenced Site',
             style: TextStyle(color: Colors.white)),
         content: Column(
@@ -44,7 +44,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
             Text(
                 'Location Acquired:\nLat: ${lat.toStringAsFixed(4)}\nLng: ${lng.toStringAsFixed(4)}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.green, fontSize: 12)),
+                style: TextStyle(color: context.colors.green, fontSize: 12)),
             const SizedBox(height: 16),
             TextField(
                 controller: nameCtrl,
@@ -86,7 +86,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
     double currentRadius = site.radius;
     showModalBottomSheet(
         context: context,
-        backgroundColor: AppTheme.bgSurface,
+        backgroundColor: context.colors.bgSurface,
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (ctx) => StatefulBuilder(
@@ -103,20 +103,20 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                             color: Colors.white)),
                     const SizedBox(height: 8),
                     Text('Site: ${site.name}',
-                        style: const TextStyle(color: AppTheme.txtSec)),
+                        style: TextStyle(color: context.colors.txtSec)),
                     const SizedBox(height: 24),
                     Text('${currentRadius.toInt()} Meters',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.primary)),
+                            color: context.colors.primary)),
                     Slider(
                       value: currentRadius,
                       min: 10,
                       max: 1000,
                       divisions: 99,
-                      activeColor: AppTheme.primary,
+                      activeColor: context.colors.primary,
                       onChanged: (val) => setSt(() => currentRadius = val),
                     ),
                     const SizedBox(height: 24),
@@ -164,7 +164,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
         onPressed: () => _addNewSite(context),
         icon: const Icon(Icons.add_location_alt),
         label: const Text('Pin New Site'),
-        backgroundColor: AppTheme.green,
+        backgroundColor: context.colors.green,
       ).animate().scale(),
       body: sitesAsync.when(
         data: (sites) {
@@ -215,8 +215,8 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                         children: [
                           FilledButton.icon(
                             style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
-                              foregroundColor: AppTheme.primary,
+                              backgroundColor: context.colors.primary.withValues(alpha: 0.2),
+                              foregroundColor: context.colors.primary,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -233,13 +233,13 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                             height: 36,
                             width: 36,
                             decoration: BoxDecoration(
-                              color: AppTheme.green.withValues(alpha: 0.2),
+                              color: context.colors.green.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: IconButton(
                               padding: EdgeInsets.zero,
                               tooltip: 'Download Excel',
-                              icon: const Icon(Icons.file_download_outlined, color: AppTheme.green, size: 20),
+                              icon: Icon(Icons.file_download_outlined, color: context.colors.green, size: 20),
                               onPressed: () async {
                                 final selectedDate = await showDatePicker(
                                   context: context,
@@ -260,7 +260,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Failed: $e'), backgroundColor: AppTheme.red),
+                                      SnackBar(content: Text('Failed: $e'), backgroundColor: context.colors.red),
                                     );
                                   }
                                 }
@@ -272,23 +272,23 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                             height: 36,
                             width: 36,
                             decoration: BoxDecoration(
-                              color: AppTheme.red.withValues(alpha: 0.2),
+                              color: context.colors.red.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: IconButton(
                               padding: EdgeInsets.zero,
                               tooltip: 'Delete Site',
-                              icon: const Icon(Icons.delete_outline, color: AppTheme.red, size: 20),
+                              icon: Icon(Icons.delete_outline, color: context.colors.red, size: 20),
                               onPressed: () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  backgroundColor: AppTheme.bgSurface,
+                                  backgroundColor: context.colors.bgSurface,
                                   title: const Text('Delete Site',
                                       style: TextStyle(color: Colors.white)),
-                                  content: const Text(
+                                  content: Text(
                                       'Are you sure you want to delete this site?',
-                                      style: TextStyle(color: AppTheme.txtSec)),
+                                      style: TextStyle(color: context.colors.txtSec)),
                                   actions: [
                                     TextButton(
                                         onPressed: () =>
@@ -297,9 +297,9 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                                     TextButton(
                                         onPressed: () =>
                                             Navigator.pop(ctx, true),
-                                        child: const Text('Delete',
+                                        child: Text('Delete',
                                             style: TextStyle(
-                                                color: AppTheme.red))),
+                                                color: context.colors.red))),
                                   ],
                                 ),
                               );

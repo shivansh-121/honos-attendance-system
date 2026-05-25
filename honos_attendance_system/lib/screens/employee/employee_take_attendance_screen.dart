@@ -1,0 +1,531 @@
+import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
+import 'package:camera/camera.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+
+import '../../app_theme.dart';
+import '../../models/site.dart';
+import '../../models/attendance.dart';
+import '../../models/app_user.dart';
+import '../../services/db_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/permission_service.dart';
+import '../../services/camera_service.dart';
+import '../../services/face_match_service.dart';
+import '../supervisor/liveness_detector_widget.dart';
+
+enum _Step { location, liveness, confirmation }
+
+class EmployeeTakeAttendanceScreen extends ConsumerStatefulWidget {
+  final bool isCheckOutFlow;
+
+  const EmployeeTakeAttendanceScreen({
+    super.key, 
+    this.isCheckOutFlow = false,
+  });
+
+  @override
+  ConsumerState<EmployeeTakeAttendanceScreen> createState() => _EmployeeTakeAttendanceScreenState();
+}
+
+class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAttendanceScreen> {
+  _Step _step = _Step.location;
+  bool _checkingGps = true;
+  bool _gpsOk = false;
+  String _gpsError = '';
+  Site? _closestSite;
+  String? _livePhotoBase64;
+  bool _isSubmitting = false;
+
+  Attendance? _existingRecord;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeFlow());
+  }
+
+  Future<void> _initializeFlow() async {
+    final user = ref.read(authProvider);
+    if (user == null) return;
+    
+    if (widget.isCheckOutFlow) {
+      // Find today's check in
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      try {
+        final records = await ref.read(dbProvider).attendanceStreamForDate(today).first;
+        final myRecords = records.where((r) => r.guardId == user.id && r.checkOutTime.isEmpty).toList();
+        
+        if (myRecords.isNotEmpty) {
+          _existingRecord = myRecords.first;
+        } else {
+          if (mounted) {
+            setState(() {
+              _checkingGps = false;
+              _gpsError = 'No Check-In record found for today. Please Check-In first.';
+            });
+          }
+          return;
+        }
+      } catch (e) {
+        if (mounted) setState(() => _gpsError = 'Error fetching records: $e');
+        return;
+      }
+    }
+    
+    await _checkGps();
+  }
+
+  Future<void> _checkGps() async {
+    if (!mounted) return;
+    
+    if (kIsWeb) {
+      // For web testing
+      final sitesAsync = ref.read(sitesStreamProvider);
+      final sites = sitesAsync.value ?? [];
+      if (sites.isNotEmpty) {
+        if (mounted) {
+          setState(() { 
+          _closestSite = sites.first; 
+          _gpsOk = true; 
+          _checkingGps = false; 
+        });
+        }
+      }
+      return;
+    }
+
+    setState(() { _checkingGps = true; _gpsError = ''; });
+    
+    try {
+      final gpsEnabled = await PermissionService.isGpsEnabled();
+      if (!gpsEnabled) throw Exception('GPS is disabled. Please turn it on.');
+      
+      final hasPerms = await PermissionService.requestSupervisorPermissions();
+      if (!hasPerms) throw Exception('Location and Camera permissions are required.');
+
+      Position? pos = await Geolocator.getLastKnownPosition();
+      pos ??= await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
+            .timeout(const Duration(seconds: 5));
+          
+      // Find the closest site
+      final sitesAsync = ref.read(sitesStreamProvider);
+      final sites = sitesAsync.value ?? [];
+      
+      Site? nearestSite;
+      double minDistance = double.infinity;
+      
+      for (var site in sites) {
+        final dist = Geolocator.distanceBetween(pos.latitude, pos.longitude, site.lat, site.lng);
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestSite = site;
+        }
+      }
+
+      if (nearestSite != null && minDistance <= nearestSite.radius) {
+        if (mounted) {
+          setState(() {
+          _closestSite = nearestSite;
+          _gpsOk = true;
+        });
+        }
+      } else {
+        if (nearestSite != null) {
+          if (mounted) setState(() => _gpsError = 'You are ${minDistance.toInt()}m from ${nearestSite!.name}. Required: within ${nearestSite.radius.toInt()}m.');
+        } else {
+          if (mounted) setState(() => _gpsError = 'No sites found in the system.');
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _gpsError = e.toString());
+    } finally {
+      if (mounted) setState(() => _checkingGps = false);
+    }
+  }
+
+  Future<void> _submitAttendance() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+
+    try {
+      final db = ref.read(dbProvider);
+      final user = ref.read(authProvider)!;
+      final now = DateTime.now();
+      final date = DateFormat('yyyy-MM-dd').format(now);
+      final time = DateFormat('HH:mm:ss').format(now);
+      
+      String photoUrl = '';
+      if (_livePhotoBase64 != null && _livePhotoBase64!.isNotEmpty) {
+        photoUrl = _livePhotoBase64!;
+      }
+
+      if (!widget.isCheckOutFlow) {
+        // CHECK IN
+        final att = Attendance(
+          id: const Uuid().v4(),
+          guardId: user.id, // Using guardId to represent the staff who attended
+          siteId: _closestSite!.id,
+          supervisorId: user.id, // Self supervised
+          date: date,
+          time: time,
+          status: 'Present',
+          photoPath: photoUrl,
+          markedAt: now.toIso8601String(),
+        );
+        db.saveAttendance(att).catchError((e) => debugPrint('Att in error: $e'));
+        
+      } else {
+        // CHECK OUT
+        final existing = _existingRecord!;
+        final updated = Attendance(
+          id: existing.id,
+          guardId: existing.guardId,
+          siteId: existing.siteId,
+          supervisorId: existing.supervisorId,
+          date: existing.date,
+          time: existing.time,
+          status: existing.status,
+          photoPath: existing.photoPath,
+          markedAt: existing.markedAt,
+          lat: existing.lat,
+          lng: existing.lng,
+          checkOutTime: time,
+          checkOutPhotoPath: photoUrl,
+        );
+        db.saveAttendance(updated).catchError((e) => debugPrint('Att out error: $e'));
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(widget.isCheckOutFlow ? 'Check-Out successful!' : 'Check-In successful!'),
+          backgroundColor: context.colors.green,
+        ));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed: $e'), backgroundColor: context.colors.red,
+        ));
+      }
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.isCheckOutFlow ? 'Employee Check-Out' : 'Employee Check-In'),
+      ),
+      body: _buildCurrentStep(),
+    );
+  }
+
+  Widget _buildCurrentStep() {
+    switch (_step) {
+      case _Step.location: return _buildLocationStep();
+      case _Step.liveness: return _buildLivenessStep();
+      case _Step.confirmation: return _buildConfirmationStep();
+    }
+  }
+
+  // --- LOCATION STEP ---
+  Widget _buildLocationStep() {
+    if (_checkingGps) {
+      return Center(child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(color: context.colors.primary),
+          const SizedBox(height: 16),
+          const Text('Verifying location...', style: TextStyle(color: Colors.white)),
+        ],
+      ));
+    }
+
+    if (!_gpsOk) {
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.location_off, size: 64, color: context.colors.red),
+            const SizedBox(height: 16),
+            const Text('Location Verification Failed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 8),
+            Text(_gpsError, textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtMuted)),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              onPressed: _initializeFlow,
+            )
+          ],
+        ),
+      ));
+    }
+
+    return Center(child: Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.location_on, size: 64, color: context.colors.green),
+          const SizedBox(height: 16),
+          const Text('Location Verified', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 8),
+          Text('You are at: ${_closestSite?.name}', style: TextStyle(color: context.colors.primary)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16)),
+            onPressed: () => setState(() => _step = _Step.liveness),
+            child: const Text('Proceed to Photo', style: TextStyle(fontSize: 16)),
+          )
+        ],
+      ),
+    ));
+  }
+
+  // --- LIVENESS STEP ---
+  Widget _buildLivenessStep() {
+    final user = ref.watch(authProvider)!;
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Liveness & Face Match', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _FaceMatchStep(
+              user: user,
+              isCheckOut: widget.isCheckOutFlow,
+              onVerified: (photoBase64) {
+                setState(() {
+                  _livePhotoBase64 = photoBase64;
+                  _step = _Step.confirmation;
+                });
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- CONFIRMATION STEP ---
+  Widget _buildConfirmationStep() {
+    final user = ref.watch(authProvider)!;
+    
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Confirm Attendance', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          
+          if (_livePhotoBase64 != null)
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.memory(base64Decode(_livePhotoBase64!), height: 200, width: 200, fit: BoxFit.cover),
+              ),
+            ),
+            
+          const SizedBox(height: 24),
+          Card(
+            color: context.colors.bgSurface,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.person, color: context.colors.primary),
+                    title: Text(user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: Text('Office Employee', style: TextStyle(color: context.colors.txtMuted)),
+                  ),
+                  const Divider(color: Colors.white10),
+                  ListTile(
+                    leading: Icon(Icons.location_on, color: context.colors.primary),
+                    title: Text(_closestSite?.name ?? '', style: const TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const Spacer(),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.isCheckOutFlow ? context.colors.red : context.colors.green,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            onPressed: _isSubmitting ? null : _submitAttendance,
+            child: _isSubmitting
+                ? const CircularProgressIndicator(color: Colors.white)
+                : Text(widget.isCheckOutFlow ? 'Confirm Check-Out' : 'Confirm Check-In', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FaceMatchStep extends StatefulWidget {
+  final AppUser user;
+  final bool isCheckOut;
+  final Function(String photoBase64) onVerified;
+  const _FaceMatchStep({required this.user, required this.isCheckOut, required this.onVerified});
+  @override
+  State<_FaceMatchStep> createState() => _FaceMatchStepState();
+}
+
+class _FaceMatchStepState extends State<_FaceMatchStep> {
+  CameraController? _ctrl;
+  bool _ready = false;
+  bool _busy = false;
+  String _msg = 'Ready...';
+  bool _blinked = false;
+  CameraLensDirection _currentDirection = CameraLensDirection.front;
+
+  @override
+  void initState() { 
+    super.initState(); 
+  }
+
+  Future<void> _init() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    if (globalCameras.isEmpty) await initCameras();
+    if (globalCameras.isEmpty) return;
+    final camera = globalCameras.firstWhere(
+      (c) => c.lensDirection == _currentDirection, 
+      orElse: () => globalCameras.first
+    );
+    _ctrl = CameraController(camera, ResolutionPreset.low, enableAudio: false);
+    
+    try {
+      await _ctrl!.initialize();
+      if (mounted) setState(() => _ready = true);
+    } catch (e) {
+      if (mounted) setState(() => _msg = 'Camera Error: $e');
+    }
+  }
+
+  @override
+  void dispose() { 
+    _ctrl?.dispose(); 
+    super.dispose(); 
+  }
+
+  Future<void> _verify() async {
+    if (_busy) return;
+    setState(() { _busy = true; _msg = 'Capturing photo...'; });
+    try {
+      final xFile = await _ctrl!.takePicture();
+      final bytes = await xFile.readAsBytes();
+      final b64 = base64Encode(bytes);
+      
+      await FaceMatchService.init();
+
+      final liveEmbedding = await FaceMatchService.getEmbeddings(File(xFile.path));
+      if (liveEmbedding == null) {
+        setState(() { _msg = 'Could not extract face from live photo.'; _busy = false; });
+        return;
+      }
+
+      if (widget.user.photo.length < 200) {
+        setState(() => _msg = 'Optimizing verification photo...');
+        final compressedBytes = await compute(_compressImageBytes, bytes);
+        final finalB64 = compressedBytes != null ? base64Encode(compressedBytes) : b64;
+        widget.onVerified(finalB64);
+        return;
+      }
+
+      final refBytes = base64Decode(widget.user.photo);
+      final tempDir = await getTemporaryDirectory();
+      final refFile = File(p.join(tempDir.path, 'ref_temp.jpg'));
+      await refFile.writeAsBytes(refBytes);
+
+      final refEmbedding = await FaceMatchService.getEmbeddings(refFile);
+      if (refEmbedding == null) {
+         setState(() { _msg = 'Invalid reference photo. Please contact Admin.'; _busy = false; });
+         return;
+      }
+
+      final score = FaceMatchService.compareFaces(refEmbedding, liveEmbedding);
+      
+      if (score >= 0.75) { 
+        setState(() => _msg = 'Optimizing verification photo...');
+        final compressedBytes = await compute(_compressImageBytes, bytes);
+        final finalB64 = compressedBytes != null ? base64Encode(compressedBytes) : b64;
+        widget.onVerified(finalB64); 
+      } else { 
+        setState(() { _msg = 'Identity Mismatch! (Score: ${(score*100).toStringAsFixed(1)}%)'; _busy = false; }); 
+      }
+    } catch (e) { setState(() { _msg = 'Error: $e'; _busy = false; }); }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (!_blinked) 
+            Expanded(
+              child: LivenessDetectorWidget(
+                onBlinkDetected: () {
+                  setState(() => _blinked = true);
+                  _init();
+                }
+              ),
+            )
+          else ...[
+            if (_ready) Stack(
+              children: [
+                ClipRRect(borderRadius: BorderRadius.circular(20), child: SizedBox(height: 300, width: double.infinity, child: CameraPreview(_ctrl!))),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            if (!_busy && _ready) ElevatedButton(onPressed: _verify, child: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In')),
+          ]
+        ],
+      ),
+    );
+  }
+}
+
+Uint8List? _compressImageBytes(Uint8List bytes) {
+  try {
+    final image = img.decodeImage(bytes);
+    if (image == null) return null;
+
+    img.Image resized;
+    if (image.width > image.height) {
+      resized = img.copyResize(image, width: 400);
+    } else {
+      resized = img.copyResize(image, height: 400);
+    }
+
+    return img.encodeJpg(resized, quality: 70);
+  } catch (e) {
+    debugPrint('Error in background photo compression: $e');
+    return null;
+  }
+}
+

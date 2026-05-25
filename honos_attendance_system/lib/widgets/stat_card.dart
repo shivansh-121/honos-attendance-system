@@ -112,7 +112,7 @@ class _StatCardSkeletonState extends State<StatCardSkeleton>
       builder: (_, __) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.shimmer.withValues(alpha: _anim.value),
+          color: context.colors.shimmer.withValues(alpha: _anim.value),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Column(

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,8 +50,14 @@ class LocalPushService {
       channelDescription: 'Alerts for Honos Attendance System',
       importance: Importance.max,
       priority: Priority.high,
-      icon: '@mipmap/launcher_icon',
+      icon: 'ic_notification',
+      color: Color(0xFF3B82F6), // context.colors.primary
+
+      largeIcon: DrawableResourceAndroidBitmap('app_logo'),
       enableVibration: true,
+      ledColor: Color(0xFFE63946),
+      ledOnMs: 1000,
+      ledOffMs: 500,
     );
     
     const iosDetails = DarwinNotificationDetails(
@@ -70,6 +77,43 @@ class LocalPushService {
       body, 
       notificationDetails,
     );
+  }
+
+  static Future<void> showPeriodicNotification({required String title, required String body}) async {
+    if (!_initialized || kIsWeb) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      'honos_periodic', 
+      'Honos Periodic Alerts',
+      channelDescription: 'Periodic alerts for Honos',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      icon: 'ic_notification',
+      color: Color(0xFF3B82F6),
+
+      largeIcon: DrawableResourceAndroidBitmap('app_logo'),
+    );
+    
+    const iosDetails = DarwinNotificationDetails();
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notificationsPlugin.periodicallyShow(
+      888, 
+      title, 
+      body, 
+      RepeatInterval.daily, 
+      notificationDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
+
+  static Future<void> cancelPeriodicNotification() async {
+    if (!_initialized || kIsWeb) return;
+    await _notificationsPlugin.cancel(888);
   }
 }
 

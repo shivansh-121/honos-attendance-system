@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../app_theme.dart';
 import '../../services/db_service.dart';
+import '../../services/id_generator.dart';
 import '../../widgets/base64_image_widget.dart';
 import '../../models/guard.dart';
 import '../../models/site.dart';
@@ -36,7 +37,7 @@ class _AdminGuardsManagementScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.bgSurface,
+      backgroundColor: context.colors.bgSurface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => _AdminGuardFormSheet(
         db: db,
@@ -61,7 +62,7 @@ class _AdminGuardsManagementScreenState
           onPressed: () => _openGuardForm(context, db, sites),
           icon: const Icon(Icons.person_add),
           label: const Text('Add Guard'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: context.colors.primary,
           foregroundColor: Colors.white,
         ),
       ),
@@ -76,7 +77,7 @@ class _AdminGuardsManagementScreenState
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Container(color: AppTheme.primaryDark.withValues(alpha: 0.5)),
+                  Container(color: context.colors.primaryDark.withValues(alpha: 0.5)),
                   const Icon(Icons.security, size: 100, color: Colors.white10),
                 ],
               ),
@@ -93,7 +94,7 @@ class _AdminGuardsManagementScreenState
                       hintText: 'Search by name or Employee ID...',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
-                      fillColor: AppTheme.bgSurface,
+                      fillColor: context.colors.bgSurface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -110,12 +111,12 @@ class _AdminGuardsManagementScreenState
                             final safeSiteFilter = (siteIds.contains(_selectedSiteFilter)) ? _selectedSiteFilter : null;
                             return DropdownButtonFormField<String>(
                               initialValue: safeSiteFilter,
-                              hint: const Text('Filter by Site', style: TextStyle(color: AppTheme.txtMuted, fontSize: 13)),
-                            dropdownColor: AppTheme.bgSurface,
+                              hint: Text('Filter by Site', style: TextStyle(color: context.colors.txtMuted, fontSize: 13)),
+                            dropdownColor: context.colors.bgSurface,
                             style: const TextStyle(color: Colors.white, fontSize: 13),
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              fillColor: AppTheme.bgSurface,
+                              fillColor: context.colors.bgSurface,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                             ),
                             items: [
@@ -138,12 +139,12 @@ class _AdminGuardsManagementScreenState
                             final safeSupFilter = (supIds.contains(_selectedSupervisorFilter)) ? _selectedSupervisorFilter : null;
                             return DropdownButtonFormField<String>(
                               initialValue: safeSupFilter,
-                              hint: const Text('Filter by Supervisor', style: TextStyle(color: AppTheme.txtMuted, fontSize: 13)),
-                              dropdownColor: AppTheme.bgSurface,
+                              hint: Text('Filter by Supervisor', style: TextStyle(color: context.colors.txtMuted, fontSize: 13)),
+                              dropdownColor: context.colors.bgSurface,
                               style: const TextStyle(color: Colors.white, fontSize: 13),
                               decoration: InputDecoration(
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                fillColor: AppTheme.bgSurface,
+                                fillColor: context.colors.bgSurface,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                               ),
                               items: [
@@ -175,9 +176,9 @@ class _AdminGuardsManagementScreenState
               }).toList();
 
               if (filtered.isEmpty) {
-                return const SliverFillRemaining(
+                return SliverFillRemaining(
                   child: Center(
-                    child: Text('No guards found.', style: TextStyle(color: AppTheme.txtMuted)),
+                    child: Text('No guards found.', style: TextStyle(color: context.colors.txtMuted)),
                   ),
                 );
               }
@@ -197,16 +198,16 @@ class _AdminGuardsManagementScreenState
                           final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
                           final isAbsent = existingRecord == null;
 
-                          Color statusColor = AppTheme.red;
+                          Color statusColor = context.colors.red;
                           String statusText = 'Absent';
                           IconData statusIcon = Icons.cancel;
 
                           if (isShiftCompleted) {
-                            statusColor = AppTheme.green;
+                            statusColor = context.colors.green;
                             statusText = 'Completed';
                             statusIcon = Icons.check_circle;
                           } else if (isCheckedIn) {
-                            statusColor = AppTheme.yellow;
+                            statusColor = context.colors.yellow;
                             statusText = 'Active Shift';
                             statusIcon = Icons.timelapse;
                           }
@@ -231,9 +232,9 @@ class _AdminGuardsManagementScreenState
                                               child: g.photo.length > 200
                                                   ? Base64ImageWidget(base64String: g.photo, fit: BoxFit.cover)
                                                   : Container(
-                                                      color: AppTheme.primary.withValues(alpha: 0.2),
+                                                      color: context.colors.primary.withValues(alpha: 0.2),
                                                       alignment: Alignment.center,
-                                                      child: Text(g.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 22)),
+                                                      child: Text(g.name[0].toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.primary, fontSize: 22)),
                                                     ),
                                             ),
                                           ),
@@ -245,31 +246,31 @@ class _AdminGuardsManagementScreenState
                                             children: [
                                               Text(g.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
                                               const SizedBox(height: 4),
-                                              Text('Site: $siteName', style: const TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                                              Text('Site: $siteName', style: TextStyle(color: context.colors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
                                               const SizedBox(height: 4),
                                               Row(children: [
-                                                const Icon(Icons.badge, size: 14, color: AppTheme.txtMuted),
+                                                Icon(Icons.badge, size: 14, color: context.colors.txtMuted),
                                                 const SizedBox(width: 4),
-                                                Text(g.empId, style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+                                                Text(g.empId, style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
                                               ]),
                                             ],
                                           ),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.edit, color: AppTheme.primary),
+                                          icon: Icon(Icons.edit, color: context.colors.primary),
                                           tooltip: 'Edit Guard',
                                           onPressed: () => _openGuardForm(context, db, sites, existing: g),
                                         ),
                                       ],
                                     ),
-                                    const Divider(height: 24, color: AppTheme.bord),
+                                    Divider(height: 24, color: context.colors.bord),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         Row(children: [
-                                          const Icon(Icons.phone, size: 14, color: AppTheme.txtMuted),
+                                          Icon(Icons.phone, size: 14, color: context.colors.txtMuted),
                                           const SizedBox(width: 4),
-                                          Text(g.phone.isEmpty ? 'N/A' : g.phone, style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+                                          Text(g.phone.isEmpty ? 'N/A' : g.phone, style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
                                         ]),
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -291,7 +292,7 @@ class _AdminGuardsManagementScreenState
                                                   if (site.id.isEmpty) return;
                                                   Navigator.push(context, MaterialPageRoute(builder: (_) => TakeAttendanceScreen(site: site, isCheckOutFlow: false, preselectedGuard: g)));
                                                 },
-                                                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.green, padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32)),
+                                                style: ElevatedButton.styleFrom(backgroundColor: context.colors.green, padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32)),
                                                 child: const Text('Check-In', style: TextStyle(fontSize: 11)),
                                               ),
                                             ] else if (isCheckedIn) ...[
@@ -302,7 +303,7 @@ class _AdminGuardsManagementScreenState
                                                   if (site.id.isEmpty) return;
                                                   Navigator.push(context, MaterialPageRoute(builder: (_) => TakeAttendanceScreen(site: site, isCheckOutFlow: true, preselectedGuard: g, existingRecord: existingRecord)));
                                                 },
-                                                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.yellow, padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32)),
+                                                style: ElevatedButton.styleFrom(backgroundColor: context.colors.yellow, padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32)),
                                                 child: const Text('Check-Out', style: TextStyle(fontSize: 11, color: Colors.black)),
                                               ),
                                             ],
@@ -397,6 +398,7 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
     return null;
   }
   String? _validateEmpId(String? v) {
+    if (widget.existing == null && (v == null || v.trim().isEmpty)) return null;
     if (v == null || v.trim().isEmpty) return 'Employee ID is required';
     if (v.contains(' ')) return 'No spaces allowed';
     return null;
@@ -443,17 +445,17 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
   void _showPhotoOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.bgSurface,
+      backgroundColor: context.colors.bgSurface,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 8),
           ListTile(
-            leading: const Icon(Icons.camera_alt, color: AppTheme.primary),
+            leading: Icon(Icons.camera_alt, color: context.colors.primary),
             title: const Text('Take Photo with Camera'),
             onTap: () { Navigator.pop(ctx); _pickPhoto(ImageSource.camera); },
           ),
           ListTile(
-            leading: const Icon(Icons.photo_library, color: AppTheme.primary),
+            leading: Icon(Icons.photo_library, color: context.colors.primary),
             title: const Text('Choose from Gallery'),
             onTap: () { Navigator.pop(ctx); _pickPhoto(ImageSource.gallery); },
           ),
@@ -466,17 +468,23 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
   // Save
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fix the errors above'), backgroundColor: AppTheme.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Please fix the errors above'), backgroundColor: context.colors.red));
       return;
     }
     setState(() => _saving = true);
     
     final selectedSite = widget.allSites.firstWhere((s) => s.id == _selectedSiteId);
 
+    String finalEmpId = _empId.text.trim();
+    if (finalEmpId.isEmpty) {
+      final allGuards = await widget.db.guardsStream().first;
+      finalEmpId = IdGenerator.generateGuardId(allGuards);
+    }
+
     final guard = Guard(
       id: widget.existing?.id ?? const Uuid().v4(),
       name: _name.text.trim(),
-      empId: _empId.text.trim(),
+      empId: finalEmpId,
       phone: _phone.text.trim(),
       dob: _dob.text.trim(),
       address: _address.text.trim(),
@@ -505,24 +513,24 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
   InputDecoration _field(String label, {String? hint, Widget? prefix}) => InputDecoration(
     labelText: label, hintText: hint,
     prefixIcon: prefix,
-    labelStyle: const TextStyle(color: AppTheme.txtSec, fontSize: 13),
-    hintStyle: const TextStyle(color: AppTheme.txtMuted, fontSize: 12),
+    labelStyle: TextStyle(color: context.colors.txtSec, fontSize: 13),
+    hintStyle: TextStyle(color: context.colors.txtMuted, fontSize: 12),
     filled: true, fillColor: Colors.white.withValues(alpha: 0.05),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.bord)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primary)),
-    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.red)),
-    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.red)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.bord)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.primary)),
+    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.red)),
+    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.red)),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
   );
 
   Widget _sectionHeader(String title, IconData icon) => Padding(
     padding: const EdgeInsets.only(top: 20, bottom: 10),
     child: Row(children: [
-      Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, size: 14, color: AppTheme.primary)),
+      Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: context.colors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+        child: Icon(icon, size: 14, color: context.colors.primary)),
       const SizedBox(width: 10),
-      Text(title, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
+      Text(title, style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
     ]),
   );
 
@@ -552,38 +560,41 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
                   child: Stack(children: [
                     CircleAvatar(
                       radius: 54,
-                      backgroundColor: AppTheme.bgElevated,
+                      backgroundColor: context.colors.bgElevated,
                       backgroundImage: _photoBytes != null
                           ? MemoryImage(_photoBytes!) as ImageProvider
                           : (_existingPhotoPath.length > 200 ? MemoryImage(base64Decode(_existingPhotoPath)) : null),
                       child: (!hasPhoto)
-                          ? const Icon(Icons.add_a_photo, size: 36, color: AppTheme.txtMuted)
+                          ? Icon(Icons.add_a_photo, size: 36, color: context.colors.txtMuted)
                           : null,
                     ),
-                    const Positioned(
+                    Positioned(
                       bottom: 0, right: 0,
-                      child: CircleAvatar(radius: 16, backgroundColor: AppTheme.primary, child: Icon(Icons.camera_alt, size: 16, color: Colors.white)),
+                      child: CircleAvatar(radius: 16, backgroundColor: context.colors.primary, child: const Icon(Icons.camera_alt, size: 16, color: Colors.white)),
                     ),
                   ]),
                 ),
               ),
               if (!hasPhoto)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text('⚠ Photo required for face verification', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.yellow, fontSize: 12)),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text('⚠ Photo required for face verification', textAlign: TextAlign.center, style: TextStyle(color: context.colors.yellow, fontSize: 12)),
                 ),
 
               // Personal
               _sectionHeader('Personal Information', Icons.person),
               TextFormField(controller: _name, style: const TextStyle(color: Colors.white), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: _validateName),
               const SizedBox(height: 10),
-              TextFormField(controller: _empId, style: const TextStyle(color: Colors.white), decoration: _field('Employee ID *', hint: 'e.g. EMP001', prefix: const Icon(Icons.badge, size: 18)), validator: _validateEmpId),
+              if (widget.existing != null) ...[
+                TextFormField(controller: _empId, style: const TextStyle(color: Colors.white), decoration: _field('Employee ID *', prefix: const Icon(Icons.badge, size: 18)), readOnly: true, validator: _validateEmpId),
+                const SizedBox(height: 10),
+              ],
               const SizedBox(height: 10),
               TextFormField(controller: _phone, style: const TextStyle(color: Colors.white), decoration: _field('Phone Number *', hint: '10-digit mobile', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: _validatePhone),
               const SizedBox(height: 10),
               TextFormField(
                 controller: _dob, style: const TextStyle(color: Colors.white),
-                decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: const Icon(Icons.calendar_today, size: 16, color: AppTheme.txtMuted)),
+                decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.colors.txtMuted)),
                 readOnly: true,
                 onTap: () async {
                   final d = await showDatePicker(context: context, initialDate: DateTime(2000), firstDate: DateTime(1950), lastDate: DateTime.now().subtract(const Duration(days: 6570)));
@@ -618,20 +629,20 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
               _sectionHeader('Employment Details', Icons.work),
               TextFormField(controller: _salary, style: const TextStyle(color: Colors.white), decoration: _field('Monthly Salary ₹ *', hint: 'e.g. 15000', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: _validateSalary),
               const SizedBox(height: 10),
-              const Text('Assign to Site *', style: TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+              Text('Assign to Site *', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _selectedSiteId,
-                dropdownColor: AppTheme.bgSurface,
+                dropdownColor: context.colors.bgSurface,
                 style: const TextStyle(color: Colors.white),
                 items: widget.allSites.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, style: const TextStyle(fontSize: 13)))).toList(),
                 onChanged: (val) => setState(() => _selectedSiteId = val!),
                 decoration: _field('Site *', prefix: const Icon(Icons.location_on, size: 18)),
               ),
               if (widget.existing != null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6, bottom: 4),
-                  child: Text('Changing the site transfers the guard to a new supervisor.', style: TextStyle(color: AppTheme.txtMuted, fontSize: 11), textAlign: TextAlign.center),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 4),
+                  child: Text('Changing the site transfers the guard to a new supervisor.', style: TextStyle(color: context.colors.txtMuted, fontSize: 11), textAlign: TextAlign.center),
                 ),
 
               // Notes
@@ -648,7 +659,7 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save),
                 label: Text(widget.existing == null ? 'Add Guard' : 'Save Changes'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: _saving ? null : _save,
               ),
               const SizedBox(height: 8),

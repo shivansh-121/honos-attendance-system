@@ -8,29 +8,30 @@ import '../../models/app_user.dart';
 import '../../services/auth_service.dart';
 import '../../services/local_push_service.dart';
 import '../../app_theme.dart';
-import 'supervisor_tracker_screen.dart';
-import 'manage_supervisors_screen.dart';
-import 'admin_sites_screen.dart';
+import '../admin/supervisor_tracker_screen.dart';
+import '../admin/manage_supervisors_screen.dart';
+import '../admin/admin_sites_screen.dart';
 import '../supervisor/reports_screen.dart';
-import 'admin_leaves_screen.dart';
-import 'admin_guards_list_screen.dart';
-import 'admin_guards_management_screen.dart';
-import 'admin_advances_screen.dart';
+import '../admin/admin_guards_list_screen.dart';
+import '../admin/admin_guards_management_screen.dart';
+import '../admin/admin_advances_screen.dart';
 import '../../services/db_service.dart';
 import '../../services/app_nav.dart';
-import 'notifications_screen.dart';
+import '../admin/notifications_screen.dart';
 import '../supervisor/executive_take_attendance_screen.dart';
+import '../supervisor/take_attendance_screen.dart';
+import '../../models/site.dart';
 import '../user_profile_screen.dart';
 import '../../widgets/theme_toggle_button.dart';
-class AdminDashboardScreen extends ConsumerStatefulWidget {
-  const AdminDashboardScreen({super.key});
+class ExecutiveDashboardScreen extends ConsumerStatefulWidget {
+  const ExecutiveDashboardScreen({super.key});
 
   @override
-  ConsumerState<AdminDashboardScreen> createState() =>
-      _AdminDashboardScreenState();
+  ConsumerState<ExecutiveDashboardScreen> createState() =>
+      _ExecutiveDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
+class _ExecutiveDashboardScreenState extends ConsumerState<ExecutiveDashboardScreen> {
   bool _notifiedPhoto = false;
 
   @override
@@ -114,6 +115,128 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
+  void _showPhotoPrompt(BuildContext context, AppUser user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: context.colors.yellow),
+            const SizedBox(width: 8),
+            const Text('Profile Picture Required', style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: Text(
+          'You must add a profile picture before you can check-in or check-out.',
+          style: TextStyle(color: context.colors.txtSec),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _uploadPhoto(user);
+            },
+            child: const Text('Upload Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAttendanceActionSheet(BuildContext context, AppUser user, bool isCheckOut) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: context.colors.bgSurface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 24),
+              Text(isCheckOut ? 'Who is checking out?' : 'Who is checking in?', 
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 24),
+              
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppNav.push(context, ExecutiveTakeAttendanceScreen(isCheckOutFlow: isCheckOut));
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(16),
+                    color: context.colors.primary.withValues(alpha: 0.1),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(backgroundColor: context.colors.primary, child: const Icon(Icons.person, color: Colors.white)),
+                      const SizedBox(width: 16),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Myself', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('Record your own site visit', style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
+                        ],
+                      )),
+                      Icon(Icons.chevron_right, color: context.colors.txtMuted),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  final dummySite = Site(id: 'executive_scan', name: 'Executive Scan', address: '', lat: 0, lng: 0, radius: 0, supervisorId: user.id);
+                  AppNav.push(context, TakeAttendanceScreen(site: dummySite, isCheckOutFlow: isCheckOut));
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white12),
+                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(backgroundColor: Colors.white24, child: Icon(Icons.security, color: Colors.white)),
+                      const SizedBox(width: 16),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('A Guard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('Scan a guard\'s face to mark their attendance', style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
+                        ],
+                      )),
+                      Icon(Icons.chevron_right, color: context.colors.txtMuted),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
@@ -123,7 +246,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: const Text('Executive Dashboard'),
         actions: [
           const ThemeToggleButton(),
           Consumer(
@@ -228,40 +351,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 .fadeIn(delay: 450.ms)
                 .slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
 
-            if (user?.role == 'admin')
-              ListTile(
-                      leading: Icon(Icons.manage_accounts, color: context.colors.txtSec),
-                      title: Text('Manage Executives', style: TextStyle(color: context.colors.txtSec)),
-                      onTap: () {
-                        Navigator.pop(context);
-                        AppNav.push(context, const ManageSupervisorsScreen(role: 'executive'));
-                      })
-                  .animate()
-                  .fadeIn(delay: 450.ms)
-                  .slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
 
-            if (user?.role == 'admin')
-              ListTile(
-                      leading: Icon(Icons.work, color: context.colors.txtSec),
-                      title: Text('Manage Office Employees', style: TextStyle(color: context.colors.txtSec)),
-                      onTap: () {
-                        Navigator.pop(context);
-                        AppNav.push(context, const ManageSupervisorsScreen(role: 'employee'));
-                      })
-                  .animate()
-                  .fadeIn(delay: 450.ms)
-                  .slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
-
-            ListTile(
-                    leading: Icon(Icons.event_busy, color: context.colors.txtSec),
-                    title: Text('Leave Requests', style: TextStyle(color: context.colors.txtSec)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      AppNav.push(context, const AdminLeavesScreen());
-                    })
-                .animate()
-                .fadeIn(delay: 450.ms)
-                .slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
 
             ListTile(
                     leading: Icon(Icons.fact_check, color: context.colors.txtSec),
@@ -348,7 +438,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
                       ),
-                      child: Text(user?.role.toUpperCase() ?? 'ADMIN', style: TextStyle(color: context.colors.primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      child: Text(user?.role.toUpperCase() ?? 'EXECUTIVE', style: TextStyle(color: context.colors.primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                     ),
                   ),
                 ),
@@ -426,8 +516,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
-                              onPressed: missingPhoto ? null : () {
-                                AppNav.push(context, const ExecutiveTakeAttendanceScreen(isCheckOutFlow: false));
+                              onPressed: missingPhoto ? () => _showPhotoPrompt(context, user) : () {
+                                _showAttendanceActionSheet(context, user, false);
                               },
                               icon: const Icon(Icons.login),
                               label: const Text('Check-In', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -442,8 +532,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
-                              onPressed: missingPhoto ? null : () {
-                                AppNav.push(context, const ExecutiveTakeAttendanceScreen(isCheckOutFlow: true));
+                              onPressed: missingPhoto ? () => _showPhotoPrompt(context, user) : () {
+                                _showAttendanceActionSheet(context, user, true);
                               },
                               icon: const Icon(Icons.logout),
                               label: const Text('Check-Out', style: TextStyle(fontWeight: FontWeight.bold)),

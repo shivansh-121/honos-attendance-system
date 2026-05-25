@@ -1,12 +1,21 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../../app_theme.dart';
 import '../../models/attendance.dart';
 import '../../models/guard.dart';
+import '../../models/app_user.dart';
 import '../../services/db_service.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/base64_image_widget.dart';
+import '../../services/app_nav.dart';
+import '../admin/guard_profile_screen.dart';
+
+// Since we have stream providers for generic things, let's define a family provider for scoped attendance
+final dateRangeAttendanceProvider = StreamProvider.family<List<Attendance>, Map<String, String>>((ref, range) {
+  return ref.read(dbProvider).attendanceStreamForDateRange(range['start']!, range['end']!);
+});
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -17,27 +26,62 @@ class ReportsScreen extends ConsumerStatefulWidget {
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _selectedFilter = 'Today';
-  final List<String> _filters = ['Today', 'This Week', 'This Month', 'All'];
+  final List<String> _filters = ['Today', 'This Week', 'This Month', 'Custom'];
+  
+  String _userRoleFilter = 'All'; // 'All', 'Guards', 'Supervisors', 'Office'
+  
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now();
 
-  List<Attendance> _getFiltered(List<Attendance> all) {
+  @override
+  void initState() {
+    super.initState();
+    _updateDateRange();
+  }
+
+  void _updateDateRange() {
     final now = DateTime.now();
-    final today = DateFormat('yyyy-MM-dd').format(now);
+    setState(() {
+      if (_selectedFilter == 'Today') {
+        _startDate = now;
+        _endDate = now;
+      } else if (_selectedFilter == 'This Week') {
+        _startDate = now.subtract(const Duration(days: 7));
+        _endDate = now;
+      } else if (_selectedFilter == 'This Month') {
+        _startDate = DateTime(now.year, now.month, 1);
+        _endDate = DateTime(now.year, now.month + 1, 0); // last day of month
+      }
+    });
+  }
 
-    switch (_selectedFilter) {
-      case 'Today':
-        return all.where((a) => a.date == today).toList();
-      case 'This Week':
-        final weekAgo = now.subtract(const Duration(days: 7));
-        return all.where((a) {
-          final d = DateTime.tryParse(a.date);
-          return d != null && d.isAfter(weekAgo);
-        }).toList();
-      case 'This Month':
-        return all
-            .where((a) => a.date.startsWith(DateFormat('yyyy-MM').format(now)))
-            .toList();
-      default:
-        return all;
+  Future<void> _pickCustomRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: context.colors.primary,
+              surface: context.colors.bgSurface,
+              onPrimary: Colors.white,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedFilter = 'Custom';
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
     }
   }
 
@@ -46,7 +90,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final user = ref.watch(authProvider);
     final isAdmin = user?.role == 'admin';
     final guardsAsync = ref.watch(guardsStreamProvider);
-    final attendanceAsync = ref.watch(attendanceStreamProvider);
+    final usersAsync = ref.watch(usersStreamProvider);
+
+    final startStr = DateFormat('yyyy-MM-dd').format(_startDate);
+    final endStr = DateFormat('yyyy-MM-dd').format(_endDate);
+    
+    final attendanceAsync = ref.watch(dateRangeAttendanceProvider({'start': startStr, 'end': endStr}));
 
     return Scaffold(
       appBar: AppBar(
@@ -54,7 +103,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         actions: isAdmin
             ? [
                 IconButton(
-                  icon: const Icon(Icons.delete_sweep, color: AppTheme.red),
+                  icon: Icon(Icons.delete_sweep, color: context.colors.red),
                   tooltip: 'Clear All Records',
                   onPressed: () {
                     showDialog(
@@ -65,11 +114,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+                            style: ElevatedButton.styleFrom(backgroundColor: context.colors.red),
                             onPressed: () {
                               ref.read(dbProvider).clearAttendance();
                               Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All records deleted.'), backgroundColor: AppTheme.red));
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('All records deleted.'), backgroundColor: context.colors.red));
                             },
                             child: const Text('Delete All', style: TextStyle(color: Colors.white)),
                           ),
@@ -82,131 +131,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             : null,
       ),
       body: guardsAsync.when(
-        data: (guards) => attendanceAsync.when(
-          data: (allRecords) {
-            final filtered = _getFiltered(allRecords);
-            final totalGuards = guards.length;
-            final presentToday = _getFiltered(allRecords).length;
-
-            return Column(
-              children: [
-                // Summary Cards
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Row(
-                    children: [
-                      _buildSummaryCard('Total Guards', '$totalGuards', Icons.people, AppTheme.primary),
-                      const SizedBox(width: 12),
-                      _buildSummaryCard('Records', '${allRecords.length}', Icons.history, AppTheme.purple),
-                      const SizedBox(width: 12),
-                      _buildSummaryCard('Today\'s', '$presentToday', Icons.today, AppTheme.green),
-                    ],
-                  ),
-                ),
-
-                // Filter Chips
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _filters
-                          .map((f) => Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: FilterChip(
-                                  label: Text(f),
-                                  selected: _selectedFilter == f,
-                                  onSelected: (_) => setState(() => _selectedFilter = f),
-                                  selectedColor: AppTheme.primary.withValues(alpha: 0.2),
-                                  checkmarkColor: AppTheme.primary,
-                                  backgroundColor: AppTheme.bgElevated,
-                                  labelStyle: TextStyle(
-                                    color: _selectedFilter == f ? AppTheme.primary : AppTheme.txtSec,
-                                    fontWeight: _selectedFilter == f ? FontWeight.bold : FontWeight.normal,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                    side: BorderSide(color: _selectedFilter == f ? AppTheme.primary : AppTheme.bord),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                ),
-
-                // List header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('${filtered.length} records', style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
-                      const Text('Tap to expand', style: TextStyle(color: AppTheme.txtMuted, fontSize: 11)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Records List
-                Expanded(
-                  child: filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.receipt_long_outlined, size: 72, color: AppTheme.txtMuted),
-                              const SizedBox(height: 12),
-                              Text('No records for "$_selectedFilter"', textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.txtSec)),
-                              const SizedBox(height: 8),
-                              const Text('Mark attendance to see reports here.', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.txtMuted, fontSize: 12)),
-                            ],
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, i) {
-                            final record = filtered[i];
-                            final guard = guards.firstWhere(
-                              (g) => g.id == record.guardId,
-                              orElse: () => const Guard(id: '', name: 'Unknown', empId: '', siteId: '', supervisorId: '', phone: '', joinDate: '', salary: 0),
-                            );
-                            return _AttendanceCard(
-                              record: record, 
-                              guard: guard,
-                              isAdmin: isAdmin,
-                              onDelete: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Delete Record?'),
-                                    content: const Text('Are you sure you want to delete this attendance record?'),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
-                                        onPressed: () {
-                                          ref.read(dbProvider).deleteAttendance(record.id);
-                                          Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record deleted.'), backgroundColor: AppTheme.red));
-                                        },
-                                        child: const Text('Delete', style: TextStyle(color: Colors.white)),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                ),
-              ],
-            );
-          },
+        data: (guards) => usersAsync.when(
+          data: (allUsers) => attendanceAsync.when(
+            data: (allRecords) {
+              return _buildReportContent(user, isAdmin, guards, allUsers, allRecords);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, __) => Center(child: Text('Rec Error: $e', style: const TextStyle(color: Colors.white))),
+          ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, __) => Center(child: Text('Rec Error: $e', style: const TextStyle(color: Colors.white))),
+          error: (e, __) => Center(child: Text('User Error: $e', style: const TextStyle(color: Colors.white))),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, __) => Center(child: Text('Guard Error: $e', style: const TextStyle(color: Colors.white))),
@@ -214,8 +148,323 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildSummaryCard(
-      String title, String value, IconData icon, Color color) {
+  Widget _buildReportContent(AppUser? currentUser, bool isAdmin, List<Guard> guards, List<AppUser> allUsers, List<Attendance> records) {
+    // 1. Get visibility permissions
+    final isExecutive = currentUser?.role == 'executive';
+    final isSupervisor = currentUser?.role == 'supervisor';
+
+    // List of people the current user is allowed to see
+    List<dynamic> visiblePeople = [];
+
+    // Filter by role requested by user
+    if (_userRoleFilter == 'All' || _userRoleFilter == 'Guards') {
+      visiblePeople.addAll(guards);
+    }
+    if ((isAdmin || isExecutive) && (_userRoleFilter == 'All' || _userRoleFilter == 'Supervisors')) {
+      visiblePeople.addAll(allUsers.where((u) => u.role == 'supervisor'));
+    }
+    if (isAdmin && (_userRoleFilter == 'All' || _userRoleFilter == 'Office')) {
+      visiblePeople.addAll(allUsers.where((u) => u.role == 'office_employee'));
+    }
+
+    final totalVisible = visiblePeople.length;
+    final isSingleDay = _startDate.year == _endDate.year && _startDate.month == _endDate.month && _startDate.day == _endDate.day;
+
+    // Filter records for visible people
+    final visibleRecords = records.where((r) => visiblePeople.any((p) => p.id == r.guardId)).toList();
+    final presentCount = visibleRecords.where((r) => r.date == DateFormat('yyyy-MM-dd').format(_startDate)).length; // If single day
+
+    return Column(
+      children: [
+        // Top Filter Chips (Time)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _filters.map((f) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(f),
+                  selected: _selectedFilter == f,
+                  onSelected: (_) {
+                    if (f == 'Custom') {
+                      _pickCustomRange();
+                    } else {
+                      setState(() {
+                        _selectedFilter = f;
+                        _updateDateRange();
+                      });
+                    }
+                  },
+                  selectedColor: context.colors.primary.withValues(alpha: 0.2),
+                  checkmarkColor: context.colors.primary,
+                  backgroundColor: context.colors.bgElevated,
+                  labelStyle: TextStyle(
+                    color: _selectedFilter == f ? context.colors.primary : context.colors.txtSec,
+                    fontWeight: _selectedFilter == f ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(color: _selectedFilter == f ? context.colors.primary : context.colors.bord),
+                  ),
+                ),
+              )).toList(),
+            ),
+          ),
+        ),
+
+        // Second Filter Chips (Role)
+        if (isAdmin || isExecutive)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ['All', 'Guards', 'Supervisors', if (isAdmin) 'Office'].map((role) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(role, style: TextStyle(fontSize: 12)),
+                    selected: _userRoleFilter == role,
+                    onSelected: (val) {
+                      if (val) setState(() => _userRoleFilter = role);
+                    },
+                    selectedColor: context.colors.yellow.withValues(alpha: 0.2),
+                    backgroundColor: context.colors.bgElevated,
+                    labelStyle: TextStyle(color: _userRoleFilter == role ? context.colors.yellow : context.colors.txtMuted),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: _userRoleFilter == role ? context.colors.yellow : Colors.transparent),
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ),
+          ),
+
+        // Summary Cards
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              _buildSummaryCard('Personnel', '$totalVisible', Icons.people, context.colors.primary),
+              const SizedBox(width: 12),
+              _buildSummaryCard('Records', '${visibleRecords.length}', Icons.history, context.colors.purple),
+              const SizedBox(width: 12),
+              _buildSummaryCard(isSingleDay ? 'Present' : 'Avg/Day', 
+                                isSingleDay ? '$presentCount' : '${(visibleRecords.length / max(1, _endDate.difference(_startDate).inDays)).toStringAsFixed(1)}', 
+                                Icons.check_circle, context.colors.green),
+            ],
+          ),
+        ),
+        
+        // Date indicator
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_month, color: context.colors.txtMuted, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                isSingleDay 
+                  ? DateFormat('EEEE, MMM dd, yyyy').format(_startDate)
+                  : '${DateFormat('MMM dd').format(_startDate)} - ${DateFormat('MMM dd, yyyy').format(_endDate)}',
+                style: TextStyle(color: context.colors.txtSec, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+
+        // Records View
+        Expanded(
+          child: isSingleDay 
+            ? _buildDailyView(visiblePeople, visibleRecords)
+            : _buildRangeView(visiblePeople, visibleRecords),
+        ),
+      ],
+    );
+  }
+
+  // --- Grouped Daily View ---
+  Widget _buildDailyView(List<dynamic> people, List<Attendance> records) {
+    if (people.isEmpty) return Center(child: Text('No personnel found.', style: TextStyle(color: context.colors.txtMuted)));
+
+    // Sort: Present first, then Absent
+    people.sort((a, b) {
+      final aPresent = records.any((r) => r.guardId == a.id);
+      final bPresent = records.any((r) => r.guardId == b.id);
+      if (aPresent && !bPresent) return -1;
+      if (!aPresent && bPresent) return 1;
+      return a.name.compareTo(b.name);
+    });
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: people.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (ctx, i) {
+        final person = people[i];
+        final record = records.where((r) => r.guardId == person.id).firstOrNull;
+        
+        final isPresent = record != null && record.status.toLowerCase() == 'present';
+        final hasCheckOut = record != null && record.checkOutTime.isNotEmpty;
+        final color = isPresent ? context.colors.green : context.colors.red;
+
+        return Card(
+          color: context.colors.bgSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: color.withValues(alpha: 0.2),
+                      backgroundImage: (person.photo != null && person.photo.toString().length > 200) ? MemoryImage(base64Decode(person.photo)) : null,
+                      child: (person.photo == null || person.photo.toString().length <= 200) ? Icon(Icons.person, color: color) : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(person.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                          Text(person is Guard ? 'Guard • ID: ${person.empId}' : '${(person as AppUser).role.replaceAll('_', ' ').toUpperCase()}', 
+                               style: TextStyle(color: context.colors.txtMuted, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        isPresent ? 'PRESENT' : 'ABSENT',
+                        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                if (isPresent) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: context.colors.bgElevated,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text('Check-In', style: TextStyle(fontSize: 10, color: context.colors.txtMuted)),
+                              Text(record.time.isNotEmpty ? record.time : '--:--', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: context.colors.green)),
+                            ],
+                          ),
+                        ),
+                        Container(width: 1, height: 24, color: context.colors.bord),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text('Check-Out', style: TextStyle(fontSize: 10, color: context.colors.txtMuted)),
+                              Text(hasCheckOut ? record.checkOutTime : '--:--', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: hasCheckOut ? context.colors.yellow : context.colors.txtMuted)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- Grouped Range/Monthly View ---
+  Widget _buildRangeView(List<dynamic> people, List<Attendance> records) {
+    if (people.isEmpty) return Center(child: Text('No personnel found.', style: TextStyle(color: context.colors.txtMuted)));
+
+    final int totalDays = _endDate.difference(_startDate).inDays + 1;
+
+    // Sort by presence
+    people.sort((a, b) {
+      final aCount = records.where((r) => r.guardId == a.id).length;
+      final bCount = records.where((r) => r.guardId == b.id).length;
+      return bCount.compareTo(aCount);
+    });
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: people.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (ctx, i) {
+        final person = people[i];
+        final pRecords = records.where((r) => r.guardId == person.id).toList();
+        final presentCount = pRecords.length;
+        final absentCount = totalDays - presentCount;
+        final double score = (presentCount / max(1, totalDays)) * 100;
+        
+        Color scoreColor = context.colors.red;
+        if (score >= 80) scoreColor = context.colors.green;
+        else if (score >= 50) scoreColor = context.colors.yellow;
+
+        return Card(
+          color: context.colors.bgSurface,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: scoreColor.withValues(alpha: 0.2),
+                  backgroundImage: (person.photo != null && person.photo.toString().length > 200) ? MemoryImage(base64Decode(person.photo)) : null,
+                  child: (person.photo == null || person.photo.toString().length <= 200) ? Icon(Icons.person, color: scoreColor) : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(person.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text('$presentCount Present', style: TextStyle(color: context.colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 8),
+                          Text('$absentCount Absent', style: TextStyle(color: context.colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('${score.toStringAsFixed(0)}%', style: TextStyle(color: scoreColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('Credibility', style: TextStyle(color: context.colors.txtMuted, fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
@@ -228,12 +477,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 6),
-            Text(value,
-                style: TextStyle(
-                    color: color, fontWeight: FontWeight.bold, fontSize: 20)),
-            Text(title,
-                style: const TextStyle(color: AppTheme.txtSec, fontSize: 10),
-                textAlign: TextAlign.center),
+            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 20)),
+            Text(title, style: TextStyle(color: context.colors.txtSec, fontSize: 10), textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -241,164 +486,4 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 }
 
-class _AttendanceCard extends StatelessWidget {
-  final Attendance record;
-  final Guard guard;
-  final bool isAdmin;
-  final VoidCallback onDelete;
-
-  const _AttendanceCard({required this.record, required this.guard, this.isAdmin = false, required this.onDelete});
-
-  String _calcWorkingHours() {
-    if (record.time.isEmpty || record.checkOutTime.isEmpty) return '';
-    try {
-      final inParts = record.time.split(':');
-      final outParts = record.checkOutTime.split(':');
-      if (inParts.length < 2 || outParts.length < 2) return '';
-      final inMin = int.parse(inParts[0]) * 60 + int.parse(inParts[1]);
-      final outMin = int.parse(outParts[0]) * 60 + int.parse(outParts[1]);
-      final diff = outMin - inMin;
-      if (diff <= 0) return '';
-      final h = diff ~/ 60;
-      final m = diff % 60;
-      return '${h}h ${m}m';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final date = DateTime.tryParse(record.date);
-    final formattedDate = date != null
-        ? DateFormat('EEE, dd MMM yyyy').format(date)
-        : record.date;
-    final workingHours = _calcWorkingHours();
-    final hasCheckOut = record.checkOutTime.isNotEmpty;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top row: avatar, name, status badge, delete
-            Row(
-              children: [
-                ClipOval(
-                  child: SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: guard.photo.length > 200
-                        ? Base64ImageWidget(base64String: guard.photo)
-                        : Container(
-                            color: AppTheme.green.withValues(alpha: 0.15),
-                            child: const Icon(Icons.person, color: AppTheme.green),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        guard.name.isEmpty ? 'Guard #${record.guardId}' : guard.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                      if (guard.empId.isNotEmpty)
-                        Text('ID: ${guard.empId}', style: const TextStyle(fontSize: 11, color: AppTheme.txtMuted)),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.green.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.green.withValues(alpha: 0.4)),
-                  ),
-                  child: Text(
-                    record.status.toUpperCase(),
-                    style: const TextStyle(
-                        color: AppTheme.green,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-                if (isAdmin) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: AppTheme.red, size: 20),
-                    onPressed: onDelete,
-                    tooltip: 'Delete Record',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Date row
-            Row(children: [
-              const Icon(Icons.calendar_today, size: 12, color: AppTheme.txtMuted),
-              const SizedBox(width: 5),
-              Text(formattedDate, style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
-            ]),
-            const SizedBox(height: 6),
-            // Check-in / Check-out / Working hours row
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.bgElevated,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  // Check-In
-                  Expanded(
-                    child: Column(
-                      children: [
-                        const Icon(Icons.login, size: 16, color: AppTheme.green),
-                        const SizedBox(height: 4),
-                        const Text('Check-In', style: TextStyle(fontSize: 10, color: AppTheme.txtMuted)),
-                        Text(record.time.isNotEmpty ? record.time : '--:--',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.green)),
-                      ],
-                    ),
-                  ),
-                  Container(width: 1, height: 36, color: AppTheme.bord),
-                  // Check-Out
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Icon(Icons.logout, size: 16, color: hasCheckOut ? AppTheme.yellow : AppTheme.txtMuted),
-                        const SizedBox(height: 4),
-                        const Text('Check-Out', style: TextStyle(fontSize: 10, color: AppTheme.txtMuted)),
-                        Text(hasCheckOut ? record.checkOutTime : '--:--',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: hasCheckOut ? AppTheme.yellow : AppTheme.txtMuted)),
-                      ],
-                    ),
-                  ),
-                  Container(width: 1, height: 36, color: AppTheme.bord),
-                  // Working Hours
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Icon(Icons.timer_outlined, size: 16, color: workingHours.isNotEmpty ? AppTheme.primary : AppTheme.txtMuted),
-                        const SizedBox(height: 4),
-                        const Text('Working Hrs', style: TextStyle(fontSize: 10, color: AppTheme.txtMuted)),
-                        Text(workingHours.isNotEmpty ? workingHours : '--',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: workingHours.isNotEmpty ? AppTheme.primary : AppTheme.txtMuted)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+int max(int a, int b) => a > b ? a : b;

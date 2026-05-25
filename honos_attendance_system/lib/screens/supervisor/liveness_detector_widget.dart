@@ -103,7 +103,7 @@ class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
               height: 300,
               width: double.infinity,
               decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.primary, width: 2),
+                border: Border.all(color: context.colors.primary, width: 2),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: ClipRRect(

@@ -94,6 +94,27 @@ void onBackgroundServiceStart(ServiceInstance service) async {
         title: 'Honos Security – On Duty',
         content: 'Live tracking active. Tap to open app.',
       );
+      
+      // Override with rich notification
+      final FlutterLocalNotificationsPlugin np = FlutterLocalNotificationsPlugin();
+      const androidDetails = AndroidNotificationDetails(
+        _notifChannelId,
+        _notifChannelName,
+        channelDescription: 'Used for Honos supervisor live location tracking.',
+        importance: Importance.low,
+        priority: Priority.low,
+        icon: 'ic_notification',
+        color: Color(0xFF3B82F6),
+
+        ongoing: true,
+        largeIcon: DrawableResourceAndroidBitmap('app_logo'),
+      );
+      await np.show(
+        _notifId,
+        'Honos Security – On Duty',
+        'Live tracking active. Tap to open app.',
+        const NotificationDetails(android: androidDetails),
+      );
     }
 
     // Start listening to GPS stream
@@ -170,6 +191,28 @@ void toggleTracking(bool start, String supervisorId) {
       final service = FlutterBackgroundService();
       
       if (start) {
+        // INSTANTLY show the rich notification on the main thread so there is no delay
+        // while the background isolate warms up.
+        final np = FlutterLocalNotificationsPlugin();
+        const androidDetails = AndroidNotificationDetails(
+          _notifChannelId,
+          _notifChannelName,
+          channelDescription: 'Used for Honos supervisor live location tracking.',
+          importance: Importance.low,
+          priority: Priority.low,
+          icon: 'ic_notification',
+          color: Color(0xFF3B82F6),
+  
+          ongoing: true,
+        largeIcon: DrawableResourceAndroidBitmap('app_logo'),
+        );
+        await np.show(
+          _notifId,
+          'Honos Security – On Duty',
+          'Live tracking active. Tap to open app.',
+          const NotificationDetails(android: androidDetails),
+        );
+
         bool isRunning = await service.isRunning();
         if (!isRunning) {
           // ensure it's configured (though main should have done it)
@@ -178,6 +221,8 @@ void toggleTracking(bool start, String supervisorId) {
         service.invoke('start_tracking', {'supervisorId': supervisorId});
       } else {
         service.invoke('stop_tracking', {'supervisorId': supervisorId});
+        // Clear the notification instantly when stopping
+        await FlutterLocalNotificationsPlugin().cancel(_notifId);
       }
     } catch (e) {
       debugPrint('🚨 toggleTracking Error: $e');

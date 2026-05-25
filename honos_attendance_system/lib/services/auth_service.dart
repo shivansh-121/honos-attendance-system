@@ -76,6 +76,10 @@ class AuthNotifier extends StateNotifier<AppUser?> {
     state = user;
   }
 
+  Future<void> updateUser(AppUser user) async {
+    await _saveSession(user);
+  }
+
   Future<void> updateSite(String newSiteId) async {
     if (state == null) return;
     

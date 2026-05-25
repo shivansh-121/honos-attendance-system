@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import '../../app_theme.dart';
 import '../../models/app_notification.dart';
 import '../../services/db_service.dart';
 import '../../services/auth_service.dart';
-import 'guards_list_screen.dart'; // We could import GuardProfileScreen instead if we want to deep link to it
-
-// Assuming we have a GuardProfileScreen in supervisor folder? Wait, supervisors use GuardsListScreen and maybe edit sheet directly.
-// Let's check where the GuardProfile is for supervisors... Wait, supervisor doesn't have a GuardProfileScreen! Admin does.
-// Supervisor just taps a guard in GuardsListScreen and it opens the Edit form `_GuardFormSheet`.
-// We can just pop back or push to GuardsListScreen, but ideally we show the edit form.
-// For now, let's just push GuardsListScreen, and they can tap the guard.
+import 'guards_list_screen.dart';
 
 class SupNotificationsScreen extends ConsumerWidget {
   const SupNotificationsScreen({super.key});
@@ -22,38 +17,50 @@ class SupNotificationsScreen extends ConsumerWidget {
     final user = ref.watch(authProvider);
 
     return Scaffold(
+      backgroundColor: context.colors.bgBase,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
       ),
       body: notificationsAsync.when(
         data: (allNotifs) {
           final notifications = allNotifs.where((n) => n.supervisorId == user?.id && (n.type == 'edit_approved' || n.type == 'edit_rejected')).toList();
 
           if (notifications.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_off, size: 64, color: AppTheme.txtMuted),
-                  SizedBox(height: 16),
-                  Text('No notifications yet', style: TextStyle(color: AppTheme.txtSec, fontSize: 16)),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: context.colors.bgSurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.notifications_none, size: 64, color: context.colors.txtMuted),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('All caught up!', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('You have no new notifications right now.', style: TextStyle(color: context.colors.txtSec, fontSize: 14)),
                 ],
-              ),
+              ).animate().fadeIn().scale(begin: const Offset(0.8, 0.8)),
             );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
+          return ListView.builder(
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 32),
             itemCount: notifications.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (ctx, i) {
               final notif = notifications[i];
-              return _SupNotificationCard(notification: notif).animate().fadeIn(delay: (i * 50).ms).slideX(begin: 0.1, end: 0);
+              return _SupNotificationCard(notification: notif).animate().fadeIn(delay: (i * 40).ms).slideX(begin: 0.05, end: 0);
             },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppTheme.red))),
+        error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.red))),
       ),
     );
   }
@@ -64,47 +71,72 @@ class _SupNotificationCard extends ConsumerWidget {
 
   const _SupNotificationCard({required this.notification});
 
+  String _timeAgo(String timestamp) {
+    final dt = DateTime.tryParse(timestamp);
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays > 7) return DateFormat('MMM dd').format(dt);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isApproved = notification.type == 'edit_approved';
+    
+    final iconData = isApproved ? Icons.check_circle : Icons.cancel;
+    final iconColor = isApproved ? context.colors.green : context.colors.red;
+    final bgColor = isApproved ? context.colors.green.withValues(alpha: 0.1) : context.colors.red.withValues(alpha: 0.1);
 
-    return Card(
-      color: notification.isRead ? AppTheme.bgSurface : AppTheme.primaryDark.withValues(alpha: 0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: notification.isRead ? AppTheme.bord : AppTheme.primary, width: notification.isRead ? 1 : 2),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: notification.isRead ? context.colors.bgSurface : context.colors.bgElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: notification.isRead ? Colors.white.withValues(alpha: 0.03) : context.colors.primary.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          if (!notification.isRead)
+            BoxShadow(
+              color: context.colors.primary.withValues(alpha: 0.05),
+              blurRadius: 10,
+              spreadRadius: 1,
+            )
+        ],
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () async {
-          if (!notification.isRead) {
-            await ref.read(dbProvider).markNotificationAsRead(notification.id);
-          }
-          if (isApproved && context.mounted) {
-            // Push to guards list screen
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const GuardsListScreen()));
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () async {
+              if (!notification.isRead) {
+                await ref.read(dbProvider).markNotificationAsRead(notification.id);
+              }
+              if (isApproved && context.mounted) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const GuardsListScreen()));
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Icon Circle
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isApproved ? AppTheme.green.withValues(alpha: 0.2) : AppTheme.red.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      isApproved ? Icons.check_circle : Icons.cancel,
-                      color: isApproved ? AppTheme.green : AppTheme.red,
-                      size: 20,
-                    ),
+                    child: Icon(iconData, color: iconColor, size: 22),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
+                  // Content
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,33 +144,48 @@ class _SupNotificationCard extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: Text(notification.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white))),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: AppTheme.txtMuted, size: 20),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () async {
-                                await ref.read(dbProvider).deleteNotification(notification.id);
-                              },
-                            )
+                            Expanded(
+                              child: Text(
+                                notification.title,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  _timeAgo(notification.timestamp),
+                                  style: TextStyle(color: context.colors.txtMuted, fontSize: 12, fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => ref.read(dbProvider).deleteNotification(notification.id),
+                                  child: Icon(Icons.close, color: context.colors.txtMuted, size: 18),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(notification.message, style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        Text(
+                          notification.message,
+                          style: TextStyle(color: context.colors.txtSec, fontSize: 14, height: 1.4),
+                        ),
                       ],
                     ),
                   ),
+                  // Unread Indicator
                   if (!notification.isRead) ...[
                     const SizedBox(width: 8),
                     Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
+                      margin: const EdgeInsets.only(top: 6),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: context.colors.primary, shape: BoxShape.circle),
                     ),
                   ],
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),

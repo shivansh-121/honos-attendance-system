@@ -22,16 +22,21 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
     final auth = ref.read(authProvider);
     if (auth == null) return;
 
+    final todayAtt = ref.read(todayAttendanceProvider).value ?? [];
+    final today = DateTime.now().toIso8601String().split('T').first;
+    final existing = todayAtt.where((a) => a.guardId == guardId && a.date == today).lastOrNull;
+
     final now = DateTime.now();
     final record = Attendance(
-      id: const Uuid().v4(),
+      id: existing?.id ?? const Uuid().v4(),
       guardId: guardId,
-      siteId: siteId, // Use actual siteId from the guard
-      date: now.toIso8601String().split('T').first,
-      time: '${now.hour}:${now.minute.toString().padLeft(2, '0')}',
+      siteId: siteId,
+      date: today,
+      time: existing?.time.isNotEmpty == true ? existing!.time : '${now.hour}:${now.minute.toString().padLeft(2, '0')}',
       status: status,
       supervisorId: auth.id,
       markedAt: 'Manual Override (Admin)',
+      checkOutTime: existing?.checkOutTime ?? '',
     );
 
     ref.read(dbProvider).saveAttendance(record);
@@ -58,14 +63,14 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(color: const Color(0xFF1B3B60).withValues(alpha: 0.5)),
+            child: Container(color: context.colors.bgElevated.withValues(alpha: 0.8)),
           ),
         ),
       ),
       body: guardsAsync.when(
         data: (guards) => attendanceAsync.when(
           data: (attendance) => guards.isEmpty
-            ? const Center(child: Text('No guards assigned to sites yet.', style: TextStyle(color: Colors.white54)))
+            ? Center(child: Text('No guards assigned to sites yet.', style: TextStyle(color: context.colors.txtMuted)))
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: guards.length,
@@ -73,7 +78,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                   final g = guards[i];
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: context.colors.bgElevated.withValues(alpha: 0.5),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -82,17 +87,17 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                           Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: const Color(0xFF1B3B60),
+                                backgroundColor: context.colors.primary,
                                 backgroundImage: g.photo.length > 200 ? MemoryImage(base64Decode(g.photo)) : null,
-                                child: g.photo.length <= 200 ? const Icon(Icons.person, color: Colors.white) : null,
+                                child: g.photo.length <= 200 ? Icon(Icons.person, color: context.colors.txtPrimary) : null,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(g.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
-                                    Text('ID: ${g.empId}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                    Text(g.name, style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.txtPrimary, fontSize: 16)),
+                                    Text('ID: ${g.empId}', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
                                   ],
                                 ),
                               ),
@@ -107,10 +112,10 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                 },
               ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, __) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+          error: (e, __) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.txtPrimary))),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, __) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+        error: (e, __) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.txtPrimary))),
       ),
     );
   }
@@ -152,9 +157,9 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
             children: [
               Row(
                 children: [
-                  Icon(isPresent ? Icons.check_circle : Icons.cancel, color: isPresent ? AppTheme.green : AppTheme.red, size: 20),
+                  Icon(isPresent ? Icons.check_circle : Icons.cancel, color: isPresent ? context.colors.green : context.colors.red, size: 20),
                   const SizedBox(width: 8),
-                  Text('Marked ${latest.status}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text('Marked ${latest.status}', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
                 ],
               ),
               TextButton.icon(
@@ -163,8 +168,8 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                     _editingGuards.add(guardId);
                   });
                 },
-                icon: const Icon(Icons.edit, size: 16, color: Colors.blueAccent),
-                label: const Text('Edit', style: TextStyle(color: Colors.blueAccent)),
+                icon: Icon(Icons.edit, size: 16, color: context.colors.blue),
+                label: Text('Edit', style: TextStyle(color: context.colors.blue)),
               )
             ],
           ),
@@ -173,7 +178,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: context.colors.bgElevated.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -181,35 +186,35 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                   Expanded(
                     child: Column(
                       children: [
-                        const Icon(Icons.login, size: 14, color: AppTheme.green),
+                        Icon(Icons.login, size: 14, color: context.colors.green),
                         const SizedBox(height: 2),
-                        const Text('Check-In', style: TextStyle(fontSize: 9, color: Colors.white54)),
+                        Text('Check-In', style: TextStyle(fontSize: 9, color: context.colors.txtMuted)),
                         Text(hasCheckIn ? latest.time : '--:--',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckIn ? AppTheme.green : Colors.white38)),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckIn ? context.colors.green : context.colors.txtMuted)),
                       ],
                     ),
                   ),
-                  Container(width: 1, height: 30, color: Colors.white12),
+                  Container(width: 1, height: 30, color: context.colors.bord),
                   Expanded(
                     child: Column(
                       children: [
-                        Icon(Icons.logout, size: 14, color: hasCheckOut ? AppTheme.yellow : Colors.white38),
+                        Icon(Icons.logout, size: 14, color: hasCheckOut ? context.colors.yellow : context.colors.txtMuted),
                         const SizedBox(height: 2),
-                        const Text('Check-Out', style: TextStyle(fontSize: 9, color: Colors.white54)),
+                        Text('Check-Out', style: TextStyle(fontSize: 9, color: context.colors.txtMuted)),
                         Text(hasCheckOut ? latest.checkOutTime : '--:--',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckOut ? AppTheme.yellow : Colors.white38)),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckOut ? context.colors.yellow : context.colors.txtMuted)),
                       ],
                     ),
                   ),
-                  Container(width: 1, height: 30, color: Colors.white12),
+                  Container(width: 1, height: 30, color: context.colors.bord),
                   Expanded(
                     child: Column(
                       children: [
-                        Icon(Icons.timer_outlined, size: 14, color: workingHours.isNotEmpty ? AppTheme.primary : Colors.white38),
+                        Icon(Icons.timer_outlined, size: 14, color: workingHours.isNotEmpty ? context.colors.primary : context.colors.txtMuted),
                         const SizedBox(height: 2),
-                        const Text('Working Hrs', style: TextStyle(fontSize: 9, color: Colors.white54)),
+                        Text('Working Hrs', style: TextStyle(fontSize: 9, color: context.colors.txtMuted)),
                         Text(workingHours.isNotEmpty ? workingHours : '--',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: workingHours.isNotEmpty ? AppTheme.primary : Colors.white38)),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: workingHours.isNotEmpty ? context.colors.primary : context.colors.txtMuted)),
                       ],
                     ),
                   ),
@@ -226,7 +231,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2A9D8F), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: context.colors.green, foregroundColor: Colors.white),
             onPressed: () => _markAttendance(guardId, 'Present', siteId),
             icon: const Icon(Icons.check),
             label: const Text('Present'),
@@ -235,7 +240,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE63946), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: context.colors.red, foregroundColor: Colors.white),
             onPressed: () => _markAttendance(guardId, 'Absent', siteId),
             icon: const Icon(Icons.close),
             label: const Text('Absent'),

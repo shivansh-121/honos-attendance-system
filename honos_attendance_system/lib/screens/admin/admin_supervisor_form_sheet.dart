@@ -8,12 +8,14 @@ import '../../app_theme.dart';
 import '../../models/app_user.dart';
 import '../../models/site.dart';
 import '../../services/db_service.dart';
+import '../../services/id_generator.dart';
 import 'map_picker_screen.dart';
 
 class AdminSupervisorFormSheet extends StatefulWidget {
   final DbService db;
   final List<Site> allSites;
   final AppUser? existing;
+  final String role;
   final VoidCallback onSaved;
 
   const AdminSupervisorFormSheet({
@@ -21,6 +23,7 @@ class AdminSupervisorFormSheet extends StatefulWidget {
     required this.db,
     required this.allSites,
     this.existing,
+    this.role = 'supervisor',
     required this.onSaved,
   });
 
@@ -75,7 +78,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
     final src = await showDialog<ImageSource>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.bgSurface,
+        backgroundColor: context.colors.bgSurface,
         title: const Text('Select Source', style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -103,26 +106,40 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
     final bytes = await xfile.readAsBytes();
     final b64 = base64Encode(bytes);
     setState(() {
-      if (type == 'photo') _photoBytes = b64;
-      else if (type == 'aadhaar') _aadhaarBytes = b64;
+      if (type == 'photo') {
+        _photoBytes = b64;
+      } else if (type == 'aadhaar') _aadhaarBytes = b64;
       else if (type == 'passbook') _passbookBytes = b64;
     });
   }
 
+  void _showError(String msg) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.bgSurface,
+        title: const Text('Error', style: TextStyle(color: Colors.white)),
+        content: Text(msg, style: TextStyle(color: context.colors.txtSec)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))
+        ],
+      )
+    );
+  }
+
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_photoBytes.isEmpty || _photoBytes.length < 200) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile photo is required!')));
+    if (!_formKey.currentState!.validate()) {
+      _showError('Please fill all required fields correctly. Scroll up to see the errors in red.');
       return;
     }
     if (widget.existing == null && _password.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password is required for new supervisors!')));
+      _showError('Password is required for new ${widget.role == 'executive' ? 'executives' : 'supervisors'}!');
       return;
     }
 
     setState(() => _saving = true);
     try {
-      String finalSiteId = _selectedSiteId!;
+      String finalSiteId = _selectedSiteId ?? '';
       
       // If custom location picked, update/create site
       if (_customSiteLoc != null) {
@@ -158,12 +175,21 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
         finalPassword = sha256.convert(utf8.encode(_password.text.trim())).toString();
       }
 
+      String finalEmpId = widget.existing?.empId ?? '';
+      if (finalEmpId.isEmpty) {
+        final allUsers = await widget.db.usersStream().first;
+        finalEmpId = widget.role == 'executive' 
+            ? IdGenerator.generateExecutiveId(allUsers)
+            : IdGenerator.generateSupervisorId(allUsers);
+      }
+
       final u = AppUser(
         id: widget.existing?.id ?? const Uuid().v4(),
+        empId: finalEmpId,
         name: _name.text.trim(),
         username: _username.text.trim(),
         password: finalPassword,
-        role: 'supervisor',
+        role: widget.existing?.role ?? widget.role,
         siteId: finalSiteId,
         salary: double.tryParse(_salary.text.trim()) ?? 0,
         phone: _phone.text.trim(),
@@ -186,7 +212,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
       widget.onSaved();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) _showError('Error: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -195,10 +221,10 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
   InputDecoration _field(String label, {String? hint, Widget? prefix}) {
     return InputDecoration(
       labelText: label, hintText: hint, prefixIcon: prefix,
-      filled: true, fillColor: AppTheme.bgBase,
+      filled: true, fillColor: context.colors.bgBase,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      labelStyle: const TextStyle(color: AppTheme.txtSec, fontSize: 13),
-      hintStyle: const TextStyle(color: AppTheme.txtMuted, fontSize: 13),
+      labelStyle: TextStyle(color: context.colors.txtSec, fontSize: 13),
+      hintStyle: TextStyle(color: context.colors.txtMuted, fontSize: 13),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
@@ -207,7 +233,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
     return Padding(
       padding: const EdgeInsets.only(top: 24, bottom: 12),
       child: Row(children: [
-        Icon(icon, color: AppTheme.primary, size: 20),
+        Icon(icon, color: context.colors.primary, size: 20),
         const SizedBox(width: 8),
         Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
       ]),
@@ -226,9 +252,13 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
           child: ListView(
             children: [
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(widget.existing == null ? 'Add New Supervisor' : 'Edit Supervisor', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                IconButton(icon: const Icon(Icons.close, color: AppTheme.txtSec), onPressed: () => Navigator.pop(context)),
+                Text(widget.existing == null ? 'Add New ${widget.role == 'executive' ? 'Executive' : 'Supervisor'}' : 'Edit ${widget.role == 'executive' ? 'Executive' : 'Supervisor'}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                IconButton(icon: Icon(Icons.close, color: context.colors.txtSec), onPressed: () => Navigator.pop(context)),
               ]),
+              if (widget.existing?.empId.isNotEmpty == true) ...[
+                const SizedBox(height: 4),
+                Text('Employee ID: ${widget.existing!.empId}', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
               const SizedBox(height: 20),
 
               // Photo
@@ -238,11 +268,11 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
                   child: Stack(children: [
                     CircleAvatar(
                       radius: 54,
-                      backgroundColor: AppTheme.bgElevated,
+                      backgroundColor: context.colors.bgElevated,
                       backgroundImage: _photoBytes.length > 200 ? MemoryImage(base64Decode(_photoBytes)) : null,
-                      child: _photoBytes.length < 200 ? const Icon(Icons.add_a_photo, size: 36, color: AppTheme.txtMuted) : null,
+                      child: _photoBytes.length < 200 ? Icon(Icons.add_a_photo, size: 36, color: context.colors.txtMuted) : null,
                     ),
-                    const Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 16, backgroundColor: AppTheme.primary, child: Icon(Icons.camera_alt, size: 16, color: Colors.white))),
+                    Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 16, backgroundColor: context.colors.primary, child: const Icon(Icons.camera_alt, size: 16, color: Colors.white))),
                   ]),
                 ),
               ),
@@ -261,7 +291,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
               const SizedBox(height: 10),
               TextFormField(
                 controller: _dob, style: const TextStyle(color: Colors.white),
-                decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: const Icon(Icons.calendar_today, size: 16, color: AppTheme.txtMuted)),
+                decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.colors.txtMuted)),
                 readOnly: true,
                 onTap: () async {
                   final d = await showDatePicker(context: context, initialDate: DateTime(2000), firstDate: DateTime(1950), lastDate: DateTime.now());
@@ -279,7 +309,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 icon: const Icon(Icons.upload_file), label: Text(_aadhaarBytes.isEmpty ? 'Upload Aadhaar Photo' : 'Aadhaar Photo Attached'),
-                style: OutlinedButton.styleFrom(foregroundColor: _aadhaarBytes.isEmpty ? AppTheme.txtSec : AppTheme.green),
+                style: OutlinedButton.styleFrom(foregroundColor: _aadhaarBytes.isEmpty ? context.colors.txtSec : context.colors.green),
                 onPressed: () => _pickImage('aadhaar'),
               ),
 
@@ -295,7 +325,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 icon: const Icon(Icons.upload_file), label: Text(_passbookBytes.isEmpty ? 'Upload Passbook Photo' : 'Passbook Photo Attached'),
-                style: OutlinedButton.styleFrom(foregroundColor: _passbookBytes.isEmpty ? AppTheme.txtSec : AppTheme.green),
+                style: OutlinedButton.styleFrom(foregroundColor: _passbookBytes.isEmpty ? context.colors.txtSec : context.colors.green),
                 onPressed: () => _pickImage('passbook'),
               ),
 
@@ -304,11 +334,11 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
               TextFormField(controller: _salary, style: const TextStyle(color: Colors.white), decoration: _field('Monthly Salary ₹ *', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 10),
               if (widget.allSites.isNotEmpty) ...[
-                const Text('Assign to Site *', style: TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+                Text('Assign to Site *', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _selectedSiteId,
-                  dropdownColor: AppTheme.bgSurface,
+                  initialValue: _selectedSiteId,
+                  dropdownColor: context.colors.bgSurface,
                   style: const TextStyle(color: Colors.white),
                   items: widget.allSites.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
                   onChanged: (val) => setState(() => _selectedSiteId = val!),
@@ -317,7 +347,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
               ],
               const SizedBox(height: 10),
               OutlinedButton.icon(
-                icon: const Icon(Icons.pin_drop, color: AppTheme.red),
+                icon: Icon(Icons.pin_drop, color: context.colors.red),
                 label: Text(_customSiteLoc == null ? '📍 Override Site Location on Map' : 'Custom Location Selected!'),
                 onPressed: () async {
                   final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const MapPickerScreen()));
@@ -328,8 +358,8 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.save),
-                label: Text(widget.existing == null ? 'Add Supervisor' : 'Save Changes'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                label: Text(widget.existing == null ? 'Add ${widget.role == 'executive' ? 'Executive' : 'Supervisor'}' : 'Save Changes'),
+                style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: _saving ? null : _save,
               ),
               const SizedBox(height: 24),

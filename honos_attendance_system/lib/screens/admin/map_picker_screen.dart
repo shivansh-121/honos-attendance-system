@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -17,11 +18,22 @@ class MapPickerScreen extends StatefulWidget {
 class _MapPickerScreenState extends State<MapPickerScreen> {
   final MapController _mapController = MapController();
   final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  Timer? _debounce;
+  List<dynamic> _suggestions = [];
   
   LatLng _center = const LatLng(28.6139, 77.2090); // Default to New Delhi
   bool _isSearching = false;
   bool _isLoadingLoc = false;
   String _address = "Move pin to select location";
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -53,28 +65,27 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     }
   }
 
-  Future<void> _searchAddress(String query) async {
-    if (query.trim().isEmpty) return;
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    if (query.trim().isEmpty) {
+      setState(() => _suggestions = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 500), () => _fetchSuggestions(query));
+  }
+
+  Future<void> _fetchSuggestions(String query) async {
     setState(() => _isSearching = true);
-    
     try {
-      final url = Uri.parse('https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1');
+      final url = Uri.parse('https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&lat=${_center.latitude}&lon=${_center.longitude}&limit=5');
       final response = await http.get(url, headers: {'User-Agent': 'HonosApp/1.0'});
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data.isNotEmpty) {
-          final lat = double.parse(data[0]['lat']);
-          final lon = double.parse(data[0]['lon']);
-          final newCenter = LatLng(lat, lon);
-          
+        if (mounted) {
           setState(() {
-            _center = newCenter;
-            _address = data[0]['display_name'];
+            _suggestions = data['features'] ?? [];
           });
-          _mapController.move(newCenter, 16.0);
-        } else {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Address not found')));
         }
       }
     } catch (e) {
@@ -82,6 +93,33 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
+  }
+
+  void _onSuggestionTapped(dynamic suggestion) {
+    final coords = suggestion['geometry']['coordinates']; // [lon, lat]
+    final props = suggestion['properties'];
+    final name = props['name'] ?? '';
+    final street = props['street'] ?? '';
+    final city = props['city'] ?? props['state'] ?? '';
+    
+    List<String> addressParts = [];
+    if (name.isNotEmpty) addressParts.add(name);
+    if (street.isNotEmpty) addressParts.add(street);
+    if (city.isNotEmpty) addressParts.add(city);
+    
+    final displayName = addressParts.join(', ');
+    final newCenter = LatLng(coords[1], coords[0]);
+    
+    _searchCtrl.text = name.isNotEmpty ? name : displayName;
+    _searchFocus.unfocus();
+    
+    setState(() {
+      _suggestions = [];
+      _center = newCenter;
+      _address = displayName;
+    });
+    
+    _mapController.move(newCenter, 16.0);
   }
 
   Future<void> _reverseGeocode(LatLng pos) async {
@@ -106,10 +144,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgSurface,
+      backgroundColor: context.colors.bgSurface,
       appBar: AppBar(
         title: const Text('Pin Location'),
-        backgroundColor: AppTheme.bgSurface,
+        backgroundColor: context.colors.bgSurface,
         elevation: 0,
       ),
       body: Stack(
@@ -143,10 +181,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           ),
           
           // Center Crosshair Pin
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.only(bottom: 40.0), // Offset to put point of pin at center
-              child: Icon(Icons.location_pin, color: AppTheme.red, size: 40),
+              padding: const EdgeInsets.only(bottom: 40.0), // Offset to put point of pin at center
+              child: Icon(Icons.location_pin, color: context.colors.red, size: 40),
             ),
           ),
           
@@ -155,34 +193,66 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             top: 16,
             left: 16,
             right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: AppTheme.bgCard,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'Search for building, street...',
-                        border: InputBorder.none,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: context.colors.bgCard,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchCtrl,
+                          focusNode: _searchFocus,
+                          onChanged: _onSearchChanged,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            hintText: 'Search for building, street...',
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: _onSearchChanged,
+                        ),
                       ),
-                      onSubmitted: _searchAddress,
+                      _isSearching 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.search, color: Colors.white70),
+                    ],
+                  ),
+                ),
+                if (_suggestions.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      color: context.colors.bgCard,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                    ),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: _suggestions.length,
+                      itemBuilder: (context, index) {
+                        final s = _suggestions[index]['properties'];
+                        final name = s['name'] ?? '';
+                        final street = s['street'] ?? '';
+                        final city = s['city'] ?? s['state'] ?? '';
+                        final subtitle = [street, city].where((e) => e.isNotEmpty).join(', ');
+                        
+                        return ListTile(
+                          leading: Icon(Icons.location_on, color: context.colors.primary),
+                          title: Text(name.isNotEmpty ? name : subtitle, style: const TextStyle(color: Colors.white)),
+                          subtitle: name.isNotEmpty && subtitle.isNotEmpty ? Text(subtitle, style: TextStyle(color: context.colors.txtSec, fontSize: 12)) : null,
+                          onTap: () => _onSuggestionTapped(_suggestions[index]),
+                        );
+                      },
                     ),
                   ),
-                  _isSearching 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : IconButton(
-                          icon: const Icon(Icons.search, color: Colors.white70),
-                          onPressed: () => _searchAddress(_searchCtrl.text),
-                        ),
-                ],
-              ),
+              ],
             ),
           ),
           
@@ -192,7 +262,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             right: 16,
             child: FloatingActionButton(
               heroTag: 'gps_fab',
-              backgroundColor: AppTheme.primary,
+              backgroundColor: context.colors.primary,
               onPressed: _getCurrentLocation,
               child: _isLoadingLoc 
                   ? const CircularProgressIndicator(color: Colors.white)
@@ -207,10 +277,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             right: 0,
             child: Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: AppTheme.bgSurface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -5))],
+              decoration: BoxDecoration(
+                color: context.colors.bgSurface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -5))],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -218,10 +288,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 children: [
                   Text(_address, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 16)),
                   const SizedBox(height: 8),
-                  Text('Lat: ${_center.latitude.toStringAsFixed(5)} | Lng: ${_center.longitude.toStringAsFixed(5)}', style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
+                  Text('Lat: ${_center.latitude.toStringAsFixed(5)} | Lng: ${_center.longitude.toStringAsFixed(5)}', style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.green, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    style: ElevatedButton.styleFrom(backgroundColor: context.colors.green, padding: const EdgeInsets.symmetric(vertical: 16)),
                     onPressed: () {
                       Navigator.pop(context, {
                         'lat': _center.latitude,

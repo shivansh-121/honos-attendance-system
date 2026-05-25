@@ -6,6 +6,7 @@ import '../models/attendance.dart';
 import '../models/app_user.dart';
 import '../models/app_notification.dart';
 import '../models/advance.dart';
+import '../models/leave.dart';
 
 final dbProvider = Provider<DbService>((ref) => DbService());
 
@@ -58,6 +59,11 @@ final notificationsStreamProvider = StreamProvider<List<AppNotification>>((ref) 
 final advancesStreamProvider = StreamProvider<List<Advance>>((ref) {
   ref.keepAlive();
   return ref.watch(dbProvider).advancesStream();
+});
+
+final leavesStreamProvider = StreamProvider<List<Leave>>((ref) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).leavesStream();
 });
 
 class DbService {
@@ -120,6 +126,17 @@ class DbService {
     return _firestore
         .collection('attendance')
         .where('date', isEqualTo: date)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());
+  }
+
+  /// Date range query for optimized reports
+  Stream<List<Attendance>> attendanceStreamForDateRange(String startDate, String endDate) {
+    return _firestore
+        .collection('attendance')
+        .where('date', isGreaterThanOrEqualTo: startDate)
+        .where('date', isLessThanOrEqualTo: endDate)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => Attendance.fromJson(doc.data())).toList());
@@ -226,4 +243,18 @@ class DbService {
     await _firestore.collection('advances').doc(id).delete();
   }
 
+  // --- Leaves ---
+  Stream<List<Leave>> leavesStream() {
+    return _firestore.collection('leaves').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Leave.fromJson(doc.data())).toList();
+    });
+  }
+
+  Future<void> saveLeave(Leave leave) async {
+    await _firestore.collection('leaves').doc(leave.id).set(leave.toJson());
+  }
+
+  Future<void> updateLeaveStatus(String leaveId, String status) async {
+    await _firestore.collection('leaves').doc(leaveId).update({'status': status});
+  }
 }

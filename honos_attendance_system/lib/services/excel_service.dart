@@ -181,22 +181,22 @@ class ExcelService {
       final guardName = guard?['name'] ?? 'Unknown';
       
       final fixSalary = (guard?['salary'] ?? 0).toDouble();
-      final otSalary = 0.0; // Default to 0 based on plan
+      const otSalary = 0.0; // Default to 0 based on plan
       
       final attnDays = guardAttendanceDays[gId]?.length ?? 0;
-      final otAttn = 0; // Default to 0
+      const otAttn = 0; // Default to 0
       final totalAttn = attnDays + otAttn;
 
       // Salary calculation: (Fix Salary / 30) * Attn
       final double salaryAmtDouble = (fixSalary / 30) * attnDays;
       final int salaryAmt = salaryAmtDouble.round();
 
-      final otAmt = 0;
+      const otAmt = 0;
       final int totalAmt = salaryAmt + otAmt;
 
       final adv = guardAdvances[gId] ?? 0.0;
       final int advInt = adv.round();
-      final int othDed = 0;
+      const int othDed = 0;
       final int totalDed = advInt + othDed;
 
       final int netSalary = totalAmt - totalDed;
@@ -222,7 +222,7 @@ class ExcelService {
         TextCellValue("Guard"), // Rank
         TextCellValue(uanNo), // UAN No.
         DoubleCellValue(fixSalary),
-        DoubleCellValue(otSalary),
+        const DoubleCellValue(otSalary),
         DoubleCellValue(attnDays.toDouble()),
         DoubleCellValue(otAttn.toDouble()),
         DoubleCellValue(totalAttn.toDouble()),
@@ -310,7 +310,7 @@ class ExcelService {
       sheetObject.appendRow([
         TextCellValue(s.name),
         TextCellValue('Supervisor'),
-        TextCellValue('N/A'),
+        TextCellValue(s.empId),
         DoubleCellValue(s.salary),
         DoubleCellValue(totalAdvance),
         DoubleCellValue(netPay),
@@ -339,6 +339,7 @@ class ExcelService {
     excel.setDefaultSheet('Supervisors Details');
 
     List<String> headers = [
+      'Emp ID',
       'Name',
       'Username',
       'Phone',
@@ -380,6 +381,7 @@ class ExcelService {
       ).name;
 
       final rowData = [
+        TextCellValue(s.empId),
         TextCellValue(s.name),
         TextCellValue(s.username),
         TextCellValue(s.phone),

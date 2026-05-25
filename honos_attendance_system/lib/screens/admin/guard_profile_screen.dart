@@ -52,7 +52,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
         actions: isAdmin 
           ? [
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppTheme.red),
+                icon: Icon(Icons.delete_outline, color: context.colors.red),
                 tooltip: 'Delete Guard',
                 onPressed: () async {
                   final ok = await showDialog<bool>(
@@ -63,7 +63,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                       actions: [
                         TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
                         ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+                          style: ElevatedButton.styleFrom(backgroundColor: context.colors.red),
                           onPressed: () => Navigator.pop(c, true),
                           child: const Text('Delete', style: TextStyle(color: Colors.white)),
                         ),
@@ -80,7 +80,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
           : null,
       ),
       floatingActionButton: attendanceAsync.hasValue ? FloatingActionButton.extended(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: context.colors.primary,
         onPressed: _isGeneratingPdf ? null : () async {
           setState(() => _isGeneratingPdf = true);
           try {
@@ -168,9 +168,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
               tag: 'avatar_${widget.guard.id}',
               child: CircleAvatar(
                 radius: 40,
-                backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
+                backgroundColor: context.colors.primary.withValues(alpha: 0.2),
                 backgroundImage: widget.guard.photo.length > 200 ? MemoryImage(base64Decode(widget.guard.photo)) : null,
-                child: widget.guard.photo.length <= 200 ? Text(widget.guard.name[0], style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.primary)) : null,
+                child: widget.guard.photo.length <= 200 ? Text(widget.guard.name[0], style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: context.colors.primary)) : null,
               ),
             ),
             const SizedBox(width: 20),
@@ -182,9 +182,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.badge, size: 14, color: AppTheme.txtMuted),
+                      Icon(Icons.badge, size: 14, color: context.colors.txtMuted),
                       const SizedBox(width: 4),
-                      Text('ID: ${widget.guard.empId}', style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+                      Text('ID: ${widget.guard.empId}', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -194,9 +194,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                       final siteName = siteMatches.isNotEmpty ? siteMatches.first.name : 'Unknown Site';
                       return Row(
                         children: [
-                          const Icon(Icons.business, size: 14, color: AppTheme.txtMuted),
+                          Icon(Icons.business, size: 14, color: context.colors.txtMuted),
                           const SizedBox(width: 4),
-                          Expanded(child: Text(siteName, style: const TextStyle(color: AppTheme.txtSec, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                          Expanded(child: Text(siteName, style: TextStyle(color: context.colors.txtSec, fontSize: 13), overflow: TextOverflow.ellipsis)),
                         ],
                       );
                     },
@@ -209,8 +209,8 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             // Call Button
             if (widget.guard.phone.isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.phone, color: AppTheme.green),
-                style: IconButton.styleFrom(backgroundColor: AppTheme.green.withValues(alpha: 0.1)),
+                icon: Icon(Icons.phone, color: context.colors.green),
+                style: IconButton.styleFrom(backgroundColor: context.colors.green.withValues(alpha: 0.1)),
                 onPressed: () async {
                   final uri = Uri.parse('tel:${widget.guard.phone}');
                   final messenger = ScaffoldMessenger.of(context);
@@ -241,7 +241,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
         final totalAdvance = monthAdvances.fold<double>(0, (sum, a) => sum + a.amount);
 
         return Card(
-          color: AppTheme.bgSurface,
+          color: context.colors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -252,12 +252,12 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Advances Taken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                    Text('Total: INR ${totalAdvance.toStringAsFixed(0)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.red)),
+                    Text('Total: INR ${totalAdvance.toStringAsFixed(0)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.colors.red)),
                   ],
                 ),
                 const SizedBox(height: 12),
                 if (monthAdvances.isEmpty)
-                  const Text('No advances taken this month.', style: TextStyle(color: AppTheme.txtSec))
+                  Text('No advances taken this month.', style: TextStyle(color: context.colors.txtSec))
                 else
                   ...monthAdvances.map((a) {
                     final d = DateTime.parse(a.date);
@@ -271,14 +271,14 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                             children: [
                               Text(DateFormat('dd MMM yyyy').format(d), style: const TextStyle(color: Colors.white70, fontSize: 13)),
                               if (a.reason.isNotEmpty)
-                                Text(a.reason, style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
+                                Text(a.reason, style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
                             ],
                           ),
-                          Text('INR ${a.amount.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.red, fontWeight: FontWeight.bold)),
+                          Text('INR ${a.amount.toStringAsFixed(0)}', style: TextStyle(color: context.colors.red, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
               ],
             ),
           ),
@@ -327,7 +327,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             value: '${credibilityScore.clamp(0, 100).toStringAsFixed(1)}%',
             subtitle: 'Overall Attendance',
             icon: Icons.trending_up,
-            color: credibilityScore >= 80 ? AppTheme.green : (credibilityScore >= 50 ? AppTheme.yellow : AppTheme.red),
+            color: credibilityScore >= 80 ? context.colors.green : (credibilityScore >= 50 ? context.colors.yellow : context.colors.red),
           ),
         ),
         const SizedBox(width: 16),
@@ -337,7 +337,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             value: '₹${estimatedSalary.toStringAsFixed(0)}',
             subtitle: '$monthPresentDays days this month',
             icon: Icons.account_balance_wallet,
-            color: AppTheme.primary,
+            color: context.colors.primary,
           ),
         ),
       ],
@@ -363,23 +363,23 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 15, color: AppTheme.txtMuted),
+          Icon(icon, size: 15, color: context.colors.txtMuted),
           const SizedBox(width: 10),
-          SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppTheme.txtSec, fontSize: 12))),
+          SizedBox(width: 110, child: Text(label, style: TextStyle(color: context.colors.txtSec, fontSize: 12))),
           Expanded(child: Text(value.isEmpty ? '—' : value, style: TextStyle(color: valueColor ?? Colors.white, fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis, maxLines: 2)),
         ],
       ),
     );
 
-    Widget divider() => const Divider(color: AppTheme.bord, height: 1);
+    Widget divider() => Divider(color: context.colors.bord, height: 1);
 
     Widget sectionTitle(String title, IconData icon) => Padding(
       padding: const EdgeInsets.only(bottom: 10, top: 4),
       child: Row(children: [
-        Container(padding: const EdgeInsets.all(5), decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-          child: Icon(icon, size: 12, color: AppTheme.primary)),
+        Container(padding: const EdgeInsets.all(5), decoration: BoxDecoration(color: context.colors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+          child: Icon(icon, size: 12, color: context.colors.primary)),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+        Text(title, style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
       ]),
     );
 
@@ -402,7 +402,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             divider(),
             row(Icons.calendar_today, 'Joined On', g.joinDate),
             divider(),
-            row(Icons.currency_rupee, 'Monthly Salary', g.salary > 0 ? '₹${g.salary.toStringAsFixed(0)}' : '—', valueColor: AppTheme.green),
+            row(Icons.currency_rupee, 'Monthly Salary', g.salary > 0 ? '₹${g.salary.toStringAsFixed(0)}' : '—', valueColor: context.colors.green),
             const SizedBox(height: 16),
 
             // Identity
@@ -429,8 +429,8 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppTheme.bgElevated, borderRadius: BorderRadius.circular(10)),
-                child: Text(g.passbookPhoto, style: const TextStyle(color: AppTheme.txtSec, fontSize: 13)),
+                decoration: BoxDecoration(color: context.colors.bgElevated, borderRadius: BorderRadius.circular(10)),
+                child: Text(g.passbookPhoto, style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
               ),
             ],
           ],
@@ -458,7 +458,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             const SizedBox(height: 12),
             Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 4),
-            Text(subtitle, style: const TextStyle(fontSize: 11, color: AppTheme.txtSec)),
+            Text(subtitle, style: TextStyle(fontSize: 11, color: context.colors.txtSec)),
           ],
         ),
       ),
@@ -483,9 +483,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                 const Text('Monthly Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 Row(
                   children: [
-                    IconButton(icon: const Icon(Icons.chevron_left, color: AppTheme.txtSec), onPressed: () => _changeMonth(-1)),
-                    Text(monthName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)),
-                    IconButton(icon: const Icon(Icons.chevron_right, color: AppTheme.txtSec), onPressed: () => _changeMonth(1)),
+                    IconButton(icon: Icon(Icons.chevron_left, color: context.colors.txtSec), onPressed: () => _changeMonth(-1)),
+                    Text(monthName, style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.primary)),
+                    IconButton(icon: Icon(Icons.chevron_right, color: context.colors.txtSec), onPressed: () => _changeMonth(1)),
                   ],
                 ),
               ],
@@ -510,16 +510,16 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                 // Find attendance for this day
                 final attRecord = attendance.where((a) => a.date == dateStr).toList();
                 
-                Color blockColor = AppTheme.bgElevated; // Default/No data
+                Color blockColor = context.colors.bgElevated; // Default/No data
                 
                 if (attRecord.isNotEmpty) {
                   final isPresent = attRecord.any((a) => a.status.toLowerCase() == 'present');
-                  blockColor = isPresent ? AppTheme.green : AppTheme.red;
+                  blockColor = isPresent ? context.colors.green : context.colors.red;
                 } else {
                   // If it's a past date and no record, mark as absent/red
                   final checkDate = DateTime(_selectedMonth.year, _selectedMonth.month, day);
                   if (checkDate.isBefore(DateTime(now.year, now.month, now.day))) {
-                    blockColor = AppTheme.red.withValues(alpha: 0.3); // Missed attendance
+                    blockColor = context.colors.red.withValues(alpha: 0.3); // Missed attendance
                   }
                 }
 
@@ -539,7 +539,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: blockColor == AppTheme.bgElevated ? AppTheme.txtMuted : Colors.white,
+                          color: blockColor == context.colors.bgElevated ? context.colors.txtMuted : Colors.white,
                         ),
                       ),
                     ),
@@ -553,13 +553,13 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildLegendItem(AppTheme.green, 'Present'),
+                _buildLegendItem(context.colors.green, 'Present'),
                 const SizedBox(width: 16),
-                _buildLegendItem(AppTheme.red, 'Absent'),
+                _buildLegendItem(context.colors.red, 'Absent'),
                 const SizedBox(width: 16),
-                _buildLegendItem(AppTheme.red.withValues(alpha: 0.3), 'Missed'),
+                _buildLegendItem(context.colors.red.withValues(alpha: 0.3), 'Missed'),
                 const SizedBox(width: 16),
-                _buildLegendItem(AppTheme.bgElevated, 'Future'),
+                _buildLegendItem(context.colors.bgElevated, 'Future'),
               ],
             )
           ],
@@ -573,7 +573,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
       children: [
         Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.txtSec)),
+        Text(label, style: TextStyle(fontSize: 11, color: context.colors.txtSec)),
       ],
     );
   }
@@ -634,7 +634,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             final dateStr = date != null ? DateFormat('MMM dd, yyyy').format(date) : shift.date;
 
             return Card(
-              color: AppTheme.bgElevated,
+              color: context.colors.bgElevated,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
@@ -642,10 +642,10 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        color: context.colors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.access_time, color: AppTheme.primary, size: 20),
+                      child: Icon(Icons.access_time, color: context.colors.primary, size: 20),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -656,13 +656,13 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.login, size: 12, color: AppTheme.txtMuted),
+                              Icon(Icons.login, size: 12, color: context.colors.txtMuted),
                               const SizedBox(width: 4),
-                              Text(shift.time, style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
+                              Text(shift.time, style: TextStyle(fontSize: 12, color: context.colors.txtSec)),
                               const SizedBox(width: 12),
-                              const Icon(Icons.logout, size: 12, color: AppTheme.txtMuted),
+                              Icon(Icons.logout, size: 12, color: context.colors.txtMuted),
                               const SizedBox(width: 4),
-                              Text(shift.checkOutTime, style: const TextStyle(fontSize: 12, color: AppTheme.txtSec)),
+                              Text(shift.checkOutTime, style: TextStyle(fontSize: 12, color: context.colors.txtSec)),
                             ],
                           ),
                         ],
@@ -671,13 +671,13 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppTheme.green.withValues(alpha: 0.1),
+                        color: context.colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.green.withValues(alpha: 0.3)),
+                        border: Border.all(color: context.colors.green.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         durationStr,
-                        style: const TextStyle(color: AppTheme.green, fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(color: context.colors.green, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
                   ],

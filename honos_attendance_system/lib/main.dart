@@ -11,7 +11,10 @@ import 'services/background_location_service.dart';
 import 'services/local_push_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/supervisor/sup_dashboard_screen.dart';
+import 'screens/employee/employee_dashboard_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/executive/executive_dashboard_screen.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -110,6 +113,7 @@ class HonosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authUser = ref.watch(authProvider);
+    final themeMode = ref.watch(themeProvider);
     
     // Watch the push notification manager so it stays alive while the app is running
     if (authUser != null) {
@@ -118,13 +122,19 @@ class HonosApp extends ConsumerWidget {
 
     return MaterialApp(
       title: 'Honos Attendance',
-      theme: AppTheme.dark,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       home: authUser == null
           ? const LoginScreen()
           : authUser.role == 'admin'
               ? const AdminDashboardScreen()
-              : const SupervisorDashboardScreen(),
+              : authUser.role == 'executive'
+                  ? const ExecutiveDashboardScreen()
+                  : authUser.role == 'employee'
+                      ? const EmployeeDashboardScreen()
+                      : const SupervisorDashboardScreen(),
     );
   }
 }

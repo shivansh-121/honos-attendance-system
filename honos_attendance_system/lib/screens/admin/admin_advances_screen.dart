@@ -18,8 +18,9 @@ class AdminAdvancesScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
-  bool _showGuards = true;
   DateTime _selectedMonth = DateTime.now();
+  String _selectedTab = 'guard'; // 'guard', 'supervisor', 'executive'
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -28,14 +29,14 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     final usersAsync = ref.watch(usersStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBase,
+      backgroundColor: context.colors.bgBase,
       appBar: AppBar(
-        backgroundColor: AppTheme.bgSurface,
+        backgroundColor: context.colors.bgSurface,
         title: const Text('Manage Advances & Salary', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.file_download, color: AppTheme.green),
+            icon: Icon(Icons.file_download, color: context.colors.green),
             tooltip: 'Export Payroll Excel',
             onPressed: () async {
               if (guardsAsync.value == null || usersAsync.value == null || advancesAsync.value == null) return;
@@ -53,7 +54,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.red),
+                    SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.red),
                   );
                 }
               }
@@ -62,7 +63,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: context.colors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Give Advance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         onPressed: () => _showAddAdvanceDialog(guardsAsync.value ?? [], usersAsync.value ?? []),
@@ -72,7 +73,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
           // Month Selector
           Container(
             padding: const EdgeInsets.all(16),
-            color: AppTheme.bgSurface,
+            color: context.colors.bgSurface,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -92,7 +93,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
             ),
           ),
           
-          // Toggle Guards/Supervisors
+          // Toggle Guards/Supervisors/Executives
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -100,42 +101,79 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _showGuards ? AppTheme.primary : AppTheme.bgSurface,
-                      foregroundColor: _showGuards ? Colors.white : AppTheme.txtSec,
+                      backgroundColor: _selectedTab == 'guard' ? context.colors.primary : context.colors.bgSurface,
+                      foregroundColor: _selectedTab == 'guard' ? Colors.white : context.colors.txtSec,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                     ),
-                    onPressed: () => setState(() => _showGuards = true),
-                    child: const Text('Guards'),
+                    onPressed: () => setState(() => _selectedTab = 'guard'),
+                    child: const Text('Guards', style: TextStyle(fontSize: 12)),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: !_showGuards ? AppTheme.primary : AppTheme.bgSurface,
-                      foregroundColor: !_showGuards ? Colors.white : AppTheme.txtSec,
+                      backgroundColor: _selectedTab == 'supervisor' ? context.colors.primary : context.colors.bgSurface,
+                      foregroundColor: _selectedTab == 'supervisor' ? Colors.white : context.colors.txtSec,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                     ),
-                    onPressed: () => setState(() => _showGuards = false),
-                    child: const Text('Supervisors'),
+                    onPressed: () => setState(() => _selectedTab = 'supervisor'),
+                    child: const Text('Supervisors', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _selectedTab == 'executive' ? context.colors.primary : context.colors.bgSurface,
+                      foregroundColor: _selectedTab == 'executive' ? Colors.white : context.colors.txtSec,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                    onPressed: () => setState(() => _selectedTab = 'executive'),
+                    child: const Text('Executives', style: TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
             ),
           ),
+          
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Search $_selectedTab...',
+                hintStyle: TextStyle(color: context.colors.txtMuted),
+                prefixIcon: Icon(Icons.search, color: context.colors.txtMuted),
+                filled: true,
+                fillColor: context.colors.bgElevated,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
 
           // List
           Expanded(
             child: advancesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => Center(child: Text('Error: $e', style: const TextStyle(color: AppTheme.red))),
+              error: (e, st) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.red))),
               data: (advances) {
                 final monthAdvances = advances.where((a) {
                   final d = DateTime.parse(a.date);
                   return d.year == _selectedMonth.year && d.month == _selectedMonth.month;
                 }).toList();
 
-                if (_showGuards) {
+                if (_selectedTab == 'guard') {
                   return guardsAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
                     error: (e, st) => const Center(child: Text('Error loading guards')),
@@ -148,13 +186,13 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                 } else {
                   return usersAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => const Center(child: Text('Error loading supervisors')),
+                    error: (e, st) => Center(child: Text('Error loading $_selectedTab')),
                     data: (users) {
-                      final sups = users.where((u) => u.role == 'supervisor').toList();
+                      final staff = users.where((u) => u.role == _selectedTab).toList();
                       return _buildUserList(
-                        users: sups.map((s) => _UserModel(s.id, s.name, 'Supervisor', s.salary)).toList(),
+                        users: staff.map((s) => _UserModel(s.id, s.name, _selectedTab == 'executive' ? 'Executive' : 'Supervisor', s.salary)).toList(),
                         advances: monthAdvances,
-                        userType: 'supervisor',
+                        userType: _selectedTab,
                       );
                     },
                   );
@@ -172,26 +210,28 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     required List<Advance> advances,
     required String userType,
   }) {
-    if (users.isEmpty) {
-      return Center(child: Text('No $userType found.', style: const TextStyle(color: AppTheme.txtSec)));
+    final filteredUsers = users.where((u) => u.name.toLowerCase().contains(_searchQuery)).toList();
+
+    if (filteredUsers.isEmpty) {
+      return Center(child: Text('No $userType found.', style: TextStyle(color: context.colors.txtSec)));
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: users.length,
+      itemCount: filteredUsers.length,
       itemBuilder: (context, index) {
-        final u = users[index];
+        final u = filteredUsers[index];
         final userAdvances = advances.where((a) => a.userId == u.id && a.userType == userType).toList();
         final totalAdvance = userAdvances.fold<double>(0, (sum, a) => sum + a.amount);
         final netPay = u.salary - totalAdvance;
 
         return Card(
-          color: AppTheme.bgSurface,
+          color: context.colors.bgSurface,
           margin: const EdgeInsets.only(bottom: 12),
           child: ExpansionTile(
             title: Text(u.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: Text('Net Pay: INR ${netPay.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.green)),
-            trailing: Text('Adv: ${totalAdvance.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.red, fontWeight: FontWeight.bold)),
+            subtitle: Text('Net Pay: INR ${netPay.toStringAsFixed(0)}', style: TextStyle(color: context.colors.green)),
+            trailing: Text('Adv: ${totalAdvance.toStringAsFixed(0)}', style: TextStyle(color: context.colors.red, fontWeight: FontWeight.bold)),
             iconColor: Colors.white,
             collapsedIconColor: Colors.white,
             children: [
@@ -204,7 +244,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Fixed Monthly Salary:', style: TextStyle(color: AppTheme.txtSec)),
+                        Text('Fixed Monthly Salary:', style: TextStyle(color: context.colors.txtSec)),
                         Text('INR ${u.salary.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ],
                     ),
@@ -212,7 +252,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                     const Text('Advances Taken:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     if (userAdvances.isEmpty)
-                      const Text('No advances taken this month.', style: TextStyle(color: AppTheme.txtSec))
+                      Text('No advances taken this month.', style: TextStyle(color: context.colors.txtSec))
                     else
                       ...userAdvances.map((a) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -224,13 +264,13 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                               children: [
                                 Text(DateFormat('dd MMM yyyy').format(DateTime.parse(a.date)), style: const TextStyle(color: Colors.white70, fontSize: 13)),
                                 if (a.reason.isNotEmpty)
-                                  Text(a.reason, style: const TextStyle(color: AppTheme.txtSec, fontSize: 12)),
+                                  Text(a.reason, style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
                               ],
                             ),
-                            Text('INR ${a.amount.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.red, fontWeight: FontWeight.bold)),
+                            Text('INR ${a.amount.toStringAsFixed(0)}', style: TextStyle(color: context.colors.red, fontWeight: FontWeight.bold)),
                           ],
                         ),
-                      )).toList(),
+                      )),
                   ],
                 ),
               ),
@@ -241,8 +281,8 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     );
   }
 
-  void _showAddAdvanceDialog(List<Guard> guards, List<AppUser> supervisors) {
-    String selectedType = _showGuards ? 'guard' : 'supervisor';
+  void _showAddAdvanceDialog(List<Guard> guards, List<AppUser> allStaff) {
+    String selectedType = _selectedTab;
     String? selectedUserId;
     final amountCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
@@ -250,7 +290,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.bgSurface,
+        backgroundColor: context.colors.bgSurface,
         title: const Text('Give Advance', style: TextStyle(color: Colors.white)),
         content: StatefulBuilder(
           builder: (ctx, setSt) {
@@ -258,7 +298,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
             if (selectedType == 'guard') {
               items = guards.map((g) => DropdownMenuItem(value: g.id, child: Text(g.name, style: const TextStyle(color: Colors.white, fontSize: 14)))).toList();
             } else {
-              items = supervisors.where((s) => s.role == 'supervisor').map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, style: const TextStyle(color: Colors.white, fontSize: 14)))).toList();
+              items = allStaff.where((s) => s.role == selectedType).map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, style: const TextStyle(color: Colors.white, fontSize: 14)))).toList();
             }
 
             // Ensure selectedUserId is valid or null
@@ -276,24 +316,35 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                       Radio<String>(
                         value: 'guard',
                         groupValue: selectedType,
-                        activeColor: AppTheme.primary,
+                        activeColor: context.colors.primary,
                         onChanged: (val) => setSt(() => selectedType = val!),
                       ),
                       const Text('Guard', style: TextStyle(color: Colors.white)),
                       Radio<String>(
                         value: 'supervisor',
                         groupValue: selectedType,
-                        activeColor: AppTheme.primary,
+                        activeColor: context.colors.primary,
                         onChanged: (val) => setSt(() => selectedType = val!),
                       ),
                       const Text('Supervisor', style: TextStyle(color: Colors.white)),
                     ],
                   ),
+                  Row(
+                    children: [
+                      Radio<String>(
+                        value: 'executive',
+                        groupValue: selectedType,
+                        activeColor: context.colors.primary,
+                        onChanged: (val) => setSt(() => selectedType = val!),
+                      ),
+                      const Text('Executive', style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: selectedUserId,
-                    hint: const Text('Select Employee', style: TextStyle(color: AppTheme.txtSec)),
-                    dropdownColor: AppTheme.bgBase,
+                    initialValue: selectedUserId,
+                    hint: Text('Select Employee', style: TextStyle(color: context.colors.txtSec)),
+                    dropdownColor: context.colors.bgBase,
                     items: items,
                     onChanged: (val) => setSt(() => selectedUserId = val),
                   ),

@@ -35,7 +35,7 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: AppTheme.bgSurface,
+      backgroundColor: context.colors.bgSurface,
       child: Column(
         children: [
           // ── Header ────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ class AppDrawer extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
             child: Material(
-              color: AppTheme.red.withValues(alpha: 0.10),
+              color: context.colors.red.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
@@ -66,12 +66,12 @@ class AppDrawer extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
                     children: [
-                      const Icon(Icons.logout_rounded, color: AppTheme.red, size: 22),
+                      Icon(Icons.logout_rounded, color: context.colors.red, size: 22),
                       const SizedBox(width: 14),
                       Text(
                         'Sign Out',
                         style: GoogleFonts.plusJakartaSans(
-                          color: AppTheme.red,
+                          color: context.colors.red,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -99,7 +99,7 @@ class _DrawerHeader extends StatelessWidget {
     final isAdmin = user?.role == 'admin';
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(gradient: AppTheme.darkHeaderGradient),
+      decoration: BoxDecoration(gradient: context.colors.darkHeaderGradient),
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -115,7 +115,7 @@ class _DrawerHeader extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.primary.withValues(alpha: 0.35),
+                      color: context.colors.primary.withValues(alpha: 0.35),
                       blurRadius: 16,
                       spreadRadius: 1,
                     ),
@@ -149,19 +149,19 @@ class _DrawerHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isAdmin
-                      ? AppTheme.secondary.withValues(alpha: 0.20)
-                      : AppTheme.primary.withValues(alpha: 0.20),
+                      ? context.colors.secondary.withValues(alpha: 0.20)
+                      : context.colors.primary.withValues(alpha: 0.20),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isAdmin
-                        ? AppTheme.secondary.withValues(alpha: 0.40)
-                        : AppTheme.primary.withValues(alpha: 0.40),
+                        ? context.colors.secondary.withValues(alpha: 0.40)
+                        : context.colors.primary.withValues(alpha: 0.40),
                   ),
                 ),
                 child: Text(
                   isAdmin ? '⚙  ADMIN' : '🛡  SUPERVISOR',
                   style: GoogleFonts.inter(
-                    color: isAdmin ? AppTheme.secondary : AppTheme.primary,
+                    color: isAdmin ? context.colors.secondary : context.colors.primary,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.0,
@@ -187,7 +187,7 @@ class _DrawerNavItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: item.isSelected
-            ? AppTheme.primary.withValues(alpha: 0.14)
+            ? context.colors.primary.withValues(alpha: 0.14)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
@@ -203,13 +203,13 @@ class _DrawerNavItem extends StatelessWidget {
                 Icon(
                   item.icon,
                   size: 20,
-                  color: item.isSelected ? AppTheme.primary : AppTheme.txtSec,
+                  color: item.isSelected ? context.colors.primary : context.colors.txtSec,
                 ),
                 const SizedBox(width: 14),
                 Text(
                   item.label,
                   style: GoogleFonts.plusJakartaSans(
-                    color: item.isSelected ? AppTheme.primary : AppTheme.txtSec,
+                    color: item.isSelected ? context.colors.primary : context.colors.txtSec,
                     fontWeight: item.isSelected ? FontWeight.w700 : FontWeight.w500,
                     fontSize: 14,
                   ),
@@ -219,8 +219,8 @@ class _DrawerNavItem extends StatelessWidget {
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.primary,
+                    decoration: BoxDecoration(
+                      color: context.colors.primary,
                       shape: BoxShape.circle,
                     ),
                   ),
