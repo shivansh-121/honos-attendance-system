@@ -51,6 +51,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     if (user == null) return const Scaffold();
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth > 900 ? 4 : (screenWidth > 600 ? 3 : 2);
+    final childAspectRatio = screenWidth > 600 ? 1.5 : 1.1;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: context.colors.bgBase,
@@ -89,10 +93,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ],
       ),
       drawer: _buildNLDrawer(user),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             Text('Hello ${user.name.split(' ').first}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)).animate().fadeIn().slideX(),
@@ -122,10 +129,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
+              crossAxisCount: crossAxisCount,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.1,
+              childAspectRatio: childAspectRatio,
               children: [
                 _buildActionButton(title: 'Guards', icon: Icons.security, color: context.colors.bgElevated, textColor: Colors.white, onTap: () => AppNav.push(context, const AdminGuardsManagementScreen())),
                 _buildActionButton(title: 'Supervisors', icon: Icons.badge, color: context.colors.bgSurface, textColor: context.colors.txtPrimary, onTap: () => AppNav.push(context, const ManageSupervisorsScreen(role: 'supervisor'))),
@@ -141,10 +148,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
+              crossAxisCount: crossAxisCount,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.1,
+              childAspectRatio: childAspectRatio,
               children: [
                 _buildActionButton(title: 'Reports', icon: Icons.bar_chart, color: context.colors.green, textColor: context.colors.bgSurface, onTap: () => AppNav.push(context, const ReportsScreen())),
                 _buildActionButton(title: 'Leave Approvals', icon: Icons.event_available, color: context.colors.txtPrimary, textColor: context.colors.bgSurface, onTap: () => AppNav.push(context, const AdminLeavesScreen())),
@@ -214,6 +221,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ).animate().fadeIn(delay: 900.ms).slideY(),
             
           ],
+        ),
+      ),
         ),
       ),
     );
