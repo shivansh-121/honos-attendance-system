@@ -61,6 +61,11 @@ final advancesStreamProvider = StreamProvider<List<Advance>>((ref) {
   return ref.watch(dbProvider).advancesStream();
 });
 
+final userAdvancesProvider = StreamProvider.family<List<Advance>, String>((ref, userId) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).advancesStreamForUser(userId);
+});
+
 final leavesStreamProvider = StreamProvider<List<Leave>>((ref) {
   ref.keepAlive();
   return ref.watch(dbProvider).leavesStream();
@@ -72,7 +77,11 @@ class DbService {
   // --- Users ---
   Stream<List<AppUser>> usersStream() {
     return _firestore.collection('users').snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => AppUser.fromJson(doc.data())).toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return AppUser.fromJson(data);
+      }).toList();
     });
   }
 
@@ -82,6 +91,10 @@ class DbService {
 
   Future<void> deleteUser(String userId) async {
     await _firestore.collection('users').doc(userId).delete();
+  }
+
+  Future<void> updateUserField(String userId, Map<String, dynamic> data) async {
+    await _firestore.collection('users').doc(userId).update(data);
   }
 
   // --- Sites ---
@@ -102,7 +115,11 @@ class DbService {
   // --- Guards ---
   Stream<List<Guard>> guardsStream() {
     return _firestore.collection('guards').snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => Guard.fromJson(doc.data())).toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return Guard.fromJson(data);
+      }).toList();
     });
   }
 
@@ -112,6 +129,10 @@ class DbService {
 
   Future<void> deleteGuard(String guardId) async {
     await _firestore.collection('guards').doc(guardId).delete();
+  }
+
+  Future<void> updateGuardField(String guardId, Map<String, dynamic> data) async {
+    await _firestore.collection('guards').doc(guardId).update(data);
   }
 
   // --- Attendance ---
@@ -163,7 +184,9 @@ class DbService {
   }
 
   Future<void> saveAttendance(Attendance record) async {
-    await _firestore.collection('attendance').doc(record.id).set(record.toJson());
+    final data = record.toJson();
+    data['serverCreatedAt'] = FieldValue.serverTimestamp();
+    await _firestore.collection('attendance').doc(record.id).set(data);
   }
 
   Future<void> clearAttendance() async {
@@ -235,6 +258,12 @@ class DbService {
         );
   }
 
+  Stream<List<Advance>> advancesStreamForUser(String userId) {
+    return _firestore.collection('advances').where('userId', isEqualTo: userId).snapshots().map(
+          (snap) => snap.docs.map((d) => Advance.fromJson(d.data())).toList(),
+        );
+  }
+
   Future<void> saveAdvance(Advance advance) async {
     await _firestore.collection('advances').doc(advance.id).set(advance.toJson());
   }
@@ -256,5 +285,9 @@ class DbService {
 
   Future<void> updateLeaveStatus(String leaveId, String status) async {
     await _firestore.collection('leaves').doc(leaveId).update({'status': status});
+  }
+
+  Future<void> deleteLeave(String leaveId) async {
+    await _firestore.collection('leaves').doc(leaveId).delete();
   }
 }

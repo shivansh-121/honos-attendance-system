@@ -210,7 +210,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                           controller: _searchCtrl,
                           focusNode: _searchFocus,
                           onChanged: _onSearchChanged,
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: context.colors.txtPrimary),
                           decoration: const InputDecoration(
                             hintText: 'Search for building, street...',
                             border: InputBorder.none,
@@ -245,7 +245,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                         
                         return ListTile(
                           leading: Icon(Icons.location_on, color: context.colors.primary),
-                          title: Text(name.isNotEmpty ? name : subtitle, style: const TextStyle(color: Colors.white)),
+                          title: Text(name.isNotEmpty ? name : subtitle, style: TextStyle(color: context.colors.txtPrimary)),
                           subtitle: name.isNotEmpty && subtitle.isNotEmpty ? Text(subtitle, style: TextStyle(color: context.colors.txtSec, fontSize: 12)) : null,
                           onTap: () => _onSuggestionTapped(_suggestions[index]),
                         );
@@ -286,12 +286,12 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(_address, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 16)),
+                  Text(_address, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.colors.txtPrimary, fontSize: 16)),
                   const SizedBox(height: 8),
                   Text('Lat: ${_center.latitude.toStringAsFixed(5)} | Lng: ${_center.longitude.toStringAsFixed(5)}', style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: context.colors.green, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.green, padding: const EdgeInsets.symmetric(vertical: 16)),
                     onPressed: () {
                       Navigator.pop(context, {
                         'lat': _center.latitude,

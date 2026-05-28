@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../services/sync_service.dart';
 import '../../services/db_service.dart';
 import '../../app_theme.dart';
+import '../../models/site.dart';
+import '../../models/app_user.dart';
 
 // Colours for each supervisor's polyline
 const _pathColours = [
@@ -64,8 +67,8 @@ class SupervisorTrackerScreen extends ConsumerWidget {
 // ── Map body — stateful so it can hold StreamBuilders for paths ───────────────
 class _TrackerMapBody extends StatefulWidget {
   final Map<String, Map<String, dynamic>> activeSupervisors;
-  final List sites;
-  final List users;
+  final List<Site> sites;
+  final List<AppUser> users;
   final SyncService syncService;
 
   const _TrackerMapBody({
@@ -80,6 +83,7 @@ class _TrackerMapBody extends StatefulWidget {
 }
 
 class _TrackerMapBodyState extends State<_TrackerMapBody> {
+  final MapController _mapController = MapController();
   // supervisorId -> list of their breadcrumb coordinates
   final Map<String, List<LatLng>> _paths = {};
   final Map<String, dynamic> _pathStreams = {};
@@ -113,8 +117,8 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
         final pts = snap.docs.map((d) {
           final data = d.data();
           return LatLng(
-            (data['lat'] as num).toDouble(),
-            (data['lng'] as num).toDouble(),
+            double.tryParse(data['lat'].toString()) ?? 0.0,
+            double.tryParse(data['lng'].toString()) ?? 0.0,
           );
         }).toList();
         if (mounted) {
@@ -139,7 +143,21 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
     for (final s in _pathStreams.values) {
       (s as dynamic)?.cancel();
     }
+    _mapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _zoomToCurrentLocation() async {
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
+
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      _mapController.move(LatLng(pos.latitude, pos.longitude), 15.0);
+    } catch (e) {
+      debugPrint("Location error: $e");
+    }
   }
 
   String _getSupName(String supId) {
@@ -173,8 +191,8 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
 
       markers.add(Marker(
         point: LatLng(
-          (data['lat'] as num).toDouble(),
-          (data['lng'] as num).toDouble(),
+          double.tryParse(data['lat'].toString()) ?? 0.0,
+          double.tryParse(data['lng'].toString()) ?? 0.0,
         ),
         width: 50,
         height: 60,
@@ -203,18 +221,25 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
       ));
     }
 
-    // Default map center
-    final defaultCenter = widget.sites.isNotEmpty
-        ? LatLng((widget.sites.first.lat as num).toDouble(),
-            (widget.sites.first.lng as num).toDouble())
-        : const LatLng(21.1612, 72.8703);
+    // Default map center: Try to find a valid site, else default to India (New Delhi)
+    LatLng defaultCenter = const LatLng(28.6139, 77.2090);
+    if (widget.sites.isNotEmpty) {
+      final validSite = widget.sites.firstWhere(
+        (s) => (double.tryParse(s.lat.toString()) ?? 0.0) != 0.0 && (double.tryParse(s.lng.toString()) ?? 0.0) != 0.0, 
+        orElse: () => widget.sites.first
+      );
+      if ((double.tryParse(validSite.lat.toString()) ?? 0.0) != 0.0) {
+        defaultCenter = LatLng(double.tryParse(validSite.lat.toString()) ?? 0.0, double.tryParse(validSite.lng.toString()) ?? 0.0);
+      }
+    }
 
     return Stack(
       children: [
         FlutterMap(
+          mapController: _mapController,
           options: MapOptions(
             initialCenter: defaultCenter,
-            initialZoom: 14.0,
+            initialZoom: 15.0,
           ),
           children: [
             TileLayer(
@@ -226,13 +251,12 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
             // Geofence Circles
             CircleLayer(
               circles: widget.sites
-                  .map((site) => CircleMarker(
-                        point: LatLng((site.lat as num).toDouble(),
-                            (site.lng as num).toDouble()),
+                  .map<CircleMarker>((site) => CircleMarker(
+                        point: LatLng(double.tryParse(site.lat.toString()) ?? 0.0, double.tryParse(site.lng.toString()) ?? 0.0),
                         color: context.colors.primary.withValues(alpha: 0.15),
                         borderStrokeWidth: 2,
                         borderColor: context.colors.primary,
-                        radius: (site.radius as num).toDouble(),
+                        radius: double.tryParse(site.radius.toString()) ?? 0.0,
                         useRadiusInMeter: true,
                       ))
                   .toList(),
@@ -308,6 +332,18 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
                     ),
                   ),
                 ),
+        ),
+
+        // Current Location FAB
+        Positioned(
+          bottom: 24,
+          right: 16,
+          child: FloatingActionButton(
+            heroTag: 'tracker_gps_fab',
+            backgroundColor: context.colors.primary,
+            onPressed: _zoomToCurrentLocation,
+            child: const Icon(Icons.my_location, color: Colors.white),
+          ),
         ),
       ],
     );

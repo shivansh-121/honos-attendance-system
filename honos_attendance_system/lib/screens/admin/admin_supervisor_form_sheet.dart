@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 
 import '../../app_theme.dart';
 import '../../models/app_user.dart';
+import '../../models/guard.dart';
 import '../../models/site.dart';
 import '../../services/db_service.dart';
 import '../../services/id_generator.dart';
@@ -79,18 +80,18 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: context.colors.bgSurface,
-        title: const Text('Select Source', style: TextStyle(color: Colors.white)),
+        title: Text('Select Source', style: TextStyle(color: context.colors.txtPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Colors.white),
-              title: const Text('Camera', style: TextStyle(color: Colors.white)),
+              title: Text('Camera', style: TextStyle(color: context.colors.txtPrimary)),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library, color: Colors.white),
-              title: const Text('Gallery', style: TextStyle(color: Colors.white)),
+              title: Text('Gallery', style: TextStyle(color: context.colors.txtPrimary)),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
@@ -118,7 +119,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: context.colors.bgSurface,
-        title: const Text('Error', style: TextStyle(color: Colors.white)),
+        title: Text('Error', style: TextStyle(color: context.colors.txtPrimary)),
         content: Text(msg, style: TextStyle(color: context.colors.txtSec)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))
@@ -132,8 +133,8 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
       _showError('Please fill all required fields correctly. Scroll up to see the errors in red.');
       return;
     }
-    if (widget.existing == null && _password.text.isEmpty) {
-      _showError('Password is required for new ${widget.role == 'executive' ? 'executives' : 'supervisors'}!');
+    if (widget.existing == null && _password.text.isEmpty && widget.role != 'guard') {
+      _showError('Password is required for new accounts!');
       return;
     }
 
@@ -183,34 +184,76 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
             : IdGenerator.generateSupervisorId(allUsers);
       }
 
-      final u = AppUser(
-        id: widget.existing?.id ?? const Uuid().v4(),
-        empId: finalEmpId,
-        name: _name.text.trim(),
-        username: _username.text.trim(),
-        password: finalPassword,
-        role: widget.existing?.role ?? widget.role,
-        siteId: finalSiteId,
-        salary: double.tryParse(_salary.text.trim()) ?? 0,
-        phone: _phone.text.trim(),
-        dob: _dob.text.trim(),
-        address: _address.text.trim(),
-        aadharNo: _aadhaar.text.trim(),
-        uanNo: _uan.text.trim(),
-        bankName: _bank.text.trim(),
-        ifsc: _ifsc.text.trim(),
-        accountNo: _account.text.trim(),
-        branch: _branch.text.trim(),
-        photo: _photoBytes,
-        aadharPhoto: _aadhaarBytes,
-        passbookPhoto: _passbookBytes,
-        joinDate: widget.existing?.joinDate ?? DateTime.now().toIso8601String(),
-        status: widget.existing?.status ?? 'active',
-      );
+      List<String> changes = [];
+      if (widget.existing != null) {
+        final e = widget.existing!;
+        if (e.name != _name.text.trim()) changes.add('Name: ${e.name} -> ${_name.text.trim()}');
+        if (e.phone != _phone.text.trim()) changes.add('Phone: ${e.phone} -> ${_phone.text.trim()}');
+        if (e.address != _address.text.trim()) changes.add('Address: ${e.address} -> ${_address.text.trim()}');
+        if (e.aadharNo != _aadhaar.text.trim()) changes.add('Aadhaar: ${e.aadharNo} -> ${_aadhaar.text.trim()}');
+        if (e.uanNo != _uan.text.trim()) changes.add('UAN: ${e.uanNo} -> ${_uan.text.trim()}');
+        if (e.bankName != _bank.text.trim()) changes.add('Bank: ${e.bankName} -> ${_bank.text.trim()}');
+        if (e.accountNo != _account.text.trim()) changes.add('Account: ${e.accountNo} -> ${_account.text.trim()}');
+        if (e.ifsc != _ifsc.text.trim()) changes.add('IFSC: ${e.ifsc} -> ${_ifsc.text.trim()}');
+      } else {
+        changes.add('New ${widget.role} created.');
+      }
 
-      await widget.db.saveUser(u);
+      if (widget.existing?.role == 'guard' || widget.role == 'guard') {
+        final g = Guard(
+          id: widget.existing?.id ?? const Uuid().v4(),
+          empId: finalEmpId,
+          name: _name.text.trim(),
+          phone: _phone.text.trim(),
+          siteId: finalSiteId,
+          supervisorId: widget.existing?.role == 'guard' ? 'admin' : 'admin', // Placeholder or existing
+          salary: double.tryParse(_salary.text.trim()) ?? 0,
+          dob: _dob.text.trim(),
+          address: _address.text.trim(),
+          aadharNo: _aadhaar.text.trim(),
+          uanNo: _uan.text.trim(),
+          bankName: _bank.text.trim(),
+          ifsc: _ifsc.text.trim(),
+          accountNo: _account.text.trim(),
+          branch: _branch.text.trim(),
+          photo: _photoBytes,
+          aadharPhoto: _aadhaarBytes,
+          passbookPhoto: _passbookBytes,
+          joinDate: widget.existing?.joinDate ?? DateTime.now().toIso8601String(),
+          status: widget.existing?.status ?? 'active',
+          isEditableBySupervisor: false,
+        );
+        await widget.db.saveGuard(g);
+      } else {
+        final u = AppUser(
+          id: widget.existing?.id ?? const Uuid().v4(),
+          empId: finalEmpId,
+          name: _name.text.trim(),
+          username: _username.text.trim(),
+          password: finalPassword,
+          role: widget.existing?.role ?? widget.role,
+          siteId: finalSiteId,
+          salary: double.tryParse(_salary.text.trim()) ?? 0,
+          phone: _phone.text.trim(),
+          dob: _dob.text.trim(),
+          address: _address.text.trim(),
+          aadharNo: _aadhaar.text.trim(),
+          uanNo: _uan.text.trim(),
+          bankName: _bank.text.trim(),
+          ifsc: _ifsc.text.trim(),
+          accountNo: _account.text.trim(),
+          branch: _branch.text.trim(),
+          photo: _photoBytes,
+          aadharPhoto: _aadhaarBytes,
+          passbookPhoto: _passbookBytes,
+          joinDate: widget.existing?.joinDate ?? DateTime.now().toIso8601String(),
+          status: widget.existing?.status ?? 'active',
+        );
+        await widget.db.saveUser(u);
+      }
+
       widget.onSaved();
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, changes);
     } catch (e) {
       if (mounted) _showError('Error: $e');
     } finally {
@@ -279,18 +322,18 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
 
               // Login Info
               _sectionHeader('Login Credentials', Icons.login),
-              TextFormField(controller: _username, style: const TextStyle(color: Colors.white), decoration: _field('Username *', prefix: const Icon(Icons.alternate_email, size: 18)), validator: (v) => v!.isEmpty ? 'Required' : null),
+              TextFormField(controller: _username, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Username *', prefix: const Icon(Icons.alternate_email, size: 18)), validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _password, style: const TextStyle(color: Colors.white), decoration: _field('Password ${widget.existing == null ? '*' : '(Leave empty to keep)'}', prefix: const Icon(Icons.password, size: 18))),
+              TextFormField(controller: _password, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Password ${widget.existing == null ? '*' : '(Leave empty to keep)'}', prefix: const Icon(Icons.password, size: 18))),
               
               // Personal Info
               _sectionHeader('Personal Information', Icons.person),
-              TextFormField(controller: _name, style: const TextStyle(color: Colors.white), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: (v) => v!.isEmpty ? 'Required' : null),
+              TextFormField(controller: _name, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _phone, style: const TextStyle(color: Colors.white), decoration: _field('Phone Number *', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: (v) => v!.length < 10 ? 'Invalid' : null),
+              TextFormField(controller: _phone, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Phone Number *', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: (v) => v!.length < 10 ? 'Invalid' : null),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _dob, style: const TextStyle(color: Colors.white),
+                controller: _dob, style: TextStyle(color: context.colors.txtPrimary),
                 decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.colors.txtMuted)),
                 readOnly: true,
                 onTap: () async {
@@ -299,13 +342,13 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
                 },
               ),
               const SizedBox(height: 10),
-              TextFormField(controller: _address, style: const TextStyle(color: Colors.white), decoration: _field('Address *', prefix: const Icon(Icons.home, size: 18)), maxLines: 2, validator: (v) => v!.isEmpty ? 'Required' : null),
+              TextFormField(controller: _address, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Address *', prefix: const Icon(Icons.home, size: 18)), maxLines: 2, validator: (v) => v!.isEmpty ? 'Required' : null),
 
               // Identity
               _sectionHeader('Identity Document', Icons.credit_card),
-              TextFormField(controller: _aadhaar, style: const TextStyle(color: Colors.white), decoration: _field('Aadhaar Card Number *', prefix: const Icon(Icons.credit_card, size: 18)), keyboardType: TextInputType.number, maxLength: 12, validator: (v) => v!.length < 12 ? 'Invalid' : null),
+              TextFormField(controller: _aadhaar, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Aadhaar Card Number *', prefix: const Icon(Icons.credit_card, size: 18)), keyboardType: TextInputType.number, maxLength: 12, validator: (v) => v!.length < 12 ? 'Invalid' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _uan, style: const TextStyle(color: Colors.white), decoration: _field('UAN Number', prefix: const Icon(Icons.badge, size: 18)), keyboardType: TextInputType.number, maxLength: 12),
+              TextFormField(controller: _uan, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('UAN Number', prefix: const Icon(Icons.badge, size: 18)), keyboardType: TextInputType.number, maxLength: 12),
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 icon: const Icon(Icons.upload_file), label: Text(_aadhaarBytes.isEmpty ? 'Upload Aadhaar Photo' : 'Aadhaar Photo Attached'),
@@ -315,13 +358,13 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
 
               // Bank Details
               _sectionHeader('Bank Details', Icons.account_balance),
-              TextFormField(controller: _bank, style: const TextStyle(color: Colors.white), decoration: _field('Bank Name *', prefix: const Icon(Icons.account_balance, size: 18)), validator: (v) => v!.isEmpty ? 'Required' : null),
+              TextFormField(controller: _bank, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Bank Name *', prefix: const Icon(Icons.account_balance, size: 18)), validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _ifsc, style: const TextStyle(color: Colors.white), decoration: _field('IFSC Code *', prefix: const Icon(Icons.code, size: 18)), textCapitalization: TextCapitalization.characters, maxLength: 11, validator: (v) => v!.isEmpty ? 'Required' : null),
+              TextFormField(controller: _ifsc, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('IFSC Code *', prefix: const Icon(Icons.code, size: 18)), textCapitalization: TextCapitalization.characters, maxLength: 11, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _account, style: const TextStyle(color: Colors.white), decoration: _field('Account Number *', prefix: const Icon(Icons.numbers, size: 18)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null),
+              TextFormField(controller: _account, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Account Number *', prefix: const Icon(Icons.numbers, size: 18)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _branch, style: const TextStyle(color: Colors.white), decoration: _field('Branch Name', prefix: const Icon(Icons.location_city, size: 18))),
+              TextFormField(controller: _branch, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Branch Name', prefix: const Icon(Icons.location_city, size: 18))),
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 icon: const Icon(Icons.upload_file), label: Text(_passbookBytes.isEmpty ? 'Upload Passbook Photo' : 'Passbook Photo Attached'),
@@ -331,18 +374,19 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
 
               // Employment
               _sectionHeader('Employment Details', Icons.work),
-              TextFormField(controller: _salary, style: const TextStyle(color: Colors.white), decoration: _field('Monthly Salary ₹ *', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null),
+              TextFormField(controller: _salary, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Monthly Salary ₹ *', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 10),
               if (widget.allSites.isNotEmpty) ...[
                 Text('Assign to Site *', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedSiteId,
+                  value: _selectedSiteId,
                   dropdownColor: context.colors.bgSurface,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.colors.txtPrimary),
                   items: widget.allSites.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
                   onChanged: (val) => setState(() => _selectedSiteId = val!),
                   decoration: _field('Site *', prefix: const Icon(Icons.location_on, size: 18)),
+                  validator: (v) => widget.role != 'admin' && (v == null || v.isEmpty) ? 'Site required' : null,
                 ),
               ],
               const SizedBox(height: 10),
@@ -359,7 +403,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
               ElevatedButton.icon(
                 icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.save),
                 label: Text(widget.existing == null ? 'Add ${widget.role == 'executive' ? 'Executive' : 'Supervisor'}' : 'Save Changes'),
-                style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: _saving ? null : _save,
               ),
               const SizedBox(height: 24),

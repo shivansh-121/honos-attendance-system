@@ -9,7 +9,6 @@ import '../../models/guard.dart';
 import '../../models/attendance.dart';
 import '../../app_theme.dart';
 import '../../services/auth_service.dart';
-import '../../services/pdf_service.dart';
 
 class GuardProfileScreen extends ConsumerStatefulWidget {
   final Guard guard;
@@ -63,9 +62,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                       actions: [
                         TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
                         ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: context.colors.red),
+                          style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: context.colors.red),
                           onPressed: () => Navigator.pop(c, true),
-                          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                          child: Text('Delete', style: TextStyle(color: context.colors.txtPrimary)),
                         ),
                       ],
                     ),
@@ -79,47 +78,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             ]
           : null,
       ),
-      floatingActionButton: attendanceAsync.hasValue ? FloatingActionButton.extended(
-        backgroundColor: context.colors.primary,
-        onPressed: _isGeneratingPdf ? null : () async {
-          setState(() => _isGeneratingPdf = true);
-          try {
-            final allAttendance = attendanceAsync.value ?? [];
-            final monthAttendance = allAttendance.where((a) {
-              final d = DateTime.parse(a.markedAt);
-              return d.year == _selectedMonth.year && d.month == _selectedMonth.month;
-            }).toList();
 
-            final siteNames = <String, String>{};
-            if (sitesAsync.value != null) {
-              for (var s in sitesAsync.value!) {
-                siteNames[s.id] = s.name;
-              }
-            }
-
-            final supervisorNames = <String, String>{};
-            if (usersAsync.value != null) {
-              for (var u in usersAsync.value!) {
-                supervisorNames[u.id] = u.name;
-              }
-            }
-
-            await PdfService.generateAndPrintGuardReport(
-              guard: widget.guard,
-              month: _selectedMonth,
-              attendanceRecords: monthAttendance,
-              siteNames: siteNames,
-              supervisorNames: supervisorNames,
-            );
-          } finally {
-            if (mounted) setState(() => _isGeneratingPdf = false);
-          }
-        },
-        icon: _isGeneratingPdf 
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-            : const Icon(Icons.picture_as_pdf, color: Colors.white),
-        label: const Text('Export Reports', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ) : null,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -178,7 +137,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.guard.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(widget.guard.name, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -251,7 +210,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Advances Taken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text('Advances Taken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
                     Text('Total: INR ${totalAdvance.toStringAsFixed(0)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.colors.red)),
                   ],
                 ),
@@ -269,7 +228,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(DateFormat('dd MMM yyyy').format(d), style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              Text(DateFormat('dd MMM yyyy').format(d), style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
                               if (a.reason.isNotEmpty)
                                 Text(a.reason, style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
                             ],
@@ -366,7 +325,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
           Icon(icon, size: 15, color: context.colors.txtMuted),
           const SizedBox(width: 10),
           SizedBox(width: 110, child: Text(label, style: TextStyle(color: context.colors.txtSec, fontSize: 12))),
-          Expanded(child: Text(value.isEmpty ? '—' : value, style: TextStyle(color: valueColor ?? Colors.white, fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis, maxLines: 2)),
+          Expanded(child: Text(value.isEmpty ? '—' : value, style: TextStyle(color: valueColor ?? context.colors.txtPrimary, fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis, maxLines: 2)),
         ],
       ),
     );
@@ -389,7 +348,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Guard Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('Guard Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
             const SizedBox(height: 16),
 
             // Personal
@@ -456,7 +415,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
             const SizedBox(height: 4),
             Text(subtitle, style: TextStyle(fontSize: 11, color: context.colors.txtSec)),
           ],
@@ -480,7 +439,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Monthly Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text('Monthly Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
                 Row(
                   children: [
                     IconButton(icon: Icon(Icons.chevron_left, color: context.colors.txtSec), onPressed: () => _changeMonth(-1)),
@@ -519,7 +478,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                   // If it's a past date and no record, mark as absent/red
                   final checkDate = DateTime(_selectedMonth.year, _selectedMonth.month, day);
                   if (checkDate.isBefore(DateTime(now.year, now.month, now.day))) {
-                    blockColor = context.colors.red.withValues(alpha: 0.3); // Missed attendance
+                    blockColor = context.colors.red; // Missed attendance is now also red
                   }
                 }
 
@@ -530,7 +489,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                       color: blockColor,
                       borderRadius: BorderRadius.circular(6),
                       border: _selectedMonth.year == now.year && _selectedMonth.month == now.month && day == now.day 
-                          ? Border.all(color: Colors.white, width: 2) // Highlight today
+                          ? Border.all(color: context.colors.txtPrimary, width: 2) // Highlight today
                           : null,
                     ),
                     child: Center(
@@ -556,8 +515,6 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                 _buildLegendItem(context.colors.green, 'Present'),
                 const SizedBox(width: 16),
                 _buildLegendItem(context.colors.red, 'Absent'),
-                const SizedBox(width: 16),
-                _buildLegendItem(context.colors.red.withValues(alpha: 0.3), 'Missed'),
                 const SizedBox(width: 16),
                 _buildLegendItem(context.colors.bgElevated, 'Future'),
               ],
@@ -595,9 +552,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Text('Recent Working Hours', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Text('Recent Working Hours', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
         ),
         ListView.separated(
           shrinkWrap: true,
@@ -634,7 +591,12 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
             final dateStr = date != null ? DateFormat('MMM dd, yyyy').format(date) : shift.date;
 
             return Card(
-              color: context.colors.bgElevated,
+              color: context.colors.bgSurface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: context.colors.bord.withValues(alpha: 0.5)),
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
@@ -652,7 +614,7 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                          Text(dateStr, style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.txtPrimary, fontSize: 14)),
                           const SizedBox(height: 4),
                           Row(
                             children: [
@@ -671,13 +633,12 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: context.colors.green.withValues(alpha: 0.1),
+                        color: context.colors.green,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.colors.green.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         durationStr,
-                        style: TextStyle(color: context.colors.green, fontWeight: FontWeight.bold, fontSize: 13),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
                   ],

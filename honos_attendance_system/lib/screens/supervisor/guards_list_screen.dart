@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../app_theme.dart';
 import '../../models/guard.dart';
 import '../../models/site.dart';
@@ -30,93 +31,166 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
     final db = ref.read(dbProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Guards'),
-        actions: [
-          guardsAsync.when(
-            data: (guards) => guards.isNotEmpty
-                ? IconButton(
-                    icon: Icon(Icons.delete_sweep_outlined, color: context.colors.red),
-                    tooltip: 'Clear All Attendance',
-                    onPressed: () async {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (c) => AlertDialog(
-                          title: const Text('Clear All Attendance'),
-                          content: const Text('Are you sure? This will delete ALL attendance records permanently.'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: context.colors.red),
-                              onPressed: () => Navigator.pop(c, true),
-                              child: const Text('Clear All'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (ok == true) {
-                        await db.clearAttendance();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All attendance records cleared.')));
-                        }
-                      }
-                    },
-                  )
-                : const SizedBox.shrink(),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openGuardForm(context, db),
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Guard'),
+        icon: Icon(Icons.person_add, color: context.colors.bgBase),
+        label: Text('Add Guard', style: TextStyle(color: context.colors.bgBase, fontWeight: FontWeight.bold)),
         backgroundColor: context.colors.primary,
       ),
-      body: guardsAsync.when(
-        data: (allGuards) {
-          final myGuards = allGuards.where((g) => g.siteId == authUser?.siteId).toList();
-          return myGuards.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.people_outline, size: 80, color: context.colors.txtMuted),
-                        const SizedBox(height: 24),
-                        Text('No guards registered yet.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
-                        Text('Use the "Add Guard" button below to register a new guard.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtMuted, fontSize: 14)),
-                      ],
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 240,
+            pinned: true,
+            stretch: true,
+            backgroundColor: context.colors.bgBase,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.white),
+            flexibleSpace: FlexibleSpaceBar(
+              stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+              titlePadding: const EdgeInsets.only(left: 24, bottom: 20, right: 24),
+              title: Text('Guards Management', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.5)),
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [context.colors.primaryDark, context.colors.primary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
                   ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                  itemCount: myGuards.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => _GuardCard(
-                    guard: myGuards[i],
-                    onEdit: () => _openGuardForm(context, db, existing: myGuards[i]),
+                  Positioned(
+                    top: -60,
+                    right: -40,
+                    child: Container(
+                      width: 250,
+                      height: 250,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(begin: const Offset(1, 1), end: const Offset(1.15, 1.15), duration: 4.seconds, curve: Curves.easeInOut),
                   ),
-                );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, __) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+                  Positioned(
+                    bottom: -80,
+                    left: -50,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.08)),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(begin: const Offset(1.15, 1.15), end: const Offset(1, 1), duration: 3.seconds, curve: Curves.easeInOut),
+                  ),
+                  Positioned(
+                    right: 20,
+                    bottom: 40,
+                    child: Transform.rotate(
+                      angle: -0.15,
+                      child: Icon(Icons.security_rounded, size: 140, color: Colors.white.withValues(alpha: 0.15)),
+                    ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.3, end: 0, duration: 800.ms, curve: Curves.easeOutBack),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: const [0.6, 1.0],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              guardsAsync.when(
+                data: (guards) => guards.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.delete_sweep_outlined, color: context.colors.red),
+                        tooltip: 'Clear All Attendance',
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (c) => AlertDialog(
+                              backgroundColor: context.colors.bgSurface,
+                              title: Text('Clear All Attendance', style: TextStyle(color: context.colors.txtPrimary)),
+                              content: Text('Are you sure? This will delete ALL attendance records permanently.', style: TextStyle(color: context.colors.txtSec)),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: context.colors.red),
+                                  onPressed: () => Navigator.pop(c, true),
+                                  child: Text('Clear All', style: TextStyle(color: context.colors.txtPrimary)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok == true) {
+                            await db.clearAttendance();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('All attendance records cleared.', style: TextStyle(color: context.colors.txtPrimary))));
+                            }
+                          }
+                        },
+                      )
+                    : const SizedBox.shrink(),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+            ],
+          ),
+          guardsAsync.when(
+            data: (allGuards) {
+              final myGuards = allGuards.where((g) => g.siteId == authUser?.siteId).toList();
+              return myGuards.isEmpty
+                  ? SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.people_outline, size: 80, color: context.colors.txtMuted),
+                            const SizedBox(height: 24),
+                            Text('No guards registered yet.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 12),
+                            Text('Use the "Add Guard" button below to register a new guard.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtMuted, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, i) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _GuardCard(
+                              guard: myGuards[i],
+                              onEdit: () => _openGuardForm(context, db, existing: myGuards[i]),
+                            ),
+                          ),
+                          childCount: myGuards.length,
+                        ),
+                      ),
+                    );
+            },
+            loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))),
+            error: (e, __) => SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: Text('Error: $e', style: TextStyle(color: context.colors.red))))),
+          ),
+        ],
       ),
     );
   }
 
-  void _openGuardForm(BuildContext context, DbService db, {Guard? existing}) {
+  void _openGuardForm(BuildContext context, DbService db, {Guard? existing}) async {
     final authUser = ref.read(authProvider);
     final sitesAsync = ref.read(sitesStreamProvider);
     final allSites = sitesAsync.value ?? [];
     final siteId = authUser?.siteId ?? '';
     final supervisorId = authUser?.id ?? '';
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.colors.bgSurface,
@@ -130,6 +204,36 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
         onSaved: () {},
       ),
     );
+
+    if (existing != null && existing.isEditableBySupervisor) {
+      await db.updateGuardField(existing.id, {'isEditableBySupervisor': false});
+      
+      final updatedGuards = await db.guardsStream().first;
+      final newGuard = updatedGuards.firstWhere((g) => g.id == existing.id, orElse: () => existing);
+      
+      List<String> changes = [];
+      if (existing.name != newGuard.name) changes.add('Name: ${existing.name} -> ${newGuard.name}');
+      if (existing.phone != newGuard.phone) changes.add('Phone: ${existing.phone} -> ${newGuard.phone}');
+      if (existing.address != newGuard.address) changes.add('Address: ${existing.address} -> ${newGuard.address}');
+      if (existing.aadharNo != newGuard.aadharNo) changes.add('Aadhaar: ${existing.aadharNo} -> ${newGuard.aadharNo}');
+      if (existing.uanNo != newGuard.uanNo) changes.add('UAN: ${existing.uanNo} -> ${newGuard.uanNo}');
+      if (existing.bankName != newGuard.bankName) changes.add('Bank: ${existing.bankName} -> ${newGuard.bankName}');
+      if (existing.accountNo != newGuard.accountNo) changes.add('Account: ${existing.accountNo} -> ${newGuard.accountNo}');
+      if (existing.ifsc != newGuard.ifsc) changes.add('IFSC: ${existing.ifsc} -> ${newGuard.ifsc}');
+      
+      if (changes.isNotEmpty) {
+         final notif = AppNotification(
+            id: const Uuid().v4(),
+            type: 'profile_updated',
+            title: '${existing.name} Guard Profile Updated',
+            message: '${authUser?.name ?? 'Supervisor'} updated guard ${existing.name}:\n\n${changes.join('\n')}',
+            supervisorId: 'admin',
+            guardId: existing.id,
+            timestamp: DateTime.now().toIso8601String(),
+         );
+         await db.saveNotification(notif);
+      }
+    }
   }
 }
 
@@ -367,7 +471,7 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
           children: [
             Icon(Icons.lock, size: 64, color: context.colors.txtMuted),
             const SizedBox(height: 16),
-            const Text('Edit Locked', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('Edit Locked', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
             const SizedBox(height: 8),
             Text(
               'Guard profiles are locked for editing after creation to prevent unauthorized changes. You must request permission from an admin to update these details.',
@@ -382,7 +486,7 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send),
                 label: const Text('Request Edit Access'),
-                style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: _saving ? null : () async {
                   setState(() => _saving = true);
                   final notif = AppNotification(
@@ -421,7 +525,7 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
               // Header
               Row(children: [
                 Text(widget.existing == null ? 'Add New Guard' : 'Edit Guard',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
               ]),
               const SizedBox(height: 20),
 
@@ -455,16 +559,16 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
 
               // ── Personal Info ───────────────────────────────────────────────
               _sectionHeader('Personal Information', Icons.person),
-              TextFormField(controller: _name, style: const TextStyle(color: Colors.white), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: _validateName),
+              TextFormField(controller: _name, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: _validateName),
               const SizedBox(height: 10),
               if (widget.existing != null) ...[
-                TextFormField(controller: _empId, style: const TextStyle(color: Colors.white), decoration: _field('Employee ID *', prefix: const Icon(Icons.badge, size: 18)), readOnly: true, validator: _validateEmpId),
+                TextFormField(controller: _empId, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Employee ID *', prefix: const Icon(Icons.badge, size: 18)), readOnly: true, validator: _validateEmpId),
                 const SizedBox(height: 10),
               ],
-              TextFormField(controller: _phone, style: const TextStyle(color: Colors.white), decoration: _field('Phone Number *', hint: '10-digit mobile', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: _validatePhone),
+              TextFormField(controller: _phone, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Phone Number *', hint: '10-digit mobile', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: _validatePhone),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _dob, style: const TextStyle(color: Colors.white),
+                controller: _dob, style: TextStyle(color: context.colors.txtPrimary),
                 decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.colors.txtMuted)),
                 readOnly: true,
                 onTap: () async {
@@ -474,7 +578,7 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
               ),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _address, style: const TextStyle(color: Colors.white),
+                controller: _address, style: TextStyle(color: context.colors.txtPrimary),
                 decoration: _field('Address *', hint: 'Full residential address', prefix: const Icon(Icons.home, size: 18)),
                 maxLines: 2,
                 validator: (v) => (v == null || v.trim().length < 10) ? 'Enter full address (min 10 chars)' : null,
@@ -482,28 +586,28 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
 
               // ── Identity ────────────────────────────────────────────────────
               _sectionHeader('Identity Document', Icons.credit_card),
-              TextFormField(controller: _aadhaar, style: const TextStyle(color: Colors.white), decoration: _field('Aadhaar Card Number *', hint: '12-digit number', prefix: const Icon(Icons.credit_card, size: 18)), keyboardType: TextInputType.number, maxLength: 12, validator: _validateAadhaar),
+              TextFormField(controller: _aadhaar, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Aadhaar Card Number *', hint: '12-digit number', prefix: const Icon(Icons.credit_card, size: 18)), keyboardType: TextInputType.number, maxLength: 12, validator: _validateAadhaar),
               const SizedBox(height: 10),
-              TextFormField(controller: _uan, style: const TextStyle(color: Colors.white), decoration: _field('UAN Number', hint: 'Optional 12-digit UAN', prefix: const Icon(Icons.badge, size: 18)), keyboardType: TextInputType.number, maxLength: 12),
+              TextFormField(controller: _uan, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('UAN Number', hint: 'Optional 12-digit UAN', prefix: const Icon(Icons.badge, size: 18)), keyboardType: TextInputType.number, maxLength: 12),
 
               // ── Bank Details ────────────────────────────────────────────────
               _sectionHeader('Bank Details', Icons.account_balance),
-              TextFormField(controller: _bank, style: const TextStyle(color: Colors.white), decoration: _field('Bank Name *', hint: 'e.g. State Bank of India', prefix: const Icon(Icons.account_balance, size: 18)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Bank name is required' : null),
+              TextFormField(controller: _bank, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Bank Name *', hint: 'e.g. State Bank of India', prefix: const Icon(Icons.account_balance, size: 18)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Bank name is required' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _ifsc, style: const TextStyle(color: Colors.white), decoration: _field('IFSC Code *', hint: 'e.g. SBIN0001234', prefix: const Icon(Icons.code, size: 18)), textCapitalization: TextCapitalization.characters, maxLength: 11, validator: _validateIFSC),
+              TextFormField(controller: _ifsc, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('IFSC Code *', hint: 'e.g. SBIN0001234', prefix: const Icon(Icons.code, size: 18)), textCapitalization: TextCapitalization.characters, maxLength: 11, validator: _validateIFSC),
               const SizedBox(height: 10),
-              TextFormField(controller: _account, style: const TextStyle(color: Colors.white), decoration: _field('Account Number *', hint: '9 to 18 digits', prefix: const Icon(Icons.numbers, size: 18)), keyboardType: TextInputType.number, validator: _validateAccountNo),
+              TextFormField(controller: _account, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Account Number *', hint: '9 to 18 digits', prefix: const Icon(Icons.numbers, size: 18)), keyboardType: TextInputType.number, validator: _validateAccountNo),
               const SizedBox(height: 10),
-              TextFormField(controller: _branch, style: const TextStyle(color: Colors.white), decoration: _field('Branch Name (optional)', prefix: const Icon(Icons.location_city, size: 18))),
+              TextFormField(controller: _branch, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Branch Name (optional)', prefix: const Icon(Icons.location_city, size: 18))),
 
               // ── Employment ──────────────────────────────────────────────────
               _sectionHeader('Employment Details', Icons.work),
-              TextFormField(controller: _salary, style: const TextStyle(color: Colors.white), decoration: _field('Monthly Salary ₹ *', hint: 'e.g. 15000', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: _validateSalary),
+              TextFormField(controller: _salary, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Monthly Salary ₹ *', hint: 'e.g. 15000', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: _validateSalary),
 
               // ── Notes ───────────────────────────────────────────────────────
               _sectionHeader('Additional Notes', Icons.notes),
               TextFormField(
-                controller: _details, style: const TextStyle(color: Colors.white),
+                controller: _details, style: TextStyle(color: context.colors.txtPrimary),
                 decoration: _field('Guard Details / Notes (optional)', hint: 'Medical conditions, skills, remarks...', prefix: const Icon(Icons.notes, size: 18)),
                 maxLines: 3, maxLength: 500,
               ),
@@ -514,7 +618,7 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save),
                 label: Text(widget.existing == null ? 'Add Guard' : 'Save Changes'),
-                style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: _saving ? null : _save,
               ),
               const SizedBox(height: 8),

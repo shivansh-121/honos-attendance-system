@@ -1,12 +1,16 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../main.dart';
+import '../screens/admin/notifications_screen.dart';
+import '../screens/user_profile_screen.dart';
 import 'auth_service.dart';
 import 'db_service.dart';
-// Conditionally import flutter_local_notifications to avoid web build errors if needed
-// Actually, flutter_local_notifications supports web partially, or we can just ignore it on web.
 
 class LocalPushService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -29,19 +33,36 @@ class LocalPushService {
     await _notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (response) {
-        // Handle notification tap here if needed
+        if (response.payload != null) {
+          try {
+            final payload = jsonDecode(response.payload!);
+            final role = payload['role'];
+            if (role == 'admin') {
+              navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+            } else {
+              navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const UserProfileScreen()));
+            }
+          } catch (e) {
+            debugPrint('Error parsing notification payload: $e');
+          }
+        }
       },
     );
 
     if (Platform.isAndroid) {
       final androidImplementation = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       await androidImplementation?.requestNotificationsPermission();
+      
+      // Explicitly request POST_NOTIFICATIONS for Android 13+
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
+      }
     }
 
     _initialized = true;
   }
 
-  static Future<void> showNotification({required String title, required String body}) async {
+  static Future<void> showNotification({required String title, required String body, String? payload}) async {
     if (!_initialized || kIsWeb) return;
 
     const androidDetails = AndroidNotificationDetails(
@@ -76,6 +97,7 @@ class LocalPushService {
       title, 
       body, 
       notificationDetails,
+      payload: payload,
     );
   }
 
@@ -143,14 +165,25 @@ final pushNotificationManagerProvider = Provider<void>((ref) {
         
         // Only notify if it's meant for this user
         bool shouldNotify = false;
-        if (user.role == 'admin' && (n.type == 'edit_request' || n.type == 'guard_added')) {
+        if (user.role == 'admin') {
           shouldNotify = true;
-        } else if (user.role == 'supervisor' && n.supervisorId == user.id && (n.type == 'edit_approved' || n.type == 'edit_rejected')) {
-          shouldNotify = true;
+        } else if (user.role == 'supervisor') {
+          if (n.supervisorId == user.id && (n.type == 'edit_approved' || n.type == 'edit_rejected')) {
+            shouldNotify = true;
+          }
+        } else {
+          // Employee / Executive
+          if (n.type != 'edit_request' && (n.supervisorId == user.id || n.guardId == user.id)) {
+            shouldNotify = true;
+          }
         }
 
         if (shouldNotify && !n.isRead) {
-          LocalPushService.showNotification(title: n.title, body: n.message);
+          LocalPushService.showNotification(
+            title: n.title, 
+            body: n.message,
+            payload: jsonEncode({'type': n.type, 'role': user.role}),
+          );
         }
       }
     }

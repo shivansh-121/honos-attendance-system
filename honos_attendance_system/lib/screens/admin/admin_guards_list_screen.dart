@@ -231,7 +231,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: context.colors.green, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.green, ),
             onPressed: () => _markAttendance(guardId, 'Present', siteId),
             icon: const Icon(Icons.check),
             label: const Text('Present'),
@@ -240,7 +240,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: context.colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: context.colors.red, ),
             onPressed: () => _markAttendance(guardId, 'Absent', siteId),
             icon: const Icon(Icons.close),
             label: const Text('Absent'),

@@ -44,7 +44,11 @@ class ActionTile extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  gradient: context.colors.accentGradient(accentColor),
+                  gradient: LinearGradient(
+                    colors: [accentColor, accentColor.withValues(alpha: 0.6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(13),
                   boxShadow: [
                     BoxShadow(

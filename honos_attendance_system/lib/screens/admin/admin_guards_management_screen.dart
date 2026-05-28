@@ -13,7 +13,6 @@ import '../../widgets/base64_image_widget.dart';
 import '../../models/guard.dart';
 import '../../models/site.dart';
 import 'guard_profile_screen.dart';
-import '../supervisor/take_attendance_screen.dart';
 
 class AdminGuardsManagementScreen extends ConsumerStatefulWidget {
   const AdminGuardsManagementScreen({super.key});
@@ -53,55 +52,116 @@ class _AdminGuardsManagementScreenState
     final guardsAsync = ref.watch(guardsStreamProvider);
     final sitesAsync = ref.watch(sitesStreamProvider);
     final usersAsync = ref.watch(usersStreamProvider);
-    final attendanceAsync = ref.watch(todayAttendanceProvider);
     final db = ref.read(dbProvider);
 
     return Scaffold(
+      backgroundColor: context.colors.bgBase,
       floatingActionButton: sitesAsync.whenOrNull(
         data: (sites) => FloatingActionButton.extended(
           onPressed: () => _openGuardForm(context, db, sites),
-          icon: const Icon(Icons.person_add),
-          label: const Text('Add Guard'),
+          icon: Icon(Icons.person_add, color: context.colors.bgBase),
+          label: Text('Add Guard', style: TextStyle(color: context.colors.bgBase, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           backgroundColor: context.colors.primary,
-          foregroundColor: Colors.white,
-        ),
+          elevation: 8,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 2.seconds, color: Colors.white24),
       ),
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
-            expandedHeight: 180,
+            expandedHeight: 240,
             pinned: true,
+            stretch: true,
+            backgroundColor: context.colors.bgBase,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.white),
+
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Guard Management',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+              titlePadding: const EdgeInsets.only(left: 24, bottom: 20, right: 24),
+              title: Text('Guard Management', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.5)),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Container(color: context.colors.primaryDark.withValues(alpha: 0.5)),
-                  const Icon(Icons.security, size: 100, color: Colors.white10),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [context.colors.primaryDark, context.colors.primary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -60,
+                    right: -40,
+                    child: Container(
+                      width: 250,
+                      height: 250,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(begin: const Offset(1, 1), end: const Offset(1.15, 1.15), duration: 4.seconds, curve: Curves.easeInOut),
+                  ),
+                  Positioned(
+                    bottom: -80,
+                    left: -50,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.08)),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(begin: const Offset(1.15, 1.15), end: const Offset(1, 1), duration: 3.seconds, curve: Curves.easeInOut),
+                  ),
+                  Positioned(
+                    right: 20,
+                    bottom: 40,
+                    child: Transform.rotate(
+                      angle: -0.15,
+                      child: Icon(Icons.security_rounded, size: 140, color: Colors.white.withValues(alpha: 0.15)),
+                    ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.3, end: 0, duration: 800.ms, curve: Curves.easeOutBack),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: const [0.6, 1.0],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+            child: Container(
+              color: context.colors.bgBase,
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
               child: Column(
                 children: [
                   TextField(
                     onChanged: (v) => setState(() => _searchQuery = v),
+                    style: TextStyle(color: context.colors.txtPrimary),
                     decoration: InputDecoration(
                       hintText: 'Search by name or Employee ID...',
-                      prefixIcon: const Icon(Icons.search),
+                      hintStyle: TextStyle(color: context.colors.txtMuted),
+                      prefixIcon: Icon(Icons.search, color: context.colors.primary),
                       filled: true,
                       fillColor: context.colors.bgSurface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: context.colors.bord.withValues(alpha: 0.5))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: context.colors.primary, width: 2)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                      suffixIcon: _searchQuery.isNotEmpty 
+                        ? IconButton(
+                            icon: Icon(Icons.clear, color: context.colors.txtMuted),
+                            onPressed: () => setState(() => _searchQuery = ''),
+                          )
+                        : null,
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                  ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOut),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -109,49 +169,63 @@ class _AdminGuardsManagementScreenState
                           data: (sites) {
                             final siteIds = sites.map((s) => s.id).toSet();
                             final safeSiteFilter = (siteIds.contains(_selectedSiteFilter)) ? _selectedSiteFilter : null;
-                            return DropdownButtonFormField<String>(
-                              initialValue: safeSiteFilter,
-                              hint: Text('Filter by Site', style: TextStyle(color: context.colors.txtMuted, fontSize: 13)),
-                            dropdownColor: context.colors.bgSurface,
-                            style: const TextStyle(color: Colors.white, fontSize: 13),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              fillColor: context.colors.bgSurface,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                            ),
-                            items: [
-                              const DropdownMenuItem<String>(value: null, child: Text('All Sites')),
-                              ...sites.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, overflow: TextOverflow.ellipsis)))
-                            ],
-                            onChanged: (val) => setState(() => _selectedSiteFilter = val),
-                          );
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: context.colors.bgSurface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: context.colors.bord.withValues(alpha: 0.5)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: safeSiteFilter,
+                                  isExpanded: true,
+                                  hint: Text('Filter by Site', style: TextStyle(color: context.colors.txtMuted, fontSize: 13)),
+                                  dropdownColor: context.colors.bgSurface,
+                                  style: TextStyle(color: context.colors.txtPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: context.colors.primary),
+                                  items: [
+                                    const DropdownMenuItem<String>(value: null, child: Text('All Sites')),
+                                    ...sites.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, overflow: TextOverflow.ellipsis)))
+                                  ],
+                                  onChanged: (val) => setState(() => _selectedSiteFilter = val),
+                                ),
+                              ),
+                            );
                           },
                           loading: () => const SizedBox(),
                           error: (_, __) => const SizedBox(),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: usersAsync.when(
                           data: (users) {
                             final supervisors = users.where((u) => u.role == 'supervisor').toList();
                             final supIds = supervisors.map((s) => s.id).toSet();
                             final safeSupFilter = (supIds.contains(_selectedSupervisorFilter)) ? _selectedSupervisorFilter : null;
-                            return DropdownButtonFormField<String>(
-                              initialValue: safeSupFilter,
-                              hint: Text('Filter by Supervisor', style: TextStyle(color: context.colors.txtMuted, fontSize: 13)),
-                              dropdownColor: context.colors.bgSurface,
-                              style: const TextStyle(color: Colors.white, fontSize: 13),
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                fillColor: context.colors.bgSurface,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: context.colors.bgSurface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: context.colors.bord.withValues(alpha: 0.5)),
                               ),
-                              items: [
-                                const DropdownMenuItem<String>(value: null, child: Text('All Supervisors')),
-                                ...supervisors.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, overflow: TextOverflow.ellipsis)))
-                              ],
-                              onChanged: (val) => setState(() => _selectedSupervisorFilter = val),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: safeSupFilter,
+                                  isExpanded: true,
+                                  hint: Text('Filter by Sup', style: TextStyle(color: context.colors.txtMuted, fontSize: 13)),
+                                  dropdownColor: context.colors.bgSurface,
+                                  style: TextStyle(color: context.colors.txtPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: context.colors.primary),
+                                  items: [
+                                    const DropdownMenuItem<String>(value: null, child: Text('All Sups')),
+                                    ...supervisors.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, overflow: TextOverflow.ellipsis)))
+                                  ],
+                                  onChanged: (val) => setState(() => _selectedSupervisorFilter = val),
+                                ),
+                              ),
                             );
                           },
                           loading: () => const SizedBox(),
@@ -159,7 +233,7 @@ class _AdminGuardsManagementScreenState
                         ),
                       ),
                     ],
-                  ),
+                  ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOut),
                 ],
               ),
             ),
@@ -177,149 +251,117 @@ class _AdminGuardsManagementScreenState
 
               if (filtered.isEmpty) {
                 return SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
-                    child: Text('No guards found.', style: TextStyle(color: context.colors.txtMuted)),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.security_rounded, size: 80, color: context.colors.txtMuted.withValues(alpha: 0.3)).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack),
+                        const SizedBox(height: 20),
+                        Text('No guards found', style: TextStyle(color: context.colors.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text('Try adjusting your search or filters.', style: TextStyle(color: context.colors.txtMuted, fontSize: 14)),
+                      ],
+                    ),
                   ),
                 );
               }
 
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final g = filtered[index];
-                      final siteName = sites.firstWhere((s) => s.id == g.siteId, orElse: () => const Site(id: '', name: 'Unknown Site', address: '', lat: 0, lng: 0, radius: 0)).name;
+                      final siteName = sites.firstWhere((s) => s.id == g.siteId, orElse: () => const Site(id: '', name: 'Unassigned', address: '', lat: 0, lng: 0, radius: 0)).name;
 
-                      return attendanceAsync.when(
-                        data: (attendance) {
-                          final existingRecord = attendance.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
-                          final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
-                          final isShiftCompleted = existingRecord != null && existingRecord.checkOutTime.isNotEmpty;
-                          final isAbsent = existingRecord == null;
-
-                          Color statusColor = context.colors.red;
-                          String statusText = 'Absent';
-                          IconData statusIcon = Icons.cancel;
-
-                          if (isShiftCompleted) {
-                            statusColor = context.colors.green;
-                            statusText = 'Completed';
-                            statusIcon = Icons.check_circle;
-                          } else if (isCheckedIn) {
-                            statusColor = context.colors.yellow;
-                            statusText = 'Active Shift';
-                            statusIcon = Icons.timelapse;
-                          }
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(14),
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GuardProfileScreen(guard: g))),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Hero(
-                                          tag: 'avatar_${g.id}',
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(28),
-                                            child: SizedBox(
-                                              width: 56, height: 56,
-                                              child: g.photo.length > 200
-                                                  ? Base64ImageWidget(base64String: g.photo, fit: BoxFit.cover)
-                                                  : Container(
-                                                      color: context.colors.primary.withValues(alpha: 0.2),
-                                                      alignment: Alignment.center,
-                                                      child: Text(g.name[0].toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.primary, fontSize: 22)),
-                                                    ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(g.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-                                              const SizedBox(height: 4),
-                                              Text('Site: $siteName', style: TextStyle(color: context.colors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
-                                              const SizedBox(height: 4),
-                                              Row(children: [
-                                                Icon(Icons.badge, size: 14, color: context.colors.txtMuted),
-                                                const SizedBox(width: 4),
-                                                Text(g.empId, style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
-                                              ]),
-                                            ],
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(Icons.edit, color: context.colors.primary),
-                                          tooltip: 'Edit Guard',
-                                          onPressed: () => _openGuardForm(context, db, sites, existing: g),
-                                        ),
-                                      ],
+                      return GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GuardProfileScreen(guard: g))),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: context.colors.bgSurface,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: context.colors.bord.withValues(alpha: 0.5)),
+                            boxShadow: [
+                              BoxShadow(color: context.colors.primary.withValues(alpha: 0.04), blurRadius: 24, offset: const Offset(0, 8)),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Hero(
+                                    tag: 'avatar_${g.id}',
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        boxShadow: [BoxShadow(color: context.colors.primary.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+                                      ),
+                                      child: CircleAvatar(
+                                        radius: 30,
+                                        backgroundColor: context.colors.primary,
+                                        backgroundImage: g.photo.length > 200 ? MemoryImage(base64Decode(g.photo)) : null,
+                                        child: g.photo.length < 200 ? Text(g.name.isNotEmpty ? g.name[0].toUpperCase() : '?', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)) : null,
+                                      ),
                                     ),
-                                    Divider(height: 24, color: context.colors.bord),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Row(children: [
-                                          Icon(Icons.phone, size: 14, color: context.colors.txtMuted),
-                                          const SizedBox(width: 4),
-                                          Text(g.phone.isEmpty ? 'N/A' : g.phone, style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
-                                        ]),
+                                        Text(g.name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: context.colors.txtPrimary, letterSpacing: -0.3)),
+                                        Container(
+                                          margin: const EdgeInsets.only(top: 6, bottom: 6),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(color: context.colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                                          child: Text('ID: ${g.empId}', style: TextStyle(fontSize: 10, color: context.colors.primaryDark, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                                        ),
                                         Row(
-                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                                Icon(statusIcon, size: 14, color: statusColor),
-                                                const SizedBox(width: 4),
-                                                Text(statusText, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
-                                              ]),
-                                            ),
-                                            if (isAbsent) ...[
-                                              const SizedBox(width: 8),
-                                              ElevatedButton(
-                                                onPressed: () {
-                                                  final site = sites.firstWhere((s) => s.id == g.siteId, orElse: () => const Site(id: '', name: '', address: '', lat: 0, lng: 0, radius: 0, supervisorId: ''));
-                                                  if (site.id.isEmpty) return;
-                                                  Navigator.push(context, MaterialPageRoute(builder: (_) => TakeAttendanceScreen(site: site, isCheckOutFlow: false, preselectedGuard: g)));
-                                                },
-                                                style: ElevatedButton.styleFrom(backgroundColor: context.colors.green, padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32)),
-                                                child: const Text('Check-In', style: TextStyle(fontSize: 11)),
-                                              ),
-                                            ] else if (isCheckedIn) ...[
-                                              const SizedBox(width: 8),
-                                              ElevatedButton(
-                                                onPressed: () {
-                                                  final site = sites.firstWhere((s) => s.id == g.siteId, orElse: () => const Site(id: '', name: '', address: '', lat: 0, lng: 0, radius: 0, supervisorId: ''));
-                                                  if (site.id.isEmpty) return;
-                                                  Navigator.push(context, MaterialPageRoute(builder: (_) => TakeAttendanceScreen(site: site, isCheckOutFlow: true, preselectedGuard: g, existingRecord: existingRecord)));
-                                                },
-                                                style: ElevatedButton.styleFrom(backgroundColor: context.colors.yellow, padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: const Size(0, 32)),
-                                                child: const Text('Check-Out', style: TextStyle(fontSize: 11, color: Colors.black)),
-                                              ),
-                                            ],
+                                            Icon(Icons.location_on_rounded, color: context.colors.primary, size: 14),
+                                            const SizedBox(width: 6),
+                                            Expanded(child: Text(siteName, style: TextStyle(fontSize: 13, color: context.colors.txtSec, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
                                           ],
                                         ),
                                       ],
-                                    )
-                                  ],
-                                ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.edit_rounded, color: context.colors.txtSec, size: 22),
+                                    onPressed: () => _openGuardForm(context, db, sites, existing: g),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ],
                               ),
-                            ),
-                          ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
-                        },
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                      );
+                              const SizedBox(height: 16),
+                              Container(height: 1, color: context.colors.bord.withValues(alpha: 0.5)),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.phone_rounded, size: 14, color: context.colors.txtMuted),
+                                      const SizedBox(width: 6),
+                                      Text(g.phone.isEmpty ? 'No phone' : g.phone, style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.currency_rupee, size: 14, color: context.colors.txtMuted),
+                                      const SizedBox(width: 4),
+                                      Text('₹${g.salary.toStringAsFixed(0)}/mo', style: TextStyle(color: context.colors.txtSec, fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ).animate().fadeIn(delay: (40 * index).ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOut);
                     },
                     childCount: filtered.length,
                   ),
@@ -327,8 +369,9 @@ class _AdminGuardsManagementScreenState
               );
             },
             loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
-            error: (e, __) => SliverFillRemaining(child: Center(child: Text('Error: $e'))),
+            error: (e, __) => SliverFillRemaining(child: Center(child: Text('Error: $e', style: TextStyle(color: context.colors.red)))),
           ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
         ],
       ),
     );
@@ -549,7 +592,7 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
             children: [
               Row(children: [
                 Text(widget.existing == null ? 'Add New Guard' : 'Edit Guard',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
               ]),
               const SizedBox(height: 20),
 
@@ -583,17 +626,17 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
 
               // Personal
               _sectionHeader('Personal Information', Icons.person),
-              TextFormField(controller: _name, style: const TextStyle(color: Colors.white), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: _validateName),
+              TextFormField(controller: _name, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: _validateName),
               const SizedBox(height: 10),
               if (widget.existing != null) ...[
-                TextFormField(controller: _empId, style: const TextStyle(color: Colors.white), decoration: _field('Employee ID *', prefix: const Icon(Icons.badge, size: 18)), readOnly: true, validator: _validateEmpId),
+                TextFormField(controller: _empId, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Employee ID *', prefix: const Icon(Icons.badge, size: 18)), readOnly: true, validator: _validateEmpId),
                 const SizedBox(height: 10),
               ],
               const SizedBox(height: 10),
-              TextFormField(controller: _phone, style: const TextStyle(color: Colors.white), decoration: _field('Phone Number *', hint: '10-digit mobile', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: _validatePhone),
+              TextFormField(controller: _phone, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Phone Number *', hint: '10-digit mobile', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: _validatePhone),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _dob, style: const TextStyle(color: Colors.white),
+                controller: _dob, style: TextStyle(color: context.colors.txtPrimary),
                 decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.colors.txtMuted)),
                 readOnly: true,
                 onTap: () async {
@@ -603,7 +646,7 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
               ),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _address, style: const TextStyle(color: Colors.white),
+                controller: _address, style: TextStyle(color: context.colors.txtPrimary),
                 decoration: _field('Address *', hint: 'Full residential address', prefix: const Icon(Icons.home, size: 18)),
                 maxLines: 2,
                 validator: (v) => (v == null || v.trim().length < 10) ? 'Enter full address (min 10 chars)' : null,
@@ -611,30 +654,30 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
 
               // Identity
               _sectionHeader('Identity Document', Icons.credit_card),
-              TextFormField(controller: _aadhaar, style: const TextStyle(color: Colors.white), decoration: _field('Aadhaar Card Number *', hint: '12-digit number', prefix: const Icon(Icons.credit_card, size: 18)), keyboardType: TextInputType.number, maxLength: 12, validator: _validateAadhaar),
+              TextFormField(controller: _aadhaar, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Aadhaar Card Number *', hint: '12-digit number', prefix: const Icon(Icons.credit_card, size: 18)), keyboardType: TextInputType.number, maxLength: 12, validator: _validateAadhaar),
               const SizedBox(height: 10),
-              TextFormField(controller: _uan, style: const TextStyle(color: Colors.white), decoration: _field('UAN Number', hint: 'Optional 12-digit UAN', prefix: const Icon(Icons.badge, size: 18)), keyboardType: TextInputType.number, maxLength: 12),
+              TextFormField(controller: _uan, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('UAN Number', hint: 'Optional 12-digit UAN', prefix: const Icon(Icons.badge, size: 18)), keyboardType: TextInputType.number, maxLength: 12),
 
               // Bank Details
               _sectionHeader('Bank Details', Icons.account_balance),
-              TextFormField(controller: _bank, style: const TextStyle(color: Colors.white), decoration: _field('Bank Name *', hint: 'e.g. State Bank of India', prefix: const Icon(Icons.account_balance, size: 18)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Bank name is required' : null),
+              TextFormField(controller: _bank, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Bank Name *', hint: 'e.g. State Bank of India', prefix: const Icon(Icons.account_balance, size: 18)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Bank name is required' : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _ifsc, style: const TextStyle(color: Colors.white), decoration: _field('IFSC Code *', hint: 'e.g. SBIN0001234', prefix: const Icon(Icons.code, size: 18)), textCapitalization: TextCapitalization.characters, maxLength: 11, validator: _validateIFSC),
+              TextFormField(controller: _ifsc, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('IFSC Code *', hint: 'e.g. SBIN0001234', prefix: const Icon(Icons.code, size: 18)), textCapitalization: TextCapitalization.characters, maxLength: 11, validator: _validateIFSC),
               const SizedBox(height: 10),
-              TextFormField(controller: _account, style: const TextStyle(color: Colors.white), decoration: _field('Account Number *', hint: '9 to 18 digits', prefix: const Icon(Icons.numbers, size: 18)), keyboardType: TextInputType.number, validator: _validateAccountNo),
+              TextFormField(controller: _account, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Account Number *', hint: '9 to 18 digits', prefix: const Icon(Icons.numbers, size: 18)), keyboardType: TextInputType.number, validator: _validateAccountNo),
               const SizedBox(height: 10),
-              TextFormField(controller: _branch, style: const TextStyle(color: Colors.white), decoration: _field('Branch Name (optional)', prefix: const Icon(Icons.location_city, size: 18))),
+              TextFormField(controller: _branch, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Branch Name (optional)', prefix: const Icon(Icons.location_city, size: 18))),
 
               // Employment
               _sectionHeader('Employment Details', Icons.work),
-              TextFormField(controller: _salary, style: const TextStyle(color: Colors.white), decoration: _field('Monthly Salary ₹ *', hint: 'e.g. 15000', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: _validateSalary),
+              TextFormField(controller: _salary, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Monthly Salary ₹ *', hint: 'e.g. 15000', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: _validateSalary),
               const SizedBox(height: 10),
               Text('Assign to Site *', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _selectedSiteId,
                 dropdownColor: context.colors.bgSurface,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: context.colors.txtPrimary),
                 items: widget.allSites.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, style: const TextStyle(fontSize: 13)))).toList(),
                 onChanged: (val) => setState(() => _selectedSiteId = val!),
                 decoration: _field('Site *', prefix: const Icon(Icons.location_on, size: 18)),
@@ -648,7 +691,7 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
               // Notes
               _sectionHeader('Additional Notes', Icons.notes),
               TextFormField(
-                controller: _details, style: const TextStyle(color: Colors.white),
+                controller: _details, style: TextStyle(color: context.colors.txtPrimary),
                 decoration: _field('Guard Details / Notes (optional)', hint: 'Medical conditions, skills, remarks...', prefix: const Icon(Icons.notes, size: 18)),
                 maxLines: 3, maxLength: 500,
               ),
@@ -659,7 +702,7 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save),
                 label: Text(widget.existing == null ? 'Add Guard' : 'Save Changes'),
-                style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: _saving ? null : _save,
               ),
               const SizedBox(height: 8),

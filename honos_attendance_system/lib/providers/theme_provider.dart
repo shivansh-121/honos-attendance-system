@@ -11,7 +11,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
     final savedMode = box.get(_themeKey) as String?;
     if (savedMode == 'light') return ThemeMode.light;
     if (savedMode == 'dark') return ThemeMode.dark;
-    return ThemeMode.system;
+    return ThemeMode.light; // Changed default from system/dark to light for NL Corp design
   }
 
   void toggleTheme() {

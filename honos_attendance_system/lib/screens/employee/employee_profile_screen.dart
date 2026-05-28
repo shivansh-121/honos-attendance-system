@@ -60,7 +60,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(user.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(user.name, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -140,7 +140,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
             padding: const EdgeInsets.all(24.0),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                const Text('Contact Information', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Contact Information', style: TextStyle(color: context.colors.txtPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 _InfoCard(
                   delay: 400,
@@ -151,7 +151,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                const Text('Financial Information', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Financial Information', style: TextStyle(color: context.colors.txtPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 _InfoCard(
                   delay: 500,
@@ -188,7 +188,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Monthly Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text('Monthly Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
                 Row(
                   children: [
                     IconButton(icon: Icon(Icons.chevron_left, color: context.colors.txtSec), onPressed: () => _changeMonth(-1)),
@@ -238,7 +238,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
                       color: blockColor,
                       borderRadius: BorderRadius.circular(6),
                       border: _selectedMonth.year == now.year && _selectedMonth.month == now.month && day == now.day 
-                          ? Border.all(color: Colors.white, width: 2) // Highlight today
+                          ? Border.all(color: context.colors.txtPrimary, width: 2) // Highlight today
                           : null,
                     ),
                     child: Center(
@@ -310,7 +310,7 @@ class _StatBox extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 12),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(value, style: TextStyle(color: context.colors.txtPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
           Text(title, style: TextStyle(color: context.colors.txtMuted, fontSize: 12)),
         ],
       ),
@@ -333,7 +333,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
-        children: children.expand((w) => [w, const Divider(color: Colors.white10, height: 24)]).toList()..removeLast(),
+        children: children.expand((w) => [w, Divider(color: context.colors.txtPrimary.withValues(alpha: 0.1), height: 24)]).toList()..removeLast(),
       ),
     ).animate().fadeIn(delay: delay.ms).slideY(begin: 0.1, end: 0);
   }
@@ -363,7 +363,7 @@ class _InfoRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: TextStyle(color: context.colors.txtMuted, fontSize: 12)),
-            Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+            Text(value, style: TextStyle(color: context.colors.txtPrimary, fontSize: 16, fontWeight: FontWeight.w500)),
           ],
         ),
       ],

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../app_theme.dart';
+import '../../nl_theme.dart';
 import '../../models/app_notification.dart';
 import '../../services/db_service.dart';
 import '../../services/auth_service.dart';
@@ -19,8 +20,9 @@ class SupNotificationsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: context.colors.bgBase,
       appBar: AppBar(
-        title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
         backgroundColor: Colors.transparent,
+        iconTheme: IconThemeData(color: context.colors.txtPrimary),
         elevation: 0,
         centerTitle: false,
       ),
@@ -39,10 +41,10 @@ class SupNotificationsScreen extends ConsumerWidget {
                       color: context.colors.bgSurface,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.notifications_none, size: 64, color: context.colors.txtMuted),
+                    child: Icon(Icons.notifications_none, size: 64, color: context.colors.txtSec),
                   ),
                   const SizedBox(height: 24),
-                  const Text('All caught up!', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('All caught up!', style: TextStyle(color: context.colors.txtPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Text('You have no new notifications right now.', style: TextStyle(color: context.colors.txtSec, fontSize: 14)),
                 ],
@@ -60,7 +62,7 @@ class SupNotificationsScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.red))),
+        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: NLTheme.accentPink))),
       ),
     );
   }
@@ -87,24 +89,30 @@ class _SupNotificationCard extends ConsumerWidget {
     final isApproved = notification.type == 'edit_approved';
     
     final iconData = isApproved ? Icons.check_circle : Icons.cancel;
-    final iconColor = isApproved ? context.colors.green : context.colors.red;
-    final bgColor = isApproved ? context.colors.green.withValues(alpha: 0.1) : context.colors.red.withValues(alpha: 0.1);
+    final iconColor = isApproved ? NLTheme.accentGreen : NLTheme.accentPink;
+    final bgColor = isApproved ? NLTheme.accentGreen.withValues(alpha: 0.1) : NLTheme.accentPink.withValues(alpha: 0.1);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: notification.isRead ? context.colors.bgSurface : context.colors.bgElevated,
+        color: context.colors.bgSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: notification.isRead ? Colors.white.withValues(alpha: 0.03) : context.colors.primary.withValues(alpha: 0.3),
+          color: notification.isRead ? context.colors.txtSec.withValues(alpha: 0.05) : context.colors.primary.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           if (!notification.isRead)
             BoxShadow(
-              color: context.colors.primary.withValues(alpha: 0.05),
+              color: context.colors.primary.withValues(alpha: 0.1),
               blurRadius: 10,
               spreadRadius: 1,
+            )
+          else
+            BoxShadow(
+              color: context.colors.bord,
+              blurRadius: 5,
+              offset: const Offset(0, 2),
             )
         ],
       ),
@@ -126,14 +134,24 @@ class _SupNotificationCard extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Icon Circle
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(iconData, color: iconColor, size: 22),
+                  // Admin Avatar Tag
+                  Column(
+                    children: [
+                      const CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.transparent,
+                        backgroundImage: AssetImage('assets/images/logo.png'),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: context.colors.primary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('Admin', style: TextStyle(color: context.colors.bgBase, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 14),
                   // Content
@@ -147,19 +165,19 @@ class _SupNotificationCard extends ConsumerWidget {
                             Expanded(
                               child: Text(
                                 notification.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: context.colors.txtPrimary),
                               ),
                             ),
                             Row(
                               children: [
                                 Text(
                                   _timeAgo(notification.timestamp),
-                                  style: TextStyle(color: context.colors.txtMuted, fontSize: 12, fontWeight: FontWeight.w500),
+                                  style: TextStyle(color: context.colors.txtSec, fontSize: 12, fontWeight: FontWeight.w500),
                                 ),
                                 const SizedBox(width: 4),
                                 GestureDetector(
                                   onTap: () => ref.read(dbProvider).deleteNotification(notification.id),
-                                  child: Icon(Icons.close, color: context.colors.txtMuted, size: 18),
+                                  child: Icon(Icons.close, color: context.colors.txtSec, size: 18),
                                 ),
                               ],
                             ),

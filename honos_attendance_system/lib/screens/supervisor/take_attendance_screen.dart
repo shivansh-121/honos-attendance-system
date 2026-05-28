@@ -87,6 +87,10 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       pos ??= await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
             .timeout(const Duration(seconds: 5));
           
+      if (pos.isMocked) {
+        throw Exception('Mock Location detected. Please disable Fake GPS apps.');
+      }
+          
       final dist = Geolocator.distanceBetween(pos.latitude, pos.longitude, widget.site.lat, widget.site.lng);
       if (dist <= widget.site.radius) {
         if (mounted) setState(() => _gpsOk = true);
@@ -144,27 +148,9 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         await db.saveAttendance(record);
       }
 
-      final updatedGuard = Guard(
-        id: _selectedGuard!.id,
-        name: _selectedGuard!.name,
-        empId: _selectedGuard!.empId,
+      final updatedGuard = _selectedGuard!.copyWith(
         siteId: widget.site.id,
         supervisorId: supervisor?.id ?? '',
-        photo: _selectedGuard!.photo,
-        phone: _selectedGuard!.phone,
-        joinDate: _selectedGuard!.joinDate,
-        salary: _selectedGuard!.salary,
-        dob: _selectedGuard!.dob,
-        address: _selectedGuard!.address,
-        aadharNo: _selectedGuard!.aadharNo,
-        aadharPhoto: _selectedGuard!.aadharPhoto,
-        bankName: _selectedGuard!.bankName,
-        accountNo: _selectedGuard!.accountNo,
-        ifsc: _selectedGuard!.ifsc,
-        branch: _selectedGuard!.branch,
-        passbookPhoto: _selectedGuard!.passbookPhoto,
-        status: _selectedGuard!.status,
-        isEditableBySupervisor: _selectedGuard!.isEditableBySupervisor,
       );
       await db.saveGuard(updatedGuard);
 
@@ -188,7 +174,17 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.isCheckOutFlow ? 'Check-Out Attendance' : 'Check-In Attendance')),
+      backgroundColor: context.colors.bgBase,
+      appBar: AppBar(
+        title: Text(widget.isCheckOutFlow ? 'Check-Out Attendance' : 'Check-In Attendance', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
+        backgroundColor: context.colors.bgSurface,
+        iconTheme: IconThemeData(color: context.colors.txtPrimary),
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: context.colors.bord.withValues(alpha: 0.5), height: 1),
+        ),
+      ),
       body: _checkingGps 
         ? const Center(child: CircularProgressIndicator())
         : _buildCurrentStep(),
@@ -253,13 +249,18 @@ class _StepShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
+      physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            CircleAvatar(radius: 18, child: Text(stepNumber)),
+            CircleAvatar(
+              radius: 18, 
+              backgroundColor: context.colors.primary, 
+              child: Text(stepNumber, style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold))
+            ),
             const SizedBox(width: 12),
-            Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))
+            Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.colors.txtPrimary, letterSpacing: -0.5))
           ]),
           const SizedBox(height: 30),
           child,
@@ -284,17 +285,50 @@ class _LocationStep extends StatelessWidget {
           children: [
             if (checking) const CircularProgressIndicator()
             else if (ok) ...[
-              Icon(Icons.check_circle, color: context.colors.green, size: 80),
-              const SizedBox(height: 16),
-              const Text('Location Verified', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
-              const SizedBox(height: 20),
-              ElevatedButton(onPressed: onNext, child: const Text('Continue')),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(color: context.colors.green.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: Icon(Icons.check_circle, color: context.colors.green, size: 80),
+              ),
+              const SizedBox(height: 24),
+              Text('Location Verified', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: context.colors.txtPrimary), textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text('You are within the site boundaries.', style: TextStyle(color: context.colors.txtSec), textAlign: TextAlign.center),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.colors.primary, 
+                  foregroundColor: context.colors.bgBase, 
+                  
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                onPressed: onNext, 
+                child: const Text('Continue to Select Guard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
+              ),
             ] else ...[
-              Icon(Icons.location_off, color: context.colors.red, size: 80),
-              const SizedBox(height: 16),
-              Text(error, textAlign: TextAlign.center),
-              const SizedBox(height: 20),
-              ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(color: context.colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: Icon(Icons.location_off, color: context.colors.red, size: 80),
+              ),
+              const SizedBox(height: 24),
+              Text('Location Error', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: context.colors.txtPrimary), textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text(error, textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtSec)),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.colors.red, 
+                  foregroundColor: Colors.white, 
+                  
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: onRetry, 
+                child: const Text('Retry Verification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
+              ),
             ]
           ],
         ),
@@ -329,12 +363,17 @@ class _GuardStepState extends State<_GuardStep> {
             children: [
               TextField(
                 onChanged: (v) => setState(() => _query = v),
+                style: TextStyle(color: context.colors.txtPrimary),
                 decoration: InputDecoration(
                   hintText: 'Search guard by name or ID...',
-                  prefixIcon: const Icon(Icons.search),
+                  hintStyle: TextStyle(color: context.colors.txtMuted),
+                  prefixIcon: Icon(Icons.search_rounded, color: context.colors.primary),
                   filled: true,
                   fillColor: context.colors.bgSurface,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: context.colors.bord.withValues(alpha: 0.5))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: context.colors.primary, width: 2)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -350,9 +389,9 @@ class _GuardStepState extends State<_GuardStep> {
                       padding: const EdgeInsets.all(40.0),
                       child: Column(
                         children: [
-                          Icon(Icons.search_off, size: 48, color: context.colors.txtMuted),
+                          Icon(Icons.search_off, size: 48, color: context.colors.txtMuted.withValues(alpha: 0.3)),
                           const SizedBox(height: 16),
-                          Text('No matching guards found.', style: TextStyle(color: context.colors.txtMuted)),
+                          Text('No matching guards found.', style: TextStyle(color: context.colors.txtMuted, fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 12),
                           if (_query.isNotEmpty) TextButton(onPressed: () => setState(() => _query = ''), child: const Text('Clear Search')),
                         ],
@@ -390,9 +429,9 @@ class _GuardStepState extends State<_GuardStep> {
                           padding: const EdgeInsets.all(40.0),
                           child: Column(
                             children: [
-                              Icon(widget.isCheckOutFlow ? Icons.logout : Icons.login, size: 48, color: context.colors.txtMuted),
+                              Icon(widget.isCheckOutFlow ? Icons.logout : Icons.login, size: 48, color: context.colors.txtMuted.withValues(alpha: 0.3)),
                               const SizedBox(height: 16),
-                              Text(widget.isCheckOutFlow ? 'No guards available for Check-Out.' : 'No guards available for Check-In.', style: TextStyle(color: context.colors.txtMuted)),
+                              Text(widget.isCheckOutFlow ? 'No guards available for Check-Out.' : 'No guards available for Check-In.', style: TextStyle(color: context.colors.txtMuted, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                             ],
                           ),
                         ));
@@ -404,39 +443,53 @@ class _GuardStepState extends State<_GuardStep> {
                             final existingRecord = sortedAtt.where((a) => a.guardId == g.id && a.status.toLowerCase() == 'present').lastOrNull;
                             final isCheckedIn = existingRecord != null && existingRecord.checkOutTime.isEmpty;
 
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: ClipOval(
-                            child: SizedBox(
-                              width: 44,
-                              height: 44,
-                              child: g.photo.length > 200
-                                  ? Base64ImageWidget(base64String: g.photo)
-                                  : Icon(Icons.person, color: context.colors.txtMuted),
-                            ),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: context.colors.bgSurface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: context.colors.bord.withValues(alpha: 0.5)),
                           ),
-                          title: Row(
-                            children: [
-                              Flexible(child: Text(g.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                              if (isLocal) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: context.colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                                  child: Text('LOCAL', style: TextStyle(color: context.colors.green, fontSize: 9, fontWeight: FontWeight.bold)),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: context.colors.primary.withValues(alpha: 0.5), width: 2)
+                              ),
+                              child: ClipOval(
+                                child: SizedBox(
+                                  width: 44,
+                                  height: 44,
+                                  child: g.photo.length > 200
+                                      ? Base64ImageWidget(base64String: g.photo)
+                                      : Icon(Icons.person, color: context.colors.txtMuted),
                                 ),
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Flexible(child: Text(g.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.txtPrimary))),
+                                if (isLocal) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: context.colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                                    child: Text('LOCAL', style: TextStyle(color: context.colors.green, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
+                            subtitle: Text('ID: ${g.empId}', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
+                            trailing: isCheckedIn
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(color: context.colors.yellow.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                                    child: Text('Checked In', style: TextStyle(color: context.colors.yellow, fontSize: 12, fontWeight: FontWeight.bold))
+                                  )
+                                : Icon(Icons.chevron_right, color: context.colors.primary),
+                            onTap: () => widget.onNext(g, isCheckedIn, existingRecord),
                           ),
-                          subtitle: Text('ID: ${g.empId}', style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
-                          trailing: isCheckedIn
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: context.colors.yellow.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                                  child: Text('Checked In', style: TextStyle(color: context.colors.yellow, fontSize: 12, fontWeight: FontWeight.bold))
-                                )
-                              : Icon(Icons.chevron_right, color: context.colors.txtMuted),
-                          onTap: () => widget.onNext(g, isCheckedIn, existingRecord),
                         );
                       }).toList(),
                       );
@@ -611,11 +664,25 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
           else ...[
             if (_ready) Stack(
               children: [
-                ClipRRect(borderRadius: BorderRadius.circular(20), child: SizedBox(height: 300, width: double.infinity, child: CameraPreview(_ctrl!))),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(24), 
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: context.colors.primary.withValues(alpha: 0.3), width: 4),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    height: 300, 
+                    width: double.infinity, 
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: CameraPreview(_ctrl!)
+                    )
+                  )
+                ),
                 if (globalCameras.length > 1)
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: 12,
+                    right: 12,
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.black54,
@@ -630,10 +697,26 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
                   ),
               ],
             ),
-            const SizedBox(height: 20),
-            Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            if (!_busy && _ready) ElevatedButton(onPressed: _verify, child: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In')),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(12)),
+              child: Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white), textAlign: TextAlign.center),
+            ),
+            const SizedBox(height: 24),
+            if (!_busy && _ready) 
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.colors.primary,
+                  foregroundColor: context.colors.bgBase,
+                  
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                icon: const Icon(Icons.camera_alt),
+                onPressed: _verify, 
+                label: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+              ),
           ]
         ],
       ),
@@ -655,16 +738,37 @@ class _ConfirmStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(Icons.verified_user, color: context.colors.green, size: 60),
-          const SizedBox(height: 20),
-          Text(
-            isCheckOut ? 'Ready to submit Check-Out for ${guard.name}' : 'Ready to submit Check-In for ${guard.name}',
-            textAlign: TextAlign.center,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: context.colors.green.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: Icon(Icons.verified_user_rounded, color: context.colors.green, size: 80),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
+          Text(
+            isCheckOut ? 'Ready to submit Check-Out' : 'Ready to submit Check-In',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.txtPrimary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'for ${guard.name}',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: context.colors.txtSec),
+          ),
+          const SizedBox(height: 40),
           isSubmitting 
               ? const CircularProgressIndicator()
-              : ElevatedButton(onPressed: onSubmit, style: ElevatedButton.styleFrom(backgroundColor: isCheckOut ? context.colors.yellow : context.colors.green, minimumSize: const Size(double.infinity, 50)), child: Text(isCheckOut ? 'Submit Check-Out' : 'Submit Check-In')),
+              : ElevatedButton.icon(
+                  onPressed: onSubmit, 
+                  icon: const Icon(Icons.cloud_upload),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isCheckOut ? context.colors.yellow : context.colors.green, 
+                    foregroundColor: isCheckOut ? Colors.black : Colors.white,
+                    minimumSize: const Size(double.infinity, 56),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ), 
+                  label: Text(isCheckOut ? 'Submit Check-Out' : 'Submit Check-In', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                ),
         ],
       ),
     );

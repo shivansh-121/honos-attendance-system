@@ -1,14 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import '../../services/auth_service.dart';
 import '../../app_theme.dart';
 import '../../models/app_notification.dart';
+import '../../models/app_user.dart';
 import '../../models/guard.dart';
 import '../../services/db_service.dart';
 import 'guard_profile_screen.dart';
 import 'admin_leaves_screen.dart';
+import 'supervisor_profile_screen.dart';
+import '../user_profile_screen.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -16,7 +21,9 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationsAsync = ref.watch(notificationsStreamProvider);
+    final user = ref.watch(authProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);
+    final usersAsync = ref.watch(usersStreamProvider);
 
     return Scaffold(
       backgroundColor: context.colors.bgBase,
@@ -27,7 +34,13 @@ class NotificationsScreen extends ConsumerWidget {
         centerTitle: false,
       ),
       body: notificationsAsync.when(
-        data: (notifications) {
+        data: (allNotifs) {
+          final notifications = allNotifs.where((n) {
+            if (user?.role == 'admin') return true;
+            if (n.type == 'edit_request') return false;
+            return n.supervisorId == user?.id || n.guardId == user?.id;
+          }).toList();
+
           if (notifications.isEmpty) {
             return Center(
               child: Column(
@@ -42,7 +55,7 @@ class NotificationsScreen extends ConsumerWidget {
                     child: Icon(Icons.notifications_none, size: 64, color: context.colors.txtMuted),
                   ),
                   const SizedBox(height: 24),
-                  const Text('All caught up!', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('All caught up!', style: TextStyle(color: context.colors.txtPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Text('You have no new notifications right now.', style: TextStyle(color: context.colors.txtSec, fontSize: 14)),
                 ],
@@ -58,6 +71,7 @@ class NotificationsScreen extends ConsumerWidget {
               return _NotificationCard(
                 notification: notif,
                 guardsAsync: guardsAsync,
+                usersAsync: usersAsync,
               ).animate().fadeIn(delay: (i * 40).ms).slideX(begin: 0.05, end: 0);
             },
           );
@@ -72,8 +86,9 @@ class NotificationsScreen extends ConsumerWidget {
 class _NotificationCard extends ConsumerStatefulWidget {
   final AppNotification notification;
   final AsyncValue<List<Guard>> guardsAsync;
+  final AsyncValue<List<AppUser>> usersAsync;
 
-  const _NotificationCard({required this.notification, required this.guardsAsync});
+  const _NotificationCard({required this.notification, required this.guardsAsync, required this.usersAsync});
 
   @override
   ConsumerState<_NotificationCard> createState() => _NotificationCardState();
@@ -97,19 +112,74 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
   Widget build(BuildContext context) {
     final notification = widget.notification;
     final isEditRequest = notification.type == 'edit_request';
+    final isApprovedOrRejected = notification.type == 'edit_approved' || notification.type == 'edit_rejected';
     final isPending = notification.status == 'pending';
     
-    final iconData = isEditRequest ? Icons.edit_document : Icons.notifications;
-    final iconColor = isEditRequest ? context.colors.yellow : context.colors.primary;
-    final bgColor = isEditRequest ? context.colors.yellow.withValues(alpha: 0.1) : context.colors.primary.withValues(alpha: 0.1);
+    Widget avatarWidget;
+    
+    if (isApprovedOrRejected) {
+      avatarWidget = Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: context.colors.primary,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text('Admin', style: TextStyle(color: context.colors.bgBase, fontSize: 9, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      );
+    } else {
+      String? photoStr;
+      String? initials;
+      if (notification.supervisorId.isNotEmpty && widget.usersAsync.value != null) {
+        final sender = widget.usersAsync.value!.where((u) => u.id == notification.supervisorId).firstOrNull;
+        if (sender != null) {
+          photoStr = sender.photo;
+          initials = sender.name.isNotEmpty ? sender.name[0].toUpperCase() : '?';
+        }
+      }
+      
+      if (photoStr != null && photoStr.length > 200) {
+        avatarWidget = CircleAvatar(
+          radius: 22,
+          backgroundColor: context.colors.bgElevated,
+          backgroundImage: MemoryImage(base64Decode(photoStr)),
+        );
+      } else {
+        final iconData = isEditRequest ? Icons.edit_document : Icons.notifications;
+        final iconColor = isEditRequest ? context.colors.yellow : context.colors.primary;
+        final bgColor = isEditRequest ? context.colors.yellow.withValues(alpha: 0.1) : context.colors.primary.withValues(alpha: 0.1);
+        
+        avatarWidget = Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(iconData, color: iconColor, size: 22),
+        );
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: notification.isRead ? context.colors.bgSurface : context.colors.bgElevated,
+        color: notification.isRead ? context.colors.bgSurface : context.colors.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: notification.isRead ? Colors.white.withValues(alpha: 0.03) : context.colors.primary.withValues(alpha: 0.3),
+          color: notification.isRead ? context.colors.txtPrimary.withValues(alpha: 0.03) : context.colors.primary.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
@@ -131,17 +201,39 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                 await ref.read(dbProvider).markNotificationAsRead(notification.id);
               }
 
-              if (notification.type == 'leave_request' && context.mounted) {
-                // Navigate to Admin Leaves Screen
-                // Need to import it if not present, but we can just use AppNav to push it? Wait, AdminLeavesScreen is in admin drawer. 
-                // Let's just import and push it.
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminLeavesScreen()));
+              if (!context.mounted) return;
+
+              if (notification.type == 'edit_approved' || notification.type == 'edit_rejected') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const UserProfileScreen()));
                 return;
               }
 
-              if (widget.guardsAsync.value != null) {
+              if (notification.type == 'edit_request' || notification.type == 'leave_request') {
+                if (notification.supervisorId.isNotEmpty && widget.usersAsync.value != null) {
+                  final sender = widget.usersAsync.value!.where((u) => u.id == notification.supervisorId).firstOrNull;
+                  if (sender != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => SupervisorProfileScreen(supervisor: sender)));
+                    return;
+                  }
+                }
+                if (notification.guardId.isNotEmpty && widget.guardsAsync.value != null) {
+                  final guard = widget.guardsAsync.value!.where((g) => g.id == notification.guardId).firstOrNull;
+                  if (guard != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => GuardProfileScreen(guard: guard)));
+                    return;
+                  }
+                }
+                
+                // Fallback for leave_request if sender not found
+                if (notification.type == 'leave_request') {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminLeavesScreen()));
+                }
+                return;
+              }
+              
+              if (widget.guardsAsync.value != null && notification.guardId.isNotEmpty) {
                 final guard = widget.guardsAsync.value!.where((g) => g.id == notification.guardId).firstOrNull;
-                if (guard != null && context.mounted) {
+                if (guard != null) {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => GuardProfileScreen(guard: guard)));
                 }
               }
@@ -154,15 +246,8 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Icon Circle
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: bgColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(iconData, color: iconColor, size: 22),
-                      ),
+                      // Sender Avatar or Icon
+                      avatarWidget,
                       const SizedBox(width: 14),
                       // Content
                       Expanded(
@@ -175,7 +260,7 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                                 Expanded(
                                   child: Text(
                                     notification.title,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: context.colors.txtPrimary),
                                   ),
                                 ),
                                 Row(
@@ -243,8 +328,7 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                         Expanded(
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                              side: BorderSide(color: context.colors.txtPrimary.withValues(alpha: 0.1)),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
@@ -276,7 +360,7 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: context.colors.primary,
-                              foregroundColor: Colors.white,
+                              foregroundColor: context.colors.bgBase,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               elevation: 0,
@@ -284,47 +368,41 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                             onPressed: _isProcessing ? null : () async {
                               setState(() => _isProcessing = true);
                               try {
-                                if (widget.guardsAsync.value != null) {
-                                  final guard = widget.guardsAsync.value!.where((g) => g.id == notification.guardId).firstOrNull;
-                                  if (guard != null) {
-                                    final updatedGuard = Guard(
-                                      id: guard.id, name: guard.name, empId: guard.empId, photo: guard.photo, siteId: guard.siteId, supervisorId: guard.supervisorId,
-                                      phone: guard.phone, dob: guard.dob, address: guard.address, aadharNo: guard.aadharNo, aadharPhoto: guard.aadharPhoto,
-                                      bankName: guard.bankName, accountNo: guard.accountNo, ifsc: guard.ifsc, branch: guard.branch, passbookPhoto: guard.passbookPhoto,
-                                      salary: guard.salary, joinDate: guard.joinDate, status: guard.status,
-                                      isEditableBySupervisor: true,
-                                    );
-                                    await ref.read(dbProvider).saveGuard(updatedGuard);
-                                    await ref.read(dbProvider).updateNotificationStatus(notification.id, 'approved');
-                                    await ref.read(dbProvider).markNotificationAsRead(notification.id);
-                                    
-                                    final reply = AppNotification(
-                                      id: const Uuid().v4(),
-                                      type: 'edit_approved',
-                                      title: 'Edit Request Approved',
-                                      message: 'Admin approved your request to edit guard details. Tap here to edit.',
-                                      guardId: notification.guardId,
-                                      supervisorId: notification.supervisorId,
-                                      timestamp: DateTime.now().toIso8601String(),
-                                    );
-                                    await ref.read(dbProvider).saveNotification(reply);
-                                  } else {
-                                    // It might be an executive/supervisor edit request where guardId = supervisorId
-                                    // In that case, we don't update a guard, but we still approve the notification
-                                    await ref.read(dbProvider).updateNotificationStatus(notification.id, 'approved');
-                                    await ref.read(dbProvider).markNotificationAsRead(notification.id);
-                                    
-                                    final reply = AppNotification(
-                                      id: const Uuid().v4(),
-                                      type: 'edit_approved',
-                                      title: 'Edit Request Approved',
-                                      message: 'Admin approved your request to edit your profile details.',
-                                      guardId: notification.guardId,
-                                      supervisorId: notification.supervisorId,
-                                      timestamp: DateTime.now().toIso8601String(),
-                                    );
-                                    await ref.read(dbProvider).saveNotification(reply);
-                                  }
+                                final usersList = await ref.read(dbProvider).usersStream().first;
+                                final userTarget = usersList.where((u) => u.id == notification.guardId).firstOrNull;
+
+                                if (userTarget != null) {
+                                  // It's an AppUser (Executive, Supervisor, Employee)
+                                  await ref.read(dbProvider).updateUserField(notification.guardId, {'isEditableBySupervisor': true});
+                                  await ref.read(dbProvider).updateNotificationStatus(notification.id, 'approved');
+                                  await ref.read(dbProvider).markNotificationAsRead(notification.id);
+                                  
+                                  final reply = AppNotification(
+                                    id: const Uuid().v4(),
+                                    type: 'edit_approved',
+                                    title: 'Edit Request Approved',
+                                    message: 'Admin approved your request to edit your profile details.',
+                                    guardId: notification.guardId,
+                                    supervisorId: notification.supervisorId,
+                                    timestamp: DateTime.now().toIso8601String(),
+                                  );
+                                  await ref.read(dbProvider).saveNotification(reply);
+                                } else {
+                                  // It's a Guard
+                                  await ref.read(dbProvider).updateGuardField(notification.guardId, {'isEditableBySupervisor': true});
+                                  await ref.read(dbProvider).updateNotificationStatus(notification.id, 'approved');
+                                  await ref.read(dbProvider).markNotificationAsRead(notification.id);
+                                  
+                                  final reply = AppNotification(
+                                    id: const Uuid().v4(),
+                                    type: 'edit_approved',
+                                    title: 'Edit Request Approved',
+                                    message: 'Admin approved your request to edit guard details. Tap here to edit.',
+                                    guardId: notification.guardId,
+                                    supervisorId: notification.supervisorId,
+                                    timestamp: DateTime.now().toIso8601String(),
+                                  );
+                                  await ref.read(dbProvider).saveNotification(reply);
                                 }
                               } finally {
                                 if (mounted) setState(() => _isProcessing = false);

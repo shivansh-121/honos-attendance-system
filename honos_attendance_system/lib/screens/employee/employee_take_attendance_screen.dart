@@ -58,19 +58,23 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
     if (user == null) return;
     
     if (widget.isCheckOutFlow) {
-      // Find today's check in
-      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       try {
-        final records = await ref.read(dbProvider).attendanceStreamForDate(today).first;
-        final myRecords = records.where((r) => r.guardId == user.id && r.checkOutTime.isEmpty).toList();
+        final records = await ref.read(dbProvider).attendanceStreamForGuard(user.id).first;
+        final myRecords = records.where((r) => r.checkOutTime.isEmpty).toList();
         
         if (myRecords.isNotEmpty) {
+          // Sort descending by markedAt
+          myRecords.sort((a, b) {
+            final da = DateTime.tryParse(a.markedAt) ?? DateTime(2000);
+            final db = DateTime.tryParse(b.markedAt) ?? DateTime(2000);
+            return db.compareTo(da);
+          });
           _existingRecord = myRecords.first;
         } else {
           if (mounted) {
             setState(() {
               _checkingGps = false;
-              _gpsError = 'No Check-In record found for today. Please Check-In first.';
+              _gpsError = 'No pending Check-In record found. Please Check-In first.';
             });
           }
           return;
@@ -115,6 +119,10 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
       Position? pos = await Geolocator.getLastKnownPosition();
       pos ??= await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
             .timeout(const Duration(seconds: 5));
+
+      if (pos.isMocked) {
+        throw Exception('Mock Location detected. Please disable Fake GPS apps.');
+      }
           
       // Find the closest site
       final sitesAsync = ref.read(sitesStreamProvider);
@@ -224,8 +232,16 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.colors.bgBase,
       appBar: AppBar(
-        title: Text(widget.isCheckOutFlow ? 'Employee Check-Out' : 'Employee Check-In'),
+        backgroundColor: context.colors.bgSurface,
+        iconTheme: IconThemeData(color: context.colors.txtPrimary),
+        title: Text(widget.isCheckOutFlow ? 'Employee Check-Out' : 'Employee Check-In', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: context.colors.bord.withValues(alpha: 0.5), height: 1),
+        ),
       ),
       body: _buildCurrentStep(),
     );
@@ -247,7 +263,7 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
         children: [
           CircularProgressIndicator(color: context.colors.primary),
           const SizedBox(height: 16),
-          const Text('Verifying location...', style: TextStyle(color: Colors.white)),
+          Text('Verifying location...', style: TextStyle(color: context.colors.txtPrimary)),
         ],
       ));
     }
@@ -260,11 +276,12 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
           children: [
             Icon(Icons.location_off, size: 64, color: context.colors.red),
             const SizedBox(height: 16),
-            const Text('Location Verification Failed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('Location Verification Failed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
             const SizedBox(height: 8),
             Text(_gpsError, textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtMuted)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: context.colors.red, foregroundColor: Colors.white),
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
               onPressed: _initializeFlow,
@@ -281,12 +298,12 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
         children: [
           Icon(Icons.location_on, size: 64, color: context.colors.green),
           const SizedBox(height: 16),
-          const Text('Location Verified', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text('Location Verified', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
           const SizedBox(height: 8),
           Text('You are at: ${_closestSite?.name}', style: TextStyle(color: context.colors.primary)),
           const SizedBox(height: 24),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16)),
+            style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, foregroundColor: context.colors.bgBase, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16)),
             onPressed: () => setState(() => _step = _Step.liveness),
             child: const Text('Proceed to Photo', style: TextStyle(fontSize: 16)),
           )
@@ -300,9 +317,9 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
     final user = ref.watch(authProvider)!;
     return Column(
       children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('Liveness & Face Match', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text('Liveness & Face Match', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
         ),
         Expanded(
           child: Padding(
@@ -332,7 +349,7 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Confirm Attendance', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
+          Text('Confirm Attendance', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: context.colors.txtPrimary), textAlign: TextAlign.center),
           const SizedBox(height: 24),
           
           if (_livePhotoBase64 != null)
@@ -352,13 +369,13 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
                 children: [
                   ListTile(
                     leading: Icon(Icons.person, color: context.colors.primary),
-                    title: Text(user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    title: Text(user.name, style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
                     subtitle: Text('Office Employee', style: TextStyle(color: context.colors.txtMuted)),
                   ),
-                  const Divider(color: Colors.white10),
+                  Divider(color: context.colors.bord),
                   ListTile(
                     leading: Icon(Icons.location_on, color: context.colors.primary),
-                    title: Text(_closestSite?.name ?? '', style: const TextStyle(color: Colors.white)),
+                    title: Text(_closestSite?.name ?? '', style: TextStyle(color: context.colors.txtPrimary)),
                   ),
                 ],
               ),
@@ -369,6 +386,7 @@ class _EmployeeTakeAttendanceScreenState extends ConsumerState<EmployeeTakeAtten
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.isCheckOutFlow ? context.colors.red : context.colors.green,
+              foregroundColor: context.colors.bgBase,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             onPressed: _isSubmitting ? null : _submitAttendance,
@@ -500,9 +518,18 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
               ],
             ),
             const SizedBox(height: 20),
-            Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(12)),
+              child: Text(_msg, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
+            ),
             const SizedBox(height: 20),
-            if (!_busy && _ready) ElevatedButton(onPressed: _verify, child: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In')),
+            if (!_busy && _ready) 
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, foregroundColor: Colors.white),
+                onPressed: _verify, 
+                child: Text(widget.isCheckOut ? 'Capture & Verify Check-Out' : 'Capture & Verify Check-In')
+              ),
           ]
         ],
       ),

@@ -10,6 +10,8 @@ import '../../services/db_service.dart';
 import '../../services/excel_service.dart';
 import 'admin_supervisor_form_sheet.dart';
 import 'supervisor_profile_screen.dart';
+import 'map_picker_screen.dart';
+import 'package:uuid/uuid.dart';
 
 class ManageSupervisorsScreen extends ConsumerStatefulWidget {
   final String role;
@@ -50,12 +52,12 @@ class _ManageSupervisorsScreenState extends ConsumerState<ManageSupervisorsScree
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: context.colors.bgSurface,
-        title: Text('Delete $_roleLabel?', style: const TextStyle(color: Colors.white)),
+        title: Text('Delete $_roleLabel?', style: TextStyle(color: context.colors.txtPrimary)),
         content: Text('Are you sure you want to remove ${sup.name}? This action cannot be undone.', style: TextStyle(color: context.colors.txtSec)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: context.colors.red),
+            style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: context.colors.red),
             onPressed: () {
               ref.read(dbProvider).deleteUser(sup.id);
               Navigator.pop(ctx);
@@ -64,6 +66,65 @@ class _ManageSupervisorsScreenState extends ConsumerState<ManageSupervisorsScree
             child: const Text('Delete'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _changeLocation(AppUser u, List<Site> sites) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(ctx).size.height * 0.6,
+        decoration: BoxDecoration(
+          color: context.colors.bgBase,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Assign Site to ${u.name}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemCount: sites.length,
+                itemBuilder: (context, index) {
+                  final site = sites[index];
+                  final isCurrent = u.siteId == site.id;
+                  return Card(
+                    color: isCurrent ? context.colors.primary.withValues(alpha: 0.1) : context.colors.bgSurface,
+                    elevation: 0,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: isCurrent ? context.colors.primary : context.colors.bord),
+                    ),
+                    child: ListTile(
+                      leading: Icon(Icons.location_on, color: isCurrent ? context.colors.primary : context.colors.txtMuted),
+                      title: Text(site.name, style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
+                      subtitle: Text(site.address, style: TextStyle(color: context.colors.txtSec), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      trailing: isCurrent ? Icon(Icons.check_circle, color: context.colors.primary) : null,
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        final updatedUser = u.copyWith(siteId: site.id);
+                        await ref.read(dbProvider).saveUser(updatedUser);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('${u.name} assigned to ${site.name}'),
+                            backgroundColor: context.colors.green,
+                          ));
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -78,8 +139,8 @@ class _ManageSupervisorsScreenState extends ConsumerState<ManageSupervisorsScree
       floatingActionButton: sitesAsync.whenOrNull(
         data: (sites) => FloatingActionButton.extended(
           onPressed: () => _openSupervisorForm(context, db, sites),
-          icon: const Icon(Icons.person_add),
-          label: Text('Add $_roleLabel'),
+          icon: Icon(Icons.person_add, color: context.colors.bgBase),
+          label: Text('Add $_roleLabel', style: TextStyle(color: context.colors.bgBase)),
           backgroundColor: context.colors.red,
           foregroundColor: Colors.white,
         ),
@@ -90,40 +151,23 @@ class _ManageSupervisorsScreenState extends ConsumerState<ManageSupervisorsScree
             expandedHeight: 180,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text('$_roleLabel Management', style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text('$_roleLabel Management', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
                   Container(color: context.colors.primaryDark.withValues(alpha: 0.5)),
-                  const Icon(Icons.admin_panel_settings, size: 100, color: Colors.white10),
+                  Icon(Icons.admin_panel_settings, size: 100, color: context.colors.txtPrimary.withValues(alpha: 0.1)),
                 ],
               ),
             ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.file_download, color: context.colors.green),
-                tooltip: 'Export ${_roleLabel}s Excel',
-                onPressed: () async {
-                  if (usersAsync.value == null || sitesAsync.value == null) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Generating ${_roleLabel}s Excel...')));
-                  try {
-                    final staff = usersAsync.value!.where((u) => u.role == widget.role).toList();
-                    await ExcelService.exportAllSupervisors(staff, sitesAsync.value!);
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.red));
-                    }
-                  }
-                },
-              ),
-            ],
+            actions: [],
           ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: TextField(
                 onChanged: (v) => setState(() => _searchQuery = v),
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: context.colors.txtPrimary),
                 decoration: InputDecoration(
                   hintText: 'Search by name or username...',
                   prefixIcon: const Icon(Icons.search),
@@ -183,7 +227,7 @@ class _ManageSupervisorsScreenState extends ConsumerState<ManageSupervisorsScree
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(u.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                                      Text(u.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
                                       if (u.empId.isNotEmpty)
                                         Padding(
                                           padding: const EdgeInsets.only(top: 2),
@@ -212,11 +256,18 @@ class _ManageSupervisorsScreenState extends ConsumerState<ManageSupervisorsScree
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
+                                      icon: Icon(Icons.pin_drop_outlined, color: context.colors.primary, size: 20),
+                                      tooltip: 'Change Location',
+                                      onPressed: () => _changeLocation(u, sites),
+                                    ),
+                                    IconButton(
                                       icon: Icon(Icons.edit, color: context.colors.primary, size: 20),
+                                      tooltip: 'Edit Profile',
                                       onPressed: () => _openSupervisorForm(context, db, sites, existing: u),
                                     ),
                                     IconButton(
                                       icon: Icon(Icons.delete_outline, color: context.colors.red, size: 20),
+                                      tooltip: 'Delete',
                                       onPressed: () => _showDeleteConfirmation(u),
                                     ),
                                   ],

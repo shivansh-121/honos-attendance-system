@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AppUser?>((ref) {
 
 class AuthNotifier extends StateNotifier<AppUser?> {
   final Ref ref;
+  StreamSubscription<DocumentSnapshot>? _userSub;
 
   AuthNotifier(this.ref) : super(null) {
     _loadSession();
@@ -21,7 +23,31 @@ class AuthNotifier extends StateNotifier<AppUser?> {
     final userJson = box.get('user');
     if (userJson != null) {
       state = AppUser.fromJson(jsonDecode(userJson));
+      _startUserListener();
     }
+  }
+
+  void _startUserListener() {
+    _userSub?.cancel();
+    if (state == null) return;
+    
+    _userSub = FirebaseFirestore.instance.collection('users').doc(state!.id).snapshots().listen((doc) {
+      if (!doc.exists) {
+        logout();
+      } else {
+        final data = doc.data();
+        // Fallback inactive check if status field is added later
+        if (data != null && data['status'] == 'inactive') {
+          logout();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _userSub?.cancel();
+    super.dispose();
   }
 
   Future<String?> login(String username, String password) async {
@@ -42,19 +68,15 @@ class AuthNotifier extends StateNotifier<AppUser?> {
         final hashedInput = sha256.convert(utf8.encode(password)).toString();
 
         if (dbPassword == hashedInput || dbPassword == password) {
-          var user = AppUser.fromJson(userData);
+          final mutableData = Map<String, dynamic>.from(userData);
+          mutableData['id'] = snapshot.docs.first.id;
+          var user = AppUser.fromJson(mutableData);
           
           // Seamless migration: If plaintext matches, upgrade DB to hash
           if (dbPassword == password) {
              await db.collection('users').doc(user.id).update({'password': hashedInput});
-             user = AppUser(
-              id: user.id,
-              name: user.name,
-              username: user.username,
-              role: user.role,
-              siteId: user.siteId,
-              password: hashedInput,
-            );
+             mutableData['password'] = hashedInput;
+             user = AppUser.fromJson(mutableData);
           }
           
           await _saveSession(user);
@@ -74,6 +96,7 @@ class AuthNotifier extends StateNotifier<AppUser?> {
     final box = Hive.box('session');
     await box.put('user', jsonEncode(user.toJson()));
     state = user;
+    _startUserListener();
   }
 
   Future<void> updateUser(AppUser user) async {
@@ -83,14 +106,9 @@ class AuthNotifier extends StateNotifier<AppUser?> {
   Future<void> updateSite(String newSiteId) async {
     if (state == null) return;
     
-    final updatedUser = AppUser(
-      id: state!.id,
-      name: state!.name,
-      username: state!.username,
-      role: state!.role,
-      siteId: newSiteId,
-      password: state!.password,
-    );
+    final userData = state!.toJson();
+    userData['siteId'] = newSiteId;
+    final updatedUser = AppUser.fromJson(userData);
 
     // 1. Update Firestore
     await FirebaseFirestore.instance
@@ -103,6 +121,7 @@ class AuthNotifier extends StateNotifier<AppUser?> {
   }
 
   Future<void> logout() async {
+    _userSub?.cancel();
     final box = Hive.box('session');
     await box.delete('user');
     state = null;

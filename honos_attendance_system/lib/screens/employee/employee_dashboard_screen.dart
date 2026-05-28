@@ -8,15 +8,21 @@ import 'package:image/image.dart' as img;
 
 import '../../app_theme.dart';
 import '../../models/app_user.dart';
-import '../../models/site.dart';
+import '../../models/attendance.dart';
+import '../../models/leave.dart';
 import '../../services/auth_service.dart';
 import '../../services/db_service.dart';
 import '../../services/app_nav.dart';
-import '../../widgets/theme_toggle_button.dart';
 import '../admin/notifications_screen.dart';
 import '../user_profile_screen.dart';
 import 'apply_leave_screen.dart';
 import 'employee_take_attendance_screen.dart';
+import '../../nl_theme.dart';
+import '../../app_theme.dart';
+import '../../widgets/theme_toggle_button.dart';
+final dateRangeAttendanceProvider = StreamProvider.family<List<Attendance>, Map<String, String>>((ref, range) {
+  return ref.read(dbProvider).attendanceStreamForDateRange(range['start']!, range['end']!);
+});
 
 class EmployeeDashboardScreen extends ConsumerStatefulWidget {
   const EmployeeDashboardScreen({super.key});
@@ -26,12 +32,14 @@ class EmployeeDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _EmployeeDashboardScreenState extends ConsumerState<EmployeeDashboardScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   Future<void> _uploadPhoto(AppUser user) async {
     final picker = ImagePicker();
     final xfile = await picker.pickImage(source: ImageSource.camera, maxWidth: 600);
     if (xfile == null) return;
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Processing photo...'), backgroundColor: context.colors.primary));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Processing photo...'), backgroundColor: NLTheme.accentGreen));
 
     try {
       final bytes = await xfile.readAsBytes();
@@ -41,68 +49,18 @@ class _EmployeeDashboardScreenState extends ConsumerState<EmployeeDashboardScree
       final base64Photo = base64Encode(jpg);
 
       final updatedUser = AppUser(
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        role: user.role,
-        siteId: user.siteId,
-        password: user.password,
-        salary: user.salary,
-        empId: user.empId,
-        phone: user.phone,
-        dob: user.dob,
-        address: user.address,
-        aadharNo: user.aadharNo,
-        uanNo: user.uanNo,
-        bankName: user.bankName,
-        accountNo: user.accountNo,
-        ifsc: user.ifsc,
-        branch: user.branch,
-        photo: base64Photo,
-        aadharPhoto: user.aadharPhoto,
-        passbookPhoto: user.passbookPhoto,
-        joinDate: user.joinDate,
-        status: user.status,
+        id: user.id, name: user.name, username: user.username, role: user.role, siteId: user.siteId, password: user.password,
+        salary: user.salary, empId: user.empId, phone: user.phone, dob: user.dob, address: user.address, aadharNo: user.aadharNo,
+        uanNo: user.uanNo, bankName: user.bankName, accountNo: user.accountNo, ifsc: user.ifsc, branch: user.branch,
+        photo: base64Photo, aadharPhoto: user.aadharPhoto, passbookPhoto: user.passbookPhoto, joinDate: user.joinDate, status: user.status,
       );
 
       await ref.read(dbProvider).saveUser(updatedUser);
       ref.read(authProvider.notifier).updateUser(updatedUser);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Profile picture updated!'), backgroundColor: context.colors.green));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated!'), backgroundColor: NLTheme.accentGreen));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     }
-  }
-
-  void _showPhotoPrompt(BuildContext context, AppUser user) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: context.colors.bgSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: context.colors.yellow),
-            const SizedBox(width: 8),
-            const Text('Profile Picture Required', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Text(
-          'You must add a profile picture before you can mark attendance.',
-          style: TextStyle(color: context.colors.txtSec),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary, foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _uploadPhoto(user);
-            },
-            child: const Text('Upload Now'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -110,21 +68,51 @@ class _EmployeeDashboardScreenState extends ConsumerState<EmployeeDashboardScree
     final user = ref.watch(authProvider);
     final attendanceAsync = ref.watch(todayAttendanceProvider);
     final leavesAsync = ref.watch(leavesStreamProvider);
+    
+    // We also want this month's attendance for the circular chart
+    final monthStart = DateFormat('yyyy-MM-01').format(DateTime.now());
+    final monthEnd = DateFormat('yyyy-MM-31').format(DateTime.now());
+    final monthAttendanceAsync = ref.watch(dateRangeAttendanceProvider({'start': monthStart, 'end': monthEnd}));
+
+    if (user == null) return const Scaffold();
+
+    final missingPhoto = user.photo.isEmpty || user.photo.length < 200;
+
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    final myRecs = attendanceAsync.value?.where((a) => a.guardId == user.id).toList() ?? [];
+    myRecs.sort((a, b) {
+      final da = DateTime.tryParse(a.markedAt) ?? DateTime(2000);
+      final db = DateTime.tryParse(b.markedAt) ?? DateTime(2000);
+      return db.compareTo(da);
+    });
+    
+    final todayRecs = myRecs.where((a) => a.date == today).toList();
+    final lastRec = todayRecs.firstOrNull;
+    final needsCheckOut = lastRec != null && lastRec.checkOutTime.isEmpty;
 
     return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: context.colors.bgBase,
       appBar: AppBar(
-        title: const Text('Employee Portal'),
+        backgroundColor: context.colors.bgBase,
+        elevation: 0,
+        iconTheme: IconThemeData(color: context.colors.txtPrimary),
         actions: [
           const ThemeToggleButton(),
           Consumer(
             builder: (context, ref, child) {
               final notificationsAsync = ref.watch(notificationsStreamProvider);
-              final unreadCount = notificationsAsync.value?.where((n) => !n.isRead && n.supervisorId == user?.id).length ?? 0;
+              final unreadCount = notificationsAsync.value?.where((n) {
+                if (n.isRead) return false;
+                if (n.type == 'edit_request') return false;
+                return n.supervisorId == user.id || n.guardId == user.id;
+              }).length ?? 0;
               return Stack(
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications),
+                    icon: Icon(Icons.notifications_none, color: context.colors.txtPrimary),
                     onPressed: () => AppNav.push(context, const NotificationsScreen()),
                   ),
                   if (unreadCount > 0)
@@ -132,8 +120,8 @@ class _EmployeeDashboardScreenState extends ConsumerState<EmployeeDashboardScree
                       right: 12,
                       top: 12,
                       child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(color: context.colors.blue, borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(color: context.colors.primary, shape: BoxShape.circle),
                         constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
                       ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 1.seconds),
                     ),
@@ -141,269 +129,517 @@ class _EmployeeDashboardScreenState extends ConsumerState<EmployeeDashboardScree
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authProvider.notifier).logout(),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-      drawer: Drawer(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(colors: [Color(0xFF0F172A), Color(0xFF1B3B60)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
-                    ),
-                  ).animate().fadeIn(duration: 800.ms),
-                  ListTile(
-                    leading: Icon(Icons.dashboard, color: context.colors.primary),
-                    title: Text('Dashboard', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold)),
-                    selected: true,
-                    selectedTileColor: context.colors.primary.withValues(alpha: 0.1),
-                    onTap: () => Navigator.pop(context),
-                  ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
-                  ListTile(
-                    leading: Icon(Icons.date_range, color: context.colors.txtSec),
-                    title: Text('Apply for Leave', style: TextStyle(color: context.colors.txtSec)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      AppNav.push(context, const ApplyLeaveScreen());
-                    },
-                  ).animate().fadeIn(delay: 350.ms).slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
-                ],
-              ),
-            ),
-            Divider(color: context.colors.primary.withValues(alpha: 0.1), height: 1),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-              child: ListTile(
-                leading: CircleAvatar(
-                  radius: 24,
-                  backgroundColor: context.colors.bgElevated,
-                  backgroundImage: user != null && user.photo.length > 200 ? MemoryImage(base64Decode(user.photo)) : null,
-                  child: user == null || user.photo.length < 200 ? Icon(Icons.person, size: 28, color: context.colors.txtMuted) : null,
-                ),
-                title: Text(user?.name ?? 'Profile', style: TextStyle(color: context.colors.txtSec, fontSize: 14, fontWeight: FontWeight.bold)),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: context.colors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
-                      ),
-                      child: Text('OFFICE EMPLOYEE', style: TextStyle(color: context.colors.primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                    ),
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  AppNav.push(context, const UserProfileScreen());
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+      drawer: _buildNLDrawer(user),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Welcome back,', style: TextStyle(color: context.colors.txtMuted, fontSize: 16)),
-            Text(user?.name ?? '', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold))
-                .animate().fadeIn().slideY(begin: 0.1, end: 0),
-            const SizedBox(height: 32),
+            // Header
+            Text('Hello ${user.name.split(' ').first}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)).animate().fadeIn().slideX(),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text('YOUR DASHBOARD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: context.colors.txtSec, letterSpacing: 1)),
+                Icon(Icons.chevron_right, size: 14, color: context.colors.txtSec),
+              ],
+            ).animate().fadeIn(delay: 100.ms),
+            
+            const SizedBox(height: 16),
 
-            // Attendance Action Card
-            Builder(
-              builder: (context) {
-                final missingPhoto = user!.photo.isEmpty || user.photo.length < 200;
-                
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [context.colors.bgSurface, context.colors.bgElevated],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10)),
-                    ],
+            // Mark Attendance & Apply Leave Buttons (Modern style)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    title: needsCheckOut ? 'Check Out' : 'Check In',
+                    icon: needsCheckOut ? Icons.logout : Icons.login,
+                    color: needsCheckOut ? context.colors.red : context.colors.green,
+                    textColor: Colors.white,
+                    onTap: () {
+                      if (missingPhoto) {
+                        _uploadPhoto(user);
+                      } else {
+                        AppNav.push(context, EmployeeTakeAttendanceScreen(isCheckOutFlow: needsCheckOut));
+                      }
+                    },
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.fingerprint, color: context.colors.primary, size: 28),
-                          const SizedBox(width: 12),
-                          const Text('Today\'s Attendance', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: missingPhoto ? Colors.grey.shade800 : context.colors.green,
-                                foregroundColor: missingPhoto ? Colors.grey.shade500 : Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              onPressed: missingPhoto ? () => _showPhotoPrompt(context, user) : () {
-                                AppNav.push(context, const EmployeeTakeAttendanceScreen(isCheckOutFlow: false));
-                              },
-                              icon: const Icon(Icons.login),
-                              label: const Text('Check-In', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: missingPhoto ? Colors.grey.shade800 : context.colors.red,
-                                foregroundColor: missingPhoto ? Colors.grey.shade500 : Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              onPressed: missingPhoto ? () => _showPhotoPrompt(context, user) : () {
-                                AppNav.push(context, const EmployeeTakeAttendanceScreen(isCheckOutFlow: true));
-                              },
-                              icon: const Icon(Icons.logout),
-                              label: const Text('Check-Out', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionButton(
+                    title: 'Apply Leave',
+                    icon: Icons.event_note,
+                    color: context.colors.bgSurface,
+                    textColor: context.colors.txtPrimary,
+                    onTap: () => AppNav.push(context, const ApplyLeaveScreen()),
                   ),
-                ).animate().scale(delay: 200.ms, curve: Curves.easeOutBack);
-              }
-            ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 400.ms).slideY(),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
 
-            // Statistics Row
+            // Tasks/Leaves List Card
             leavesAsync.when(
-              data: (leaves) {
-                final myLeaves = leaves.where((l) => l.employeeId == user?.id).toList();
-                final approvedLeaves = myLeaves.where((l) => l.status == 'approved').length;
-                final pendingLeaves = myLeaves.where((l) => l.status == 'pending').length;
-
-                return Row(
-                  children: [
-                    Expanded(child: _buildStatCard(context, 'Approved Leaves', approvedLeaves.toString(), Icons.event_available, context.colors.green, delay: 400.ms)),
-                    const SizedBox(width: 16),
-                    Expanded(child: _buildStatCard(context, 'Pending Leaves', pendingLeaves.toString(), Icons.event_note, context.colors.yellow, delay: 500.ms)),
-                  ],
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              data: (leaves) => _buildLeavesTasksCard(leaves.where((l) => l.employeeId == user.id).toList()).animate().fadeIn(delay: 500.ms).slideY(),
+              loading: () => const SizedBox(),
               error: (e, __) => const SizedBox(),
             ),
 
-            const SizedBox(height: 32),
-
-            // Visual Graph / Progress
-            Text('Monthly Overview', style: TextStyle(color: context.colors.txtSec, fontSize: 18, fontWeight: FontWeight.bold))
-                .animate().fadeIn(delay: 600.ms),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: context.colors.bgSurface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: context.colors.primary.withValues(alpha: 0.1)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Attendance Progress', style: TextStyle(color: context.colors.txtMuted)),
-                      Text('${DateFormat('MMMM').format(DateTime.now())} 2026', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // A beautiful custom progress bar representing the month's days
-                  attendanceAsync.when(
-                    data: (attn) {
-                      // Note: This is an aesthetic mockup of the progress, in a real scenario you'd calculate exact present days this month
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: const LinearProgressIndicator(
-                              value: 0.85, // Mock value for aesthetics
-                              minHeight: 12,
-                              backgroundColor: Colors.white10,
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Present: 22 Days', style: TextStyle(color: context.colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
-                              Text('Absent/Leave: 4 Days', style: TextStyle(color: context.colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
-                          )
-                        ],
-                      );
-                    },
-                    loading: () => const LinearProgressIndicator(),
-                    error: (e, __) => const SizedBox(),
-                  )
-                ],
-              ),
-            ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.1, end: 0),
+
+            // Timeline Card
+            attendanceAsync.when(
+              data: (_) => _buildTimelineCard(lastRec).animate().fadeIn(delay: 600.ms).slideY(),
+              loading: () => const SizedBox(),
+              error: (e, __) => const SizedBox(),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Stats Row
+            Row(
+              children: [
+                Expanded(child: _buildStatSquare('Total\nSalary', '₹${user.salary}', '+0%', context.colors.bgSurface).animate().fadeIn(delay: 700.ms)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildStatSquare('Current\nMonth', DateFormat('MMM').format(DateTime.now()), 'Active', context.colors.red.withValues(alpha: 0.1)).animate().fadeIn(delay: 800.ms)),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // AI / Personal Data Card
+            
+            // Personal data card removed
+            
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color, {required Duration delay}) {
+  Widget _buildNLDrawer(AppUser user) {
+    return Drawer(
+      backgroundColor: context.colors.bgElevated,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text('HONOS.', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1)),
+            ),
+            const SizedBox(height: 20),
+            _buildDrawerItem(Icons.dashboard_rounded, 'DASHBOARD', true, () => Navigator.pop(context)),
+            _buildDrawerItem(Icons.event_note, 'APPLY LEAVE', false, () {
+              Navigator.pop(context);
+              AppNav.push(context, const ApplyLeaveScreen());
+            }),
+
+            const Spacer(),
+            _buildDrawerItem(Icons.logout, 'LOGOUT', false, () => ref.read(authProvider.notifier).logout()),
+            const SizedBox(height: 20),
+            // Mini profile at bottom of drawer
+            InkWell(
+              onTap: () {
+                Navigator.pop(context);
+                AppNav.push(context, const UserProfileScreen());
+              },
+              child: Container(
+                margin: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: user.photo.length > 200 ? Colors.transparent : context.colors.primary,
+                      backgroundImage: user.photo.length > 200 ? MemoryImage(base64Decode(user.photo)) : null,
+                      child: user.photo.length <= 200 ? const Icon(Icons.person, color: Colors.white) : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(user.name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text('OFFICE EMP', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10, letterSpacing: 1)),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, bool isSelected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          border: isSelected ? Border(left: BorderSide(color: context.colors.green, width: 4)) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? context.colors.green : Colors.white.withValues(alpha: 0.5), size: 20),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? context.colors.green : Colors.white.withValues(alpha: 0.5),
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalendarGrid(List<Attendance> attendance) {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    
+    // Calculate leading empty cells
+    final startingWeekday = firstDayOfMonth.weekday; // 1 = Mon, 7 = Sun
+    
+    // Map dates to attendance
+    final attMap = <String, Attendance>{};
+    for (var a in attendance) {
+      if (a.date.isNotEmpty) attMap[a.date] = a;
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: context.colors.bgSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: context.colors.bord, blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 16),
-          Text(value, style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(title, style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Monthly Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.txtPrimary)),
+              Text(DateFormat('MMMM yyyy').format(now), style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Weekday headers
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => 
+              SizedBox(width: 32, child: Center(child: Text(d, style: TextStyle(color: context.colors.txtSec, fontSize: 12, fontWeight: FontWeight.bold))))
+            ).toList(),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: lastDayOfMonth.day + startingWeekday - 1,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1,
+            ),
+            itemBuilder: (context, index) {
+              if (index < startingWeekday - 1) return const SizedBox();
+              
+              final day = index - (startingWeekday - 1) + 1;
+              final dateObj = DateTime(now.year, now.month, day);
+              final dateStr = DateFormat('yyyy-MM-dd').format(dateObj);
+              
+              final isWeekend = dateObj.weekday == 6 || dateObj.weekday == 7;
+              final att = attMap[dateStr];
+              
+              Color cellColor = context.colors.bgBase;
+              Color txtColor = context.colors.txtPrimary;
+              
+              if (att != null) {
+                if (att.status.toLowerCase() == 'present') {
+                  cellColor = context.colors.green.withValues(alpha: 0.2);
+                  txtColor = context.colors.green;
+                } else if (att.status.toLowerCase() == 'absent') {
+                  cellColor = context.colors.red.withValues(alpha: 0.2);
+                  txtColor = context.colors.red;
+                }
+              } else if (isWeekend) {
+                cellColor = context.colors.txtMuted.withValues(alpha: 0.1);
+                txtColor = context.colors.txtSec;
+              }
+
+              if (dateObj.isAfter(now)) {
+                cellColor = Colors.transparent;
+                txtColor = context.colors.txtMuted.withValues(alpha: 0.3);
+              }
+              
+              return Container(
+                decoration: BoxDecoration(
+                  color: cellColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: dateObj.day == now.day && dateObj.month == now.month ? context.colors.primary : Colors.transparent, width: 2),
+                ),
+                child: Center(
+                  child: Text('$day', style: TextStyle(color: txtColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildChartLegend(context.colors.green, 'PRESENT'),
+              _buildChartLegend(context.colors.red, 'ABSENT'),
+              _buildChartLegend(context.colors.txtMuted, 'WEEKEND'),
+            ],
+          )
         ],
       ),
-    ).animate().fadeIn(delay: delay).slideY(begin: 0.1, end: 0);
+    );
+  }
+
+  Widget _buildChartLegend(Color color, String text) {
+    return Row(
+      children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 6),
+        Text(text, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: context.colors.txtSec)),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({required String title, required IconData icon, required Color color, required Color textColor, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: context.colors.bord, blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: textColor, size: 28),
+            const SizedBox(height: 12),
+            Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeavesTasksCard(List<Leave> leaves) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: context.colors.bgSurface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: context.colors.bord, blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Leave Requests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.txtPrimary)),
+              Text('${leaves.length} Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Progress bar aesthetic
+          LinearProgressIndicator(
+            value: leaves.isEmpty ? 1.0 : leaves.where((l) => l.status == 'approved').length / leaves.length,
+            backgroundColor: context.colors.green.withValues(alpha: 0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(context.colors.green),
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          const SizedBox(height: 20),
+          if (leaves.isEmpty)
+             Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Center(child: Text('No leave requests.', style: TextStyle(color: context.colors.txtSec))),
+            )
+          else
+            ...leaves.take(4).map((leave) {
+              final isApproved = leave.status == 'approved';
+              final isPending = leave.status == 'pending';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: context.colors.bgBase,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.event, color: isApproved ? context.colors.green : (isPending ? context.colors.primary : context.colors.red), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(leave.reason.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: context.colors.txtPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text('${leave.fromDate} to ${leave.toDate}', style: TextStyle(fontSize: 10, color: context.colors.txtSec)),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      isApproved ? Icons.check_circle : (isPending ? Icons.pending_outlined : Icons.cancel),
+                      color: isApproved ? context.colors.green : (isPending ? context.colors.txtSec : context.colors.red),
+                      size: 20,
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineCard(Attendance? todayRecord) {
+    String checkInTime = todayRecord != null && todayRecord.time.isNotEmpty ? todayRecord.time : '--:--';
+    String checkOutTime = todayRecord != null && todayRecord.checkOutTime.isNotEmpty ? todayRecord.checkOutTime : '--:--';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: context.colors.bgSurface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: context.colors.bord, blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Today\'s Timeline', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: context.colors.txtPrimary)),
+              Text(DateFormat('dd MMM yyyy').format(DateTime.now()), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: context.colors.primary)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 70,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(checkInTime, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+                    const SizedBox(height: 40),
+                    Text(checkOutTime, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 10,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(width: 2, color: context.colors.primary.withValues(alpha: 0.2)),
+                    ),
+                    if (checkInTime != '--:--')
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          children: [
+                            Container(width: 22, height: 2, color: context.colors.primary),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(color: context.colors.primary, borderRadius: BorderRadius.circular(16)),
+                              child: Text('CHECK IN', style: TextStyle(color: context.colors.bgBase, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (checkOutTime != '--:--')
+                      Positioned(
+                        top: 56,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          children: [
+                            Container(width: 22, height: 2, color: context.colors.primary),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(color: context.colors.bgBase, borderRadius: BorderRadius.circular(16), border: Border.all(color: context.colors.primary)),
+                              child: Text('CHECK OUT', style: TextStyle(color: context.colors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 90), 
+                  ],
+                ),
+              )
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatSquare(String title, String value, String subText, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: context.colors.bord, blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+          const SizedBox(height: 8),
+          Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: context.colors.txtSec, height: 1.2)),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: context.colors.bgSurface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.colors.txtSec.withValues(alpha: 0.1)),
+            ),
+            child: Text(subText, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+          ),
+        ],
+      ),
+    );
   }
 }

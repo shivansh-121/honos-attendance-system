@@ -31,12 +31,19 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: context.colors.primary,
-              onPrimary: Colors.white,
-              surface: context.colors.bgSurface,
-              onSurface: Colors.white,
-            ),
+            colorScheme: Theme.of(context).brightness == Brightness.dark 
+              ? ColorScheme.dark(
+                  primary: context.colors.primary,
+                  onPrimary: context.colors.bgBase,
+                  surface: context.colors.bgSurface,
+                  onSurface: context.colors.txtPrimary,
+                )
+              : ColorScheme.light(
+                  primary: context.colors.primary,
+                  onPrimary: context.colors.bgBase,
+                  surface: context.colors.bgSurface,
+                  onSurface: context.colors.txtPrimary,
+                ),
           ),
           child: child!,
         );
@@ -138,7 +145,7 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                         children: [
                           Text('From', style: TextStyle(color: context.colors.txtMuted, fontSize: 12)),
                           const SizedBox(height: 8),
-                          Text(_fromDate == null ? 'Select Date' : DateFormat('dd MMM yyyy').format(_fromDate!), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Text(_fromDate == null ? 'Select Date' : DateFormat('dd MMM yyyy').format(_fromDate!), style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -160,7 +167,7 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                         children: [
                           Text('To', style: TextStyle(color: context.colors.txtMuted, fontSize: 12)),
                           const SizedBox(height: 8),
-                          Text(_toDate == null ? 'Select Date' : DateFormat('dd MMM yyyy').format(_toDate!), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Text(_toDate == null ? 'Select Date' : DateFormat('dd MMM yyyy').format(_toDate!), style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -174,7 +181,7 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
             TextField(
               controller: _reasonController,
               maxLines: 5,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: context.colors.txtPrimary),
               decoration: InputDecoration(
                 hintText: 'Enter your reason here...',
                 hintStyle: TextStyle(color: context.colors.txtMuted),
@@ -189,8 +196,8 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
               height: 56,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: context.colors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary,
+                  
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 onPressed: _isSubmitting ? null : _submit,
@@ -233,12 +240,16 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                     }
 
                     return Card(
-                      color: context.colors.bgElevated,
+                      color: context.colors.bgSurface,
+                      elevation: 0,
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: context.colors.bord.withValues(alpha: 0.5)),
+                      ),
                       child: ListTile(
                         leading: Icon(statusIcon, color: statusColor),
-                        title: Text('${l.fromDate} to ${l.toDate}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        title: Text('${l.fromDate} to ${l.toDate}', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
                         subtitle: Text(l.reason, style: TextStyle(color: context.colors.txtSec), maxLines: 2, overflow: TextOverflow.ellipsis),
                         trailing: Text(l.status.toUpperCase(), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
                       ),

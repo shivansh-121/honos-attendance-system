@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../models/guard.dart';
 import '../models/attendance.dart';
 import '../models/app_user.dart';
+import '../models/advance.dart';
 
 class PdfService {
   static Future<void> generateAndPrintGuardReport({
@@ -14,6 +15,7 @@ class PdfService {
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
+    List<Advance> monthAdvances = const [],
   }) async {
     final pdf = pw.Document();
 
@@ -52,6 +54,13 @@ class PdfService {
       }
     }
 
+    // Calculate Advances
+    double totalAdvances = 0;
+    for (var adv in monthAdvances) {
+      totalAdvances += adv.amount;
+    }
+    double netPay = guard.salary - totalAdvances;
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -66,7 +75,7 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('GUARD SHIFT REPORT', style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
+                    pw.Text('REPORT: ${guard.name.toUpperCase()}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
                     pw.SizedBox(height: 6),
                     pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
@@ -139,7 +148,8 @@ class PdfService {
                             _buildDetailRow('Bank Name', guard.bankName),
                             _buildDetailRow('Account No', guard.accountNo),
                             _buildDetailRow('IFSC Code', guard.ifsc),
-                            _buildDetailRow('Branch', guard.branch),
+                            _buildDetailRow('Total Advances', totalAdvances > 0 ? 'INR ${totalAdvances.toStringAsFixed(0)}' : '--'),
+                            _buildDetailRow('Est. Net Pay', 'INR ${netPay.toStringAsFixed(0)}'),
                           ],
                         ),
                       ),
@@ -191,6 +201,7 @@ class PdfService {
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
+    List<Advance> monthAdvances = const [],
   }) async {
     final pdf = pw.Document();
 
@@ -230,6 +241,13 @@ class PdfService {
       }
     }
 
+    // Calculate Advances
+    double totalAdvances = 0;
+    for (var adv in monthAdvances) {
+      totalAdvances += adv.amount;
+    }
+    double netPay = supervisor.salary - totalAdvances;
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -244,7 +262,7 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('$displayRole SHIFT REPORT', style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
+                    pw.Text('REPORT: ${supervisor.name.toUpperCase()}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
                     pw.SizedBox(height: 6),
                     pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
@@ -318,7 +336,8 @@ class PdfService {
                             _buildDetailRow('Bank Name', supervisor.bankName),
                             _buildDetailRow('Account No', supervisor.accountNo),
                             _buildDetailRow('IFSC Code', supervisor.ifsc),
-                            _buildDetailRow('Branch', supervisor.branch),
+                            _buildDetailRow('Total Advances', totalAdvances > 0 ? 'INR ${totalAdvances.toStringAsFixed(0)}' : '--'),
+                            _buildDetailRow('Est. Net Pay', 'INR ${netPay.toStringAsFixed(0)}'),
                           ],
                         ),
                       ),

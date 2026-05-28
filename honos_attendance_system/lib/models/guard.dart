@@ -16,6 +16,40 @@ class Guard {
     this.status = 'active', this.isEditableBySupervisor = false,
   });
 
+  Guard copyWith({
+    String? id, String? name, String? empId, String? photo,
+    String? siteId, String? supervisorId, String? phone,
+    String? dob, String? address, String? aadharNo,
+    String? aadharPhoto, String? uanNo, String? bankName,
+    String? accountNo, String? ifsc, String? branch,
+    String? passbookPhoto, double? salary, String? joinDate,
+    String? status, bool? isEditableBySupervisor,
+  }) {
+    return Guard(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      empId: empId ?? this.empId,
+      photo: photo ?? this.photo,
+      siteId: siteId ?? this.siteId,
+      supervisorId: supervisorId ?? this.supervisorId,
+      phone: phone ?? this.phone,
+      dob: dob ?? this.dob,
+      address: address ?? this.address,
+      aadharNo: aadharNo ?? this.aadharNo,
+      aadharPhoto: aadharPhoto ?? this.aadharPhoto,
+      uanNo: uanNo ?? this.uanNo,
+      bankName: bankName ?? this.bankName,
+      accountNo: accountNo ?? this.accountNo,
+      ifsc: ifsc ?? this.ifsc,
+      branch: branch ?? this.branch,
+      passbookPhoto: passbookPhoto ?? this.passbookPhoto,
+      salary: salary ?? this.salary,
+      joinDate: joinDate ?? this.joinDate,
+      status: status ?? this.status,
+      isEditableBySupervisor: isEditableBySupervisor ?? this.isEditableBySupervisor,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id, 'name': name, 'empId': empId, 'photo': photo,
     'siteId': siteId, 'supervisorId': supervisorId, 'phone': phone,

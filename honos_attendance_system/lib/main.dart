@@ -16,6 +16,8 @@ import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/executive/executive_dashboard_screen.dart';
 import 'providers/theme_provider.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -96,7 +98,7 @@ class InitializationErrorApp extends StatelessWidget {
                 Text(
                   'Failed to initialize Firebase. If you just added Firebase to the project, please completely stop the app and run it again (Hot Restart is not enough).\n\nDetails: $error',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70),
+                  style: TextStyle(color: context.colors.txtSec),
                 ),
               ],
             ),
@@ -121,6 +123,7 @@ class HonosApp extends ConsumerWidget {
     }
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Honos Attendance',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
