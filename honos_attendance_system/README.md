@@ -1,5 +1,8 @@
 # 🛡️ Honos Attendance System
 
+[![Download Android APK](https://img.shields.io/badge/Download-Android_APK-3B82F6?style=for-the-badge&logo=android)](https://github.com/shivansh-121/honos-attendance-system/raw/main/honos_attendance_system/docs/Honos_Attendance.apk)
+[![Download Portal](https://img.shields.io/badge/Client-Download_Portal-8B5CF6?style=for-the-badge&logo=googlechrome)](https://shivansh-121.github.io/honos-attendance-system/)
+
 A premium, cross-platform workforce management solution designed for **Honos Security Services**. This application leverages AI-driven liveness detection and automated "Floating Guard" logic to provide a seamless, maintenance-free attendance experience.
 
 ---
