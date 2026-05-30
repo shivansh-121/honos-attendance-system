@@ -58,10 +58,10 @@ class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
 
   Future<void> _flipCamera() async {
     if (globalCameras.length < 2) return;
-    
+
     setState(() {
-      _currentDirection = _currentDirection == CameraLensDirection.front 
-          ? CameraLensDirection.back 
+      _currentDirection = _currentDirection == CameraLensDirection.front
+          ? CameraLensDirection.back
           : CameraLensDirection.front;
     });
 
@@ -121,7 +121,8 @@ class _LivenessDetectorWidgetState extends State<LivenessDetectorWidget> {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+                    icon:
+                        const Icon(Icons.flip_camera_ios, color: Colors.white),
                     onPressed: _flipCamera,
                     tooltip: 'Flip Camera',
                   ),

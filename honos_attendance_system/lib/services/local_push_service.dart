@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../main.dart';
 import '../screens/admin/notifications_screen.dart';
-import '../screens/user_profile_screen.dart';
 import 'auth_service.dart';
 import 'db_service.dart';
 
@@ -35,13 +34,7 @@ class LocalPushService {
       onDidReceiveNotificationResponse: (response) {
         if (response.payload != null) {
           try {
-            final payload = jsonDecode(response.payload!);
-            final role = payload['role'];
-            if (role == 'admin') {
-              navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-            } else {
-              navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const UserProfileScreen()));
-            }
+            navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
           } catch (e) {
             debugPrint('Error parsing notification payload: $e');
           }

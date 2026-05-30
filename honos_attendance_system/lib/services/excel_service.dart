@@ -145,15 +145,15 @@ class ExcelService {
         TextCellValue(name),
         TextCellValue(role),
         DoubleCellValue(salary),
-        IntCellValue(0), // O.T. Salary
+        const IntCellValue(0), // O.T. Salary
         IntCellValue(daysWorked),
-        IntCellValue(0), // O.T. Attn
+        const IntCellValue(0), // O.T. Attn
         IntCellValue(daysWorked), // Total Attn
         DoubleCellValue(double.parse(earnedSalary.toStringAsFixed(2))),
-        IntCellValue(0), // O.T. Amt
+        const IntCellValue(0), // O.T. Amt
         DoubleCellValue(double.parse(earnedSalary.toStringAsFixed(2))), // Total Amt
         DoubleCellValue(totalAdvances),
-        IntCellValue(0), // Oth. Ded.
+        const IntCellValue(0), // Oth. Ded.
         DoubleCellValue(totalAdvances), // Total Ded.
         DoubleCellValue(double.parse(netPayable.toStringAsFixed(2))),
         TextCellValue(bankDetails),

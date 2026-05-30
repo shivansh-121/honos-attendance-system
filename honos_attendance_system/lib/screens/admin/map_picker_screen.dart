@@ -21,7 +21,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   final FocusNode _searchFocus = FocusNode();
   Timer? _debounce;
   List<dynamic> _suggestions = [];
-  
+
   LatLng _center = const LatLng(28.6139, 77.2090); // Default to New Delhi
   bool _isSearching = false;
   bool _isLoadingLoc = false;
@@ -49,12 +49,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     setState(() => _isLoadingLoc = true);
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
+      if (perm == LocationPermission.denied)
+        perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) return;
 
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
       final newCenter = LatLng(pos.latitude, pos.longitude);
-      
+
       setState(() => _center = newCenter);
       _mapController.move(newCenter, 16.0);
       _reverseGeocode(newCenter);
@@ -71,15 +74,18 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       setState(() => _suggestions = []);
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 500), () => _fetchSuggestions(query));
+    _debounce = Timer(
+        const Duration(milliseconds: 500), () => _fetchSuggestions(query));
   }
 
   Future<void> _fetchSuggestions(String query) async {
     setState(() => _isSearching = true);
     try {
-      final url = Uri.parse('https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&lat=${_center.latitude}&lon=${_center.longitude}&limit=5');
-      final response = await http.get(url, headers: {'User-Agent': 'HonosApp/1.0'});
-      
+      final url = Uri.parse(
+          'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&lat=${_center.latitude}&lon=${_center.longitude}&limit=5');
+      final response =
+          await http.get(url, headers: {'User-Agent': 'HonosApp/1.0'});
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (mounted) {
@@ -101,32 +107,34 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     final name = props['name'] ?? '';
     final street = props['street'] ?? '';
     final city = props['city'] ?? props['state'] ?? '';
-    
+
     List<String> addressParts = [];
     if (name.isNotEmpty) addressParts.add(name);
     if (street.isNotEmpty) addressParts.add(street);
     if (city.isNotEmpty) addressParts.add(city);
-    
+
     final displayName = addressParts.join(', ');
     final newCenter = LatLng(coords[1], coords[0]);
-    
+
     _searchCtrl.text = name.isNotEmpty ? name : displayName;
     _searchFocus.unfocus();
-    
+
     setState(() {
       _suggestions = [];
       _center = newCenter;
       _address = displayName;
     });
-    
+
     _mapController.move(newCenter, 16.0);
   }
 
   Future<void> _reverseGeocode(LatLng pos) async {
     try {
-      final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json');
-      final response = await http.get(url, headers: {'User-Agent': 'HonosApp/1.0'});
-      
+      final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json');
+      final response =
+          await http.get(url, headers: {'User-Agent': 'HonosApp/1.0'});
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (mounted) {
@@ -173,21 +181,24 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                urlTemplate:
+                    'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                 subdomains: const ['0', '1', '2', '3'],
                 userAgentPackageName: 'com.honos.attendance',
               ),
             ],
           ),
-          
+
           // Center Crosshair Pin
           Center(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 40.0), // Offset to put point of pin at center
-              child: Icon(Icons.location_pin, color: context.colors.red, size: 40),
+              padding: const EdgeInsets.only(
+                  bottom: 40.0), // Offset to put point of pin at center
+              child:
+                  Icon(Icons.location_pin, color: context.colors.red, size: 40),
             ),
           ),
-          
+
           // Search Bar Overlay
           Positioned(
             top: 16,
@@ -201,7 +212,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   decoration: BoxDecoration(
                     color: context.colors.bgCard,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 8)
+                    ],
                   ),
                   child: Row(
                     children: [
@@ -218,8 +231,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                           onSubmitted: _onSearchChanged,
                         ),
                       ),
-                      _isSearching 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      _isSearching
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.search, color: Colors.white70),
                     ],
                   ),
@@ -230,7 +246,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     decoration: BoxDecoration(
                       color: context.colors.bgCard,
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black26, blurRadius: 8)
+                      ],
                     ),
                     child: ListView.builder(
                       shrinkWrap: true,
@@ -241,12 +259,22 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                         final name = s['name'] ?? '';
                         final street = s['street'] ?? '';
                         final city = s['city'] ?? s['state'] ?? '';
-                        final subtitle = [street, city].where((e) => e.isNotEmpty).join(', ');
-                        
+                        final subtitle = [street, city]
+                            .where((e) => e.isNotEmpty)
+                            .join(', ');
+
                         return ListTile(
-                          leading: Icon(Icons.location_on, color: context.colors.primary),
-                          title: Text(name.isNotEmpty ? name : subtitle, style: TextStyle(color: context.colors.txtPrimary)),
-                          subtitle: name.isNotEmpty && subtitle.isNotEmpty ? Text(subtitle, style: TextStyle(color: context.colors.txtSec, fontSize: 12)) : null,
+                          leading: Icon(Icons.location_on,
+                              color: context.colors.primary),
+                          title: Text(name.isNotEmpty ? name : subtitle,
+                              style:
+                                  TextStyle(color: context.colors.txtPrimary)),
+                          subtitle: name.isNotEmpty && subtitle.isNotEmpty
+                              ? Text(subtitle,
+                                  style: TextStyle(
+                                      color: context.colors.txtSec,
+                                      fontSize: 12))
+                              : null,
                           onTap: () => _onSuggestionTapped(_suggestions[index]),
                         );
                       },
@@ -255,7 +283,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               ],
             ),
           ),
-          
+
           // Current Location FAB
           Positioned(
             bottom: 150,
@@ -264,12 +292,12 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               heroTag: 'gps_fab',
               backgroundColor: context.colors.primary,
               onPressed: _getCurrentLocation,
-              child: _isLoadingLoc 
+              child: _isLoadingLoc
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Icon(Icons.my_location),
             ),
           ),
-          
+
           // Bottom Confirmation Panel
           Positioned(
             bottom: 0,
@@ -279,19 +307,35 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: context.colors.bgSurface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -5))],
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: Offset(0, -5))
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(_address, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.colors.txtPrimary, fontSize: 16)),
+                  Text(_address,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: context.colors.txtPrimary, fontSize: 16)),
                   const SizedBox(height: 8),
-                  Text('Lat: ${_center.latitude.toStringAsFixed(5)} | Lng: ${_center.longitude.toStringAsFixed(5)}', style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
+                  Text(
+                      'Lat: ${_center.latitude.toStringAsFixed(5)} | Lng: ${_center.longitude.toStringAsFixed(5)}',
+                      style: TextStyle(
+                          color: context.colors.txtSec, fontSize: 12)),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.green, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    style: ElevatedButton.styleFrom(
+                        foregroundColor: context.colors.bgBase,
+                        backgroundColor: context.colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 16)),
                     onPressed: () {
                       Navigator.pop(context, {
                         'lat': _center.latitude,
@@ -299,7 +343,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                         'address': _address,
                       });
                     },
-                    child: const Text('Confirm Location', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: const Text('Confirm Location',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

@@ -31,19 +31,19 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).brightness == Brightness.dark 
-              ? ColorScheme.dark(
-                  primary: context.colors.primary,
-                  onPrimary: context.colors.bgBase,
-                  surface: context.colors.bgSurface,
-                  onSurface: context.colors.txtPrimary,
-                )
-              : ColorScheme.light(
-                  primary: context.colors.primary,
-                  onPrimary: context.colors.bgBase,
-                  surface: context.colors.bgSurface,
-                  onSurface: context.colors.txtPrimary,
-                ),
+            colorScheme: Theme.of(context).brightness == Brightness.dark
+                ? ColorScheme.dark(
+                    primary: context.colors.primary,
+                    onPrimary: context.colors.bgBase,
+                    surface: context.colors.bgSurface,
+                    onSurface: context.colors.txtPrimary,
+                  )
+                : ColorScheme.light(
+                    primary: context.colors.primary,
+                    onPrimary: context.colors.bgBase,
+                    surface: context.colors.bgSurface,
+                    onSurface: context.colors.txtPrimary,
+                  ),
           ),
           child: child!,
         );
@@ -65,8 +65,12 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
   }
 
   Future<void> _submit() async {
-    if (_fromDate == null || _toDate == null || _reasonController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Please fill all fields'), backgroundColor: context.colors.red));
+    if (_fromDate == null ||
+        _toDate == null ||
+        _reasonController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Please fill all fields'),
+          backgroundColor: context.colors.red));
       return;
     }
 
@@ -103,14 +107,20 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
         supervisorId: user.id,
         guardId: '',
       );
-      db.saveNotification(notification).catchError((e) => debugPrint('Notif error: $e'));
+      db
+          .saveNotification(notification)
+          .catchError((e) => debugPrint('Notif error: $e'));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Leave Request Submitted!'), backgroundColor: context.colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('Leave Request Submitted!'),
+            backgroundColor: context.colors.green));
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'), backgroundColor: context.colors.red));
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
@@ -121,12 +131,16 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
     final leavesAsync = ref.watch(leavesStreamProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Apply for Leave')),
-      body: SingleChildScrollView(
+      body: responsiveBody(SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Leave Duration', style: TextStyle(color: context.colors.txtSec, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Leave Duration',
+                style: TextStyle(
+                    color: context.colors.txtSec,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -138,14 +152,26 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                       decoration: BoxDecoration(
                         color: context.colors.bgSurface,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color:
+                                context.colors.primary.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('From', style: TextStyle(color: context.colors.txtMuted, fontSize: 12)),
+                          Text('From',
+                              style: TextStyle(
+                                  color: context.colors.txtMuted,
+                                  fontSize: 12)),
                           const SizedBox(height: 8),
-                          Text(_fromDate == null ? 'Select Date' : DateFormat('dd MMM yyyy').format(_fromDate!), style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
+                          Text(
+                              _fromDate == null
+                                  ? 'Select Date'
+                                  : DateFormat('dd MMM yyyy')
+                                      .format(_fromDate!),
+                              style: TextStyle(
+                                  color: context.colors.txtPrimary,
+                                  fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -160,14 +186,25 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                       decoration: BoxDecoration(
                         color: context.colors.bgSurface,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color:
+                                context.colors.primary.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('To', style: TextStyle(color: context.colors.txtMuted, fontSize: 12)),
+                          Text('To',
+                              style: TextStyle(
+                                  color: context.colors.txtMuted,
+                                  fontSize: 12)),
                           const SizedBox(height: 8),
-                          Text(_toDate == null ? 'Select Date' : DateFormat('dd MMM yyyy').format(_toDate!), style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
+                          Text(
+                              _toDate == null
+                                  ? 'Select Date'
+                                  : DateFormat('dd MMM yyyy').format(_toDate!),
+                              style: TextStyle(
+                                  color: context.colors.txtPrimary,
+                                  fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -176,7 +213,11 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
               ],
             ),
             const SizedBox(height: 32),
-            Text('Reason for Leave', style: TextStyle(color: context.colors.txtSec, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Reason for Leave',
+                style: TextStyle(
+                    color: context.colors.txtSec,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             TextField(
               controller: _reasonController,
@@ -187,7 +228,9 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                 hintStyle: TextStyle(color: context.colors.txtMuted),
                 filled: true,
                 fillColor: context.colors.bgSurface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none),
               ),
             ),
             const SizedBox(height: 48),
@@ -196,29 +239,41 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
               height: 56,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary,
-                  
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  foregroundColor: context.colors.bgBase,
+                  backgroundColor: context.colors.primary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                 ),
                 onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting ? const CircularProgressIndicator(color: Colors.white) : const Text('Submit Request', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: _isSubmitting
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Submit Request',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 32),
             const Divider(color: Colors.white10),
             const SizedBox(height: 16),
-            Text('My Leave History', style: TextStyle(color: context.colors.txtSec, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('My Leave History',
+                style: TextStyle(
+                    color: context.colors.txtSec,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             leavesAsync.when(
               data: (leaves) {
-                final myLeaves = leaves.where((l) => l.employeeId == user?.id).toList()
+                final myLeaves = leaves
+                    .where((l) => l.employeeId == user?.id)
+                    .toList()
                   ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
                 if (myLeaves.isEmpty) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('No leaves applied yet.', style: TextStyle(color: context.colors.txtMuted)),
+                      child: Text('No leaves applied yet.',
+                          style: TextStyle(color: context.colors.txtMuted)),
                     ),
                   );
                 }
@@ -245,13 +300,24 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: context.colors.bord.withValues(alpha: 0.5)),
+                        side: BorderSide(
+                            color: context.colors.bord.withValues(alpha: 0.5)),
                       ),
                       child: ListTile(
                         leading: Icon(statusIcon, color: statusColor),
-                        title: Text('${l.fromDate} to ${l.toDate}', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
-                        subtitle: Text(l.reason, style: TextStyle(color: context.colors.txtSec), maxLines: 2, overflow: TextOverflow.ellipsis),
-                        trailing: Text(l.status.toUpperCase(), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                        title: Text('${l.fromDate} to ${l.toDate}',
+                            style: TextStyle(
+                                color: context.colors.txtPrimary,
+                                fontWeight: FontWeight.bold)),
+                        subtitle: Text(l.reason,
+                            style: TextStyle(color: context.colors.txtSec),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                        trailing: Text(l.status.toUpperCase(),
+                            style: TextStyle(
+                                color: statusColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
                       ),
                     );
                   },
@@ -262,7 +328,7 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

@@ -58,9 +58,17 @@ void main() async {
     }
   }
 
-  // Fire-and-forget non-critical inits
-  initBackgroundService();
-  LocalPushService.initialize();
+  // Fire-and-forget non-critical inits (Skip on Windows to prevent crashes)
+  try {
+    initBackgroundService();
+  } catch (e) {
+    debugPrint("Background service init skipped: $e");
+  }
+  try {
+    LocalPushService.initialize();
+  } catch (e) {
+    debugPrint("Local Push init skipped: $e");
+  }
 
   runApp(
     ProviderScope(

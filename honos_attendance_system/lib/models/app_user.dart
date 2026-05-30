@@ -33,15 +33,15 @@ class AppUser {
   };
 
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
-    id: j['id'] ?? '', name: j['name'] ?? '', username: j['username'] ?? '',
-    role: j['role'] ?? '', siteId: j['siteId'] ?? '', password: j['password'],
-    salary: (j['salary'] ?? 0).toDouble(),
-    empId: j['empId'] ?? '', phone: j['phone'] ?? '', dob: j['dob'] ?? '', address: j['address'] ?? '',
-    aadharNo: j['aadharNo'] ?? '', aadharPhoto: j['aadharPhoto'] ?? '', uanNo: j['uanNo'] ?? '',
-    bankName: j['bankName'] ?? '', accountNo: j['accountNo'] ?? '', ifsc: j['ifsc'] ?? '',
-    branch: j['branch'] ?? '', passbookPhoto: j['passbookPhoto'] ?? '', photo: j['photo'] ?? '',
-    joinDate: j['joinDate'] ?? '', status: j['status'] ?? 'active',
-    isEditableBySupervisor: j['isEditableBySupervisor'] ?? false,
+    id: j['id']?.toString() ?? '', name: j['name']?.toString() ?? '', username: j['username']?.toString() ?? '',
+    role: j['role']?.toString() ?? '', siteId: j['siteId']?.toString() ?? '', password: j['password']?.toString(),
+    salary: double.tryParse(j['salary']?.toString() ?? '0') ?? 0.0,
+    empId: j['empId']?.toString() ?? '', phone: j['phone']?.toString() ?? '', dob: j['dob']?.toString() ?? '', address: j['address']?.toString() ?? '',
+    aadharNo: j['aadharNo']?.toString() ?? '', aadharPhoto: j['aadharPhoto']?.toString() ?? '', uanNo: j['uanNo']?.toString() ?? '',
+    bankName: j['bankName']?.toString() ?? '', accountNo: j['accountNo']?.toString() ?? '', ifsc: j['ifsc']?.toString() ?? '',
+    branch: j['branch']?.toString() ?? '', passbookPhoto: j['passbookPhoto']?.toString() ?? '', photo: j['photo']?.toString() ?? '',
+    joinDate: j['joinDate']?.toString() ?? '', status: j['status']?.toString() ?? 'active',
+    isEditableBySupervisor: j['isEditableBySupervisor'] == true || j['isEditableBySupervisor'] == 'true',
   );
 
   AppUser copyWith({

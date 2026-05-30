@@ -150,10 +150,13 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
   Future<void> _zoomToCurrentLocation() async {
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
+      if (perm == LocationPermission.denied)
+        perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) return;
 
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
       _mapController.move(LatLng(pos.latitude, pos.longitude), 15.0);
     } catch (e) {
       debugPrint("Location error: $e");
@@ -225,11 +228,13 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
     LatLng defaultCenter = const LatLng(28.6139, 77.2090);
     if (widget.sites.isNotEmpty) {
       final validSite = widget.sites.firstWhere(
-        (s) => (double.tryParse(s.lat.toString()) ?? 0.0) != 0.0 && (double.tryParse(s.lng.toString()) ?? 0.0) != 0.0, 
-        orElse: () => widget.sites.first
-      );
+          (s) =>
+              (double.tryParse(s.lat.toString()) ?? 0.0) != 0.0 &&
+              (double.tryParse(s.lng.toString()) ?? 0.0) != 0.0,
+          orElse: () => widget.sites.first);
       if ((double.tryParse(validSite.lat.toString()) ?? 0.0) != 0.0) {
-        defaultCenter = LatLng(double.tryParse(validSite.lat.toString()) ?? 0.0, double.tryParse(validSite.lng.toString()) ?? 0.0);
+        defaultCenter = LatLng(double.tryParse(validSite.lat.toString()) ?? 0.0,
+            double.tryParse(validSite.lng.toString()) ?? 0.0);
       }
     }
 
@@ -243,7 +248,8 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              urlTemplate:
+                  'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
               subdomains: const ['0', '1', '2', '3'],
               userAgentPackageName: 'com.honos.attendance',
             ),
@@ -252,7 +258,9 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
             CircleLayer(
               circles: widget.sites
                   .map<CircleMarker>((site) => CircleMarker(
-                        point: LatLng(double.tryParse(site.lat.toString()) ?? 0.0, double.tryParse(site.lng.toString()) ?? 0.0),
+                        point: LatLng(
+                            double.tryParse(site.lat.toString()) ?? 0.0,
+                            double.tryParse(site.lng.toString()) ?? 0.0),
                         color: context.colors.primary.withValues(alpha: 0.15),
                         borderStrokeWidth: 2,
                         borderColor: context.colors.primary,
@@ -282,7 +290,8 @@ class _TrackerMapBodyState extends State<_TrackerMapBody> {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: context.colors.txtMuted),
+                        Icon(Icons.info_outline,
+                            color: context.colors.txtMuted),
                         const SizedBox(width: 12),
                         const Text('No supervisors currently On‑Duty.',
                             style: TextStyle(fontWeight: FontWeight.bold)),

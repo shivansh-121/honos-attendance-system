@@ -13,7 +13,8 @@ class AdminGuardsListScreen extends ConsumerStatefulWidget {
   const AdminGuardsListScreen({super.key});
 
   @override
-  ConsumerState<AdminGuardsListScreen> createState() => _AdminGuardsListScreenState();
+  ConsumerState<AdminGuardsListScreen> createState() =>
+      _AdminGuardsListScreenState();
 }
 
 class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
@@ -24,7 +25,9 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
 
     final todayAtt = ref.read(todayAttendanceProvider).value ?? [];
     final today = DateTime.now().toIso8601String().split('T').first;
-    final existing = todayAtt.where((a) => a.guardId == guardId && a.date == today).lastOrNull;
+    final existing = todayAtt
+        .where((a) => a.guardId == guardId && a.date == today)
+        .lastOrNull;
 
     final now = DateTime.now();
     final record = Attendance(
@@ -32,7 +35,9 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
       guardId: guardId,
       siteId: siteId,
       date: today,
-      time: existing?.time.isNotEmpty == true ? existing!.time : '${now.hour}:${now.minute.toString().padLeft(2, '0')}',
+      time: existing?.time.isNotEmpty == true
+          ? existing!.time
+          : '${now.hour}:${now.minute.toString().padLeft(2, '0')}',
       status: status,
       supervisorId: auth.id,
       markedAt: 'Manual Override (Admin)',
@@ -40,7 +45,7 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
     );
 
     ref.read(dbProvider).saveAttendance(record);
-    
+
     setState(() {
       _editingGuards.remove(guardId);
     });
@@ -57,74 +62,101 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manual Override', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+        title: const Text('Manual Override',
+            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(color: context.colors.bgElevated.withValues(alpha: 0.8)),
+            child: Container(
+                color: context.colors.bgElevated.withValues(alpha: 0.8)),
           ),
         ),
       ),
       body: guardsAsync.when(
         data: (guards) => attendanceAsync.when(
           data: (attendance) => guards.isEmpty
-            ? Center(child: Text('No guards assigned to sites yet.', style: TextStyle(color: context.colors.txtMuted)))
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: guards.length,
-                itemBuilder: (ctx, i) {
-                  final g = guards[i];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    color: context.colors.bgElevated.withValues(alpha: 0.5),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: context.colors.primary,
-                                backgroundImage: g.photo.length > 200 ? MemoryImage(base64Decode(g.photo)) : null,
-                                child: g.photo.length <= 200 ? Icon(Icons.person, color: context.colors.txtPrimary) : null,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(g.name, style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.txtPrimary, fontSize: 16)),
-                                    Text('ID: ${g.empId}', style: TextStyle(color: context.colors.txtSec, fontSize: 13)),
-                                  ],
+              ? Center(
+                  child: Text('No guards assigned to sites yet.',
+                      style: TextStyle(color: context.colors.txtMuted)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: guards.length,
+                  itemBuilder: (ctx, i) {
+                    final g = guards[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      color: context.colors.bgElevated.withValues(alpha: 0.5),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: context.colors.primary,
+                                  backgroundImage: g.photo.length > 200
+                                      ? MemoryImage(base64Decode(g.photo))
+                                      : null,
+                                  child: g.photo.length <= 200
+                                      ? Icon(Icons.person,
+                                          color: context.colors.txtPrimary)
+                                      : null,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          _buildActionRow(g.id, g.siteId, attendance),
-                        ],
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(g.name,
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: context.colors.txtPrimary,
+                                              fontSize: 16)),
+                                      Text('ID: ${g.empId}',
+                                          style: TextStyle(
+                                              color: context.colors.txtSec,
+                                              fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildActionRow(g.id, g.siteId, attendance),
+                          ],
+                        ),
                       ),
-                    ),
-                  ).animate().fadeIn(delay: (100 * i).ms).slideX(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
-                },
-              ),
+                    )
+                        .animate()
+                        .fadeIn(delay: (100 * i).ms)
+                        .slideX(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
+                  },
+                ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, __) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.txtPrimary))),
+          error: (e, __) => Center(
+              child: Text('Error: $e',
+                  style: TextStyle(color: context.colors.txtPrimary))),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, __) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.txtPrimary))),
+        error: (e, __) => Center(
+            child: Text('Error: $e',
+                style: TextStyle(color: context.colors.txtPrimary))),
       ),
     );
   }
 
-  Widget _buildActionRow(String guardId, String siteId, List<Attendance> attendance) {
+  Widget _buildActionRow(
+      String guardId, String siteId, List<Attendance> attendance) {
     // Check if attendance is already marked today
     final today = DateTime.now().toIso8601String().split('T').first;
-    final allAtt = attendance.where((a) => a.guardId == guardId && a.date == today).toList();
-    
+    final allAtt = attendance
+        .where((a) => a.guardId == guardId && a.date == today)
+        .toList();
+
     // Process the latest status if it exists and we're not explicitly editing
     if (allAtt.isNotEmpty && !_editingGuards.contains(guardId)) {
       final latest = allAtt.last;
@@ -157,9 +189,15 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
             children: [
               Row(
                 children: [
-                  Icon(isPresent ? Icons.check_circle : Icons.cancel, color: isPresent ? context.colors.green : context.colors.red, size: 20),
+                  Icon(isPresent ? Icons.check_circle : Icons.cancel,
+                      color:
+                          isPresent ? context.colors.green : context.colors.red,
+                      size: 20),
                   const SizedBox(width: 8),
-                  Text('Marked ${latest.status}', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
+                  Text('Marked ${latest.status}',
+                      style: TextStyle(
+                          color: context.colors.txtPrimary,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
               TextButton.icon(
@@ -169,7 +207,8 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                   });
                 },
                 icon: Icon(Icons.edit, size: 16, color: context.colors.blue),
-                label: Text('Edit', style: TextStyle(color: context.colors.blue)),
+                label:
+                    Text('Edit', style: TextStyle(color: context.colors.blue)),
               )
             ],
           ),
@@ -186,11 +225,19 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                   Expanded(
                     child: Column(
                       children: [
-                        Icon(Icons.login, size: 14, color: context.colors.green),
+                        Icon(Icons.login,
+                            size: 14, color: context.colors.green),
                         const SizedBox(height: 2),
-                        Text('Check-In', style: TextStyle(fontSize: 9, color: context.colors.txtMuted)),
+                        Text('Check-In',
+                            style: TextStyle(
+                                fontSize: 9, color: context.colors.txtMuted)),
                         Text(hasCheckIn ? latest.time : '--:--',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckIn ? context.colors.green : context.colors.txtMuted)),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: hasCheckIn
+                                    ? context.colors.green
+                                    : context.colors.txtMuted)),
                       ],
                     ),
                   ),
@@ -198,11 +245,22 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                   Expanded(
                     child: Column(
                       children: [
-                        Icon(Icons.logout, size: 14, color: hasCheckOut ? context.colors.yellow : context.colors.txtMuted),
+                        Icon(Icons.logout,
+                            size: 14,
+                            color: hasCheckOut
+                                ? context.colors.yellow
+                                : context.colors.txtMuted),
                         const SizedBox(height: 2),
-                        Text('Check-Out', style: TextStyle(fontSize: 9, color: context.colors.txtMuted)),
+                        Text('Check-Out',
+                            style: TextStyle(
+                                fontSize: 9, color: context.colors.txtMuted)),
                         Text(hasCheckOut ? latest.checkOutTime : '--:--',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: hasCheckOut ? context.colors.yellow : context.colors.txtMuted)),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: hasCheckOut
+                                    ? context.colors.yellow
+                                    : context.colors.txtMuted)),
                       ],
                     ),
                   ),
@@ -210,11 +268,22 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
                   Expanded(
                     child: Column(
                       children: [
-                        Icon(Icons.timer_outlined, size: 14, color: workingHours.isNotEmpty ? context.colors.primary : context.colors.txtMuted),
+                        Icon(Icons.timer_outlined,
+                            size: 14,
+                            color: workingHours.isNotEmpty
+                                ? context.colors.primary
+                                : context.colors.txtMuted),
                         const SizedBox(height: 2),
-                        Text('Working Hrs', style: TextStyle(fontSize: 9, color: context.colors.txtMuted)),
+                        Text('Working Hrs',
+                            style: TextStyle(
+                                fontSize: 9, color: context.colors.txtMuted)),
                         Text(workingHours.isNotEmpty ? workingHours : '--',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: workingHours.isNotEmpty ? context.colors.primary : context.colors.txtMuted)),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: workingHours.isNotEmpty
+                                    ? context.colors.primary
+                                    : context.colors.txtMuted)),
                       ],
                     ),
                   ),
@@ -231,7 +300,10 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.green, ),
+            style: ElevatedButton.styleFrom(
+              foregroundColor: context.colors.bgBase,
+              backgroundColor: context.colors.green,
+            ),
             onPressed: () => _markAttendance(guardId, 'Present', siteId),
             icon: const Icon(Icons.check),
             label: const Text('Present'),
@@ -240,7 +312,10 @@ class _AdminGuardsListScreenState extends ConsumerState<AdminGuardsListScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: context.colors.red, ),
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: context.colors.red,
+            ),
             onPressed: () => _markAttendance(guardId, 'Absent', siteId),
             icon: const Icon(Icons.close),
             label: const Text('Absent'),

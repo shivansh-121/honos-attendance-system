@@ -288,3 +288,59 @@ class AppTheme {
     );
   }
 }
+
+// ─────────────────────────────────────────────
+//  GLOBAL RESPONSIVE HELPERS
+// ─────────────────────────────────────────────
+
+/// Wraps [child] in a centered ConstrainedBox so content never
+/// stretches beyond [maxWidth] pixels on wide/desktop screens.
+Widget responsiveBody(Widget child, {double maxWidth = 900}) {
+  return Center(
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: child,
+    ),
+  );
+}
+
+/// Returns horizontal padding that grows as the screen gets wider,
+/// keeping content comfortably centred on laptops / desktops.
+EdgeInsets responsivePadding(BuildContext context, {
+  double base = 20,
+  double maxWidth = 900,
+}) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  if (screenWidth <= maxWidth) return EdgeInsets.symmetric(horizontal: base);
+  final extra = (screenWidth - maxWidth) / 2;
+  return EdgeInsets.symmetric(horizontal: extra + base);
+}
+
+/// A SliverPadding whose horizontal insets auto-centre content.
+class ResponsiveSliverPadding extends StatelessWidget {
+  final Widget sliver;
+  final double maxWidth;
+  final EdgeInsets extraPadding;
+
+  const ResponsiveSliverPadding({
+    super.key,
+    required this.sliver,
+    this.maxWidth = 900,
+    this.extraPadding = const EdgeInsets.only(bottom: 100),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final hPad = screenWidth > maxWidth ? (screenWidth - maxWidth) / 2 + 20 : 20.0;
+    return SliverPadding(
+      padding: EdgeInsets.only(
+        left: hPad,
+        right: hPad,
+        top: extraPadding.top,
+        bottom: extraPadding.bottom,
+      ),
+      sliver: sliver,
+    );
+  }
+}

@@ -38,7 +38,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final error = await ref.read(authProvider.notifier).login(userText, _password.text.trim());
+      final error = await ref
+          .read(authProvider.notifier)
+          .login(userText, _password.text.trim());
       if (mounted) {
         setState(() => _loading = false);
         if (error != null) setState(() => _error = error);
@@ -66,12 +68,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             decoration: BoxDecoration(
               color: context.colors.bgSurface,
               borderRadius: BorderRadius.circular(32),
-              boxShadow: [BoxShadow(color: context.colors.bord, blurRadius: 20, offset: const Offset(0, 10))],
+              boxShadow: [
+                BoxShadow(
+                    color: context.colors.bord,
+                    blurRadius: 20,
+                    offset: const Offset(0, 10))
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo 
+                // Logo
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -84,17 +91,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     height: 70,
                     fit: BoxFit.contain,
                   ),
-                ).animate().fadeIn(duration: 800.ms).scale(begin: const Offset(0.7, 0.7), curve: Curves.elasticOut),
+                ).animate().fadeIn(duration: 800.ms).scale(
+                    begin: const Offset(0.7, 0.7), curve: Curves.elasticOut),
 
                 const SizedBox(height: 28),
-                Text('HONOS', textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: context.colors.txtPrimary, letterSpacing: 1.2)
-                ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0, curve: Curves.easeOutCirc),
+                Text('HONOS',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: context.colors.txtPrimary,
+                            letterSpacing: 1.2))
+                    .animate()
+                    .fadeIn(delay: 400.ms)
+                    .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCirc),
 
                 const SizedBox(height: 6),
                 Text('ATTENDANCE SYSTEM',
-                  style: TextStyle(color: context.colors.txtSec, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2.0)
-                ).animate().fadeIn(delay: 600.ms),
+                        style: TextStyle(
+                            color: context.colors.txtSec,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2.0))
+                    .animate()
+                    .fadeIn(delay: 600.ms),
 
                 const SizedBox(height: 40),
 
@@ -103,14 +123,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: context.colors.red.withValues(alpha: 0.1),
-                      border: Border.all(color: context.colors.red.withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color: context.colors.red.withValues(alpha: 0.3)),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, color: context.colors.red, size: 20),
+                        Icon(Icons.warning_amber_rounded,
+                            color: context.colors.red, size: 20),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(_error!, style: TextStyle(color: context.colors.red, fontSize: 13))),
+                        Expanded(
+                            child: Text(_error!,
+                                style: TextStyle(
+                                    color: context.colors.red, fontSize: 13))),
                       ],
                     ),
                   ).animate().shake(),
@@ -122,7 +147,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: TextStyle(color: context.colors.txtPrimary),
                   decoration: InputDecoration(
                     labelText: 'Username',
-                    prefixIcon: Icon(Icons.person_outline, color: context.colors.txtSec),
+                    prefixIcon: Icon(Icons.person_outline,
+                        color: context.colors.txtSec),
                   ),
                 ).animate().fadeIn(delay: 800.ms),
 
@@ -133,9 +159,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: TextStyle(color: context.colors.txtPrimary),
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock_outline, color: context.colors.txtSec),
+                    prefixIcon:
+                        Icon(Icons.lock_outline, color: context.colors.txtSec),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: context.colors.txtSec),
+                      icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility,
+                          color: context.colors.txtSec),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
@@ -146,14 +175,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ElevatedButton(
                   onPressed: _loading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary, // The dark `#161616` color
-                    
+                    foregroundColor: context.colors.bgBase,
+                    backgroundColor:
+                        context.colors.primary, // The dark `#161616` color
+
                     minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                   ),
                   child: _loading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Sign In',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1)),
                 ).animate().fadeIn(delay: 1000.ms).scale(),
               ],
             ),

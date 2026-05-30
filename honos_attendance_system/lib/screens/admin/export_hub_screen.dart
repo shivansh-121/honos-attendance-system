@@ -39,47 +39,54 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
     return Scaffold(
       backgroundColor: context.colors.bgBase,
       appBar: AppBar(
-        title: const Text('Central Export Hub', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Central Export Hub',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: context.colors.bgBase,
         elevation: 0,
         iconTheme: IconThemeData(color: context.colors.txtPrimary),
-        titleTextStyle: TextStyle(color: context.colors.txtPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+        titleTextStyle: TextStyle(
+            color: context.colors.txtPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.bold),
       ),
       body: DefaultTabController(
         length: 2,
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: context.colors.bgSurface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.colors.bord),
-              ),
-              child: TabBar(
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: context.colors.primary,
+        child: responsiveBody(
+            Column(
+              children: [
+                Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: context.colors.bgSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: context.colors.bord),
+                  ),
+                  child: TabBar(
+                    indicator: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: context.colors.primary,
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: context.colors.txtSec,
+                    tabs: const [
+                      Tab(text: 'Export Excel'),
+                      Tab(text: 'Export PDF'),
+                    ],
+                  ),
                 ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: Colors.white,
-                unselectedLabelColor: context.colors.txtSec,
-                tabs: const [
-                  Tab(text: 'Export Excel'),
-                  Tab(text: 'Export PDF'),
-                ],
-              ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildExcelTab(),
+                      _buildPdfTab(),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildExcelTab(),
-                  _buildPdfTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
+            maxWidth: 1100),
       ),
     );
   }
@@ -106,13 +113,42 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: context.colors.bord),
             ),
-            child: Column(
-              children: [
-                _buildRoleCheckbox('Guards', _includeGuards, (v) => setState(() => _includeGuards = v!)),
-                _buildRoleCheckbox('Supervisors', _includeSupervisors, (v) => setState(() => _includeSupervisors = v!)),
-                _buildRoleCheckbox('Executives', _includeExecutives, (v) => setState(() => _includeExecutives = v!)),
-                _buildRoleCheckbox('Office Employees', _includeEmployees, (v) => setState(() => _includeEmployees = v!)),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final twoColumns = constraints.maxWidth >= 620;
+                final itemWidth = twoColumns
+                    ? (constraints.maxWidth - 16) / 2
+                    : constraints.maxWidth;
+
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 4,
+                  children: [
+                    SizedBox(
+                        width: itemWidth,
+                        child: _buildRoleCheckbox('Guards', _includeGuards,
+                            (v) => setState(() => _includeGuards = v!))),
+                    SizedBox(
+                        width: itemWidth,
+                        child: _buildRoleCheckbox(
+                            'Supervisors',
+                            _includeSupervisors,
+                            (v) => setState(() => _includeSupervisors = v!))),
+                    SizedBox(
+                        width: itemWidth,
+                        child: _buildRoleCheckbox(
+                            'Executives',
+                            _includeExecutives,
+                            (v) => setState(() => _includeExecutives = v!))),
+                    SizedBox(
+                        width: itemWidth,
+                        child: _buildRoleCheckbox(
+                            'Office Employees',
+                            _includeEmployees,
+                            (v) => setState(() => _includeEmployees = v!))),
+                  ],
+                );
+              },
             ),
           ),
           const SizedBox(height: 40),
@@ -122,12 +158,24 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
             child: ElevatedButton.icon(
               onPressed: _isExportingExcel ? null : _exportExcel,
               style: ElevatedButton.styleFrom(
-                foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary,
-                
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                foregroundColor: context.colors.bgBase,
+                backgroundColor: context.colors.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
-              icon: _isExportingExcel ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.download),
-              label: Text(_isExportingExcel ? 'Generating Ledger...' : 'Download Excel Ledger', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              icon: _isExportingExcel
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.download),
+              label: Text(
+                  _isExportingExcel
+                      ? 'Generating Ledger...'
+                      : 'Download Excel Ledger',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -170,7 +218,8 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         const SizedBox(height: 24),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _buildSectionHeader('Select Staff Member', Icons.person_search),
+          child:
+              _buildSectionHeader('Select Staff Member', Icons.person_search),
         ),
         const SizedBox(height: 12),
         Padding(
@@ -184,7 +233,9 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
               prefixIcon: Icon(Icons.search, color: context.colors.txtSec),
               filled: true,
               fillColor: context.colors.bgSurface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
             ),
           ),
         ),
@@ -193,7 +244,8 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
           child: guardsAsync.isLoading || usersAsync.isLoading
               ? const Center(child: CircularProgressIndicator())
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   itemCount: filteredStaff.length,
                   itemBuilder: (context, index) {
                     final staff = filteredStaff[index];
@@ -206,27 +258,46 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
                       role = r[0].toUpperCase() + r.substring(1);
                     }
 
-                    final isSelected = _selectedPdfUser != null && 
-                                      ((_selectedPdfUser is Guard && isGuard && _selectedPdfUser.id == id) ||
-                                       (_selectedPdfUser is AppUser && !isGuard && _selectedPdfUser.id == id));
+                    final isSelected = _selectedPdfUser != null &&
+                        ((_selectedPdfUser is Guard &&
+                                isGuard &&
+                                _selectedPdfUser.id == id) ||
+                            (_selectedPdfUser is AppUser &&
+                                !isGuard &&
+                                _selectedPdfUser.id == id));
 
                     return Card(
-                      color: isSelected ? context.colors.primary.withValues(alpha: 0.1) : context.colors.bgSurface,
+                      color: isSelected
+                          ? context.colors.primary.withValues(alpha: 0.1)
+                          : context.colors.bgSurface,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: isSelected ? context.colors.primary : context.colors.bord),
+                        side: BorderSide(
+                            color: isSelected
+                                ? context.colors.primary
+                                : context.colors.bord),
                       ),
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         onTap: () => setState(() => _selectedPdfUser = staff),
                         leading: CircleAvatar(
-                          backgroundColor: context.colors.primary.withValues(alpha: 0.2),
-                          child: Icon(isGuard ? Icons.security : Icons.person, color: context.colors.primary, size: 20),
+                          backgroundColor:
+                              context.colors.primary.withValues(alpha: 0.2),
+                          child: Icon(isGuard ? Icons.security : Icons.person,
+                              color: context.colors.primary, size: 20),
                         ),
-                        title: Text(name, style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
-                        subtitle: Text(role, style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
-                        trailing: isSelected ? Icon(Icons.check_circle, color: context.colors.primary) : null,
+                        title: Text(name,
+                            style: TextStyle(
+                                color: context.colors.txtPrimary,
+                                fontWeight: FontWeight.bold)),
+                        subtitle: Text(role,
+                            style: TextStyle(
+                                color: context.colors.txtSec, fontSize: 12)),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle,
+                                color: context.colors.primary)
+                            : null,
                       ),
                     );
                   },
@@ -236,20 +307,37 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: context.colors.bgSurface,
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), offset: const Offset(0, -4), blurRadius: 10)],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  offset: const Offset(0, -4),
+                  blurRadius: 10)
+            ],
           ),
           child: SizedBox(
             width: double.infinity,
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: (_isExportingPdf || _selectedPdfUser == null) ? null : _exportPdf,
+              onPressed: (_isExportingPdf || _selectedPdfUser == null)
+                  ? null
+                  : _exportPdf,
               style: ElevatedButton.styleFrom(
-                foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary,
-                
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                foregroundColor: context.colors.bgBase,
+                backgroundColor: context.colors.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
-              icon: _isExportingPdf ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.picture_as_pdf),
-              label: Text(_isExportingPdf ? 'Generating PDF...' : 'Download PDF', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              icon: _isExportingPdf
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf),
+              label: Text(
+                  _isExportingPdf ? 'Generating PDF...' : 'Download PDF',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ),
@@ -262,12 +350,18 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
       children: [
         Icon(icon, color: context.colors.primary, size: 20),
         const SizedBox(width: 8),
-        Text(title, style: TextStyle(color: context.colors.txtPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(title,
+            style: TextStyle(
+                color: context.colors.txtPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _buildMonthSelector({required DateTime currentMonth, required Function(DateTime) onMonthChanged}) {
+  Widget _buildMonthSelector(
+      {required DateTime currentMonth,
+      required Function(DateTime) onMonthChanged}) {
     return InkWell(
       onTap: () async {
         final date = await showDatePicker(
@@ -294,7 +388,10 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
           children: [
             Text(
               DateFormat('MMMM yyyy').format(currentMonth),
-              style: TextStyle(color: context.colors.txtPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: context.colors.txtPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
             ),
             Icon(Icons.arrow_drop_down, color: context.colors.txtSec),
           ],
@@ -303,7 +400,8 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
     );
   }
 
-  Widget _buildRoleCheckbox(String title, bool value, Function(bool?) onChanged) {
+  Widget _buildRoleCheckbox(
+      String title, bool value, Function(bool?) onChanged) {
     return Theme(
       data: Theme.of(context).copyWith(
         unselectedWidgetColor: context.colors.txtSec,
@@ -322,8 +420,13 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
   }
 
   Future<void> _exportExcel() async {
-    if (!_includeGuards && !_includeSupervisors && !_includeExecutives && !_includeEmployees) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Please select at least one role.'), backgroundColor: context.colors.red));
+    if (!_includeGuards &&
+        !_includeSupervisors &&
+        !_includeExecutives &&
+        !_includeEmployees) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Please select at least one role.'),
+          backgroundColor: context.colors.red));
       return;
     }
 
@@ -342,7 +445,10 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         includeEmployees: _includeEmployees,
       );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to export: $e'), backgroundColor: context.colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to export: $e'),
+            backgroundColor: context.colors.red));
     } finally {
       if (mounted) setState(() => _isExportingExcel = false);
     }
@@ -355,24 +461,38 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
     try {
       final db = FirebaseFirestore.instance;
       final isGuard = _selectedPdfUser is Guard;
-      final userId = isGuard ? (_selectedPdfUser as Guard).id : (_selectedPdfUser as AppUser).id;
+      final userId = isGuard
+          ? (_selectedPdfUser as Guard).id
+          : (_selectedPdfUser as AppUser).id;
 
       // Fetch attendance
-      final attSnap = await db.collection('attendance').where('guardId', isEqualTo: userId).get();
-      final records = attSnap.docs.map<Attendance>((d) => Attendance.fromJson(d.data())).where((r) {
+      final attSnap = await db
+          .collection('attendance')
+          .where('guardId', isEqualTo: userId)
+          .get();
+      final records = attSnap.docs
+          .map<Attendance>((d) => Attendance.fromJson(d.data()))
+          .where((r) {
         final date = DateTime.tryParse(r.markedAt) ?? DateTime.tryParse(r.date);
-        return date != null && date.year == _pdfMonth.year && date.month == _pdfMonth.month;
+        return date != null &&
+            date.year == _pdfMonth.year &&
+            date.month == _pdfMonth.month;
       }).toList();
 
       // Fetch advances
-      final advSnap = await db.collection('advances').where('userId', isEqualTo: userId).get();
+      final advSnap = await db
+          .collection('advances')
+          .where('userId', isEqualTo: userId)
+          .get();
       final advances = advSnap.docs.map<Advance>((d) {
         final data = d.data();
         data['id'] = d.id;
         return Advance.fromJson(data);
       }).where((a) {
-        final date = DateTime.tryParse(a.date ?? '');
-        return date != null && date.year == _pdfMonth.year && date.month == _pdfMonth.month;
+        final date = DateTime.tryParse(a.date);
+        return date != null &&
+            date.year == _pdfMonth.year &&
+            date.month == _pdfMonth.month;
       }).toList();
 
       // Fetch dicts
@@ -401,7 +521,10 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to export: $e'), backgroundColor: context.colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to export: $e'),
+            backgroundColor: context.colors.red));
     } finally {
       if (mounted) setState(() => _isExportingPdf = false);
     }

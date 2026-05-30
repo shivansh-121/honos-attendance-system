@@ -14,7 +14,8 @@ import '../../services/app_nav.dart';
 import '../admin/guard_profile_screen.dart';
 import '../admin/supervisor_profile_screen.dart';
 
-final dateRangeAttendanceProvider = StreamProvider.family<List<Attendance>, String>((ref, rangeStr) {
+final dateRangeAttendanceProvider =
+    StreamProvider.family<List<Attendance>, String>((ref, rangeStr) {
   final parts = rangeStr.split('|');
   return ref.read(dbProvider).attendanceStreamForDateRange(parts[0], parts[1]);
 });
@@ -29,9 +30,9 @@ class ReportsScreen extends ConsumerStatefulWidget {
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _selectedFilter = 'Today';
   final List<String> _filters = ['Today', 'This Week', 'This Month', 'Custom'];
-  
+
   String _userRoleFilter = 'All'; // 'All', 'Guards', 'Supervisors', 'Office'
-  
+
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
 
@@ -97,7 +98,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     final startStr = DateFormat('yyyy-MM-dd').format(_startDate);
     final endStr = DateFormat('yyyy-MM-dd').format(_endDate);
-    
+
     final monthStart = DateTime(_startDate.year, _startDate.month, 1);
     final monthEnd = DateTime(_startDate.year, _startDate.month + 1, 0);
     final fetchStart = monthStart;
@@ -105,8 +106,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     final fetchStartStr = DateFormat('yyyy-MM-dd').format(fetchStart);
     final fetchEndStr = DateFormat('yyyy-MM-dd').format(fetchEnd);
-    
-    final attendanceAsync = ref.watch(dateRangeAttendanceProvider('$fetchStartStr|$fetchEndStr'));
+
+    final attendanceAsync =
+        ref.watch(dateRangeAttendanceProvider('$fetchStartStr|$fetchEndStr'));
 
     return Scaffold(
       backgroundColor: context.colors.bgBase,
@@ -115,21 +117,36 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           data: (allUsers) => attendanceAsync.when(
             data: (allRecords) {
               final sites = sitesAsync.value ?? [];
-              return _buildReportContent(user, isAdmin, guards, allUsers, allRecords, sites, startStr, endStr);
+              return _buildReportContent(user, isAdmin, guards, allUsers,
+                  allRecords, sites, startStr, endStr);
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, __) => Center(child: Text('Rec Error: $e', style: TextStyle(color: context.colors.red))),
+            error: (e, __) => Center(
+                child: Text('Rec Error: $e',
+                    style: TextStyle(color: context.colors.red))),
           ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, __) => Center(child: Text('User Error: $e', style: TextStyle(color: context.colors.red))),
+          error: (e, __) => Center(
+              child: Text('User Error: $e',
+                  style: TextStyle(color: context.colors.red))),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, __) => Center(child: Text('Guard Error: $e', style: TextStyle(color: context.colors.red))),
+        error: (e, __) => Center(
+            child: Text('Guard Error: $e',
+                style: TextStyle(color: context.colors.red))),
       ),
     );
   }
 
-  Widget _buildReportContent(AppUser? currentUser, bool isAdmin, List<Guard> guards, List<AppUser> allUsers, List<Attendance> fetchedRecords, List<Site> sites, String startStr, String endStr) {
+  Widget _buildReportContent(
+      AppUser? currentUser,
+      bool isAdmin,
+      List<Guard> guards,
+      List<AppUser> allUsers,
+      List<Attendance> fetchedRecords,
+      List<Site> sites,
+      String startStr,
+      String endStr) {
     // 1. Get visibility permissions
     final isExecutive = currentUser?.role == 'executive';
     final isSupervisor = currentUser?.role == 'supervisor';
@@ -138,7 +155,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     // Supervisor can only see records marked under them
     List<Attendance> filteredRecords = fetchedRecords;
     if (isSupervisor && currentUser != null) {
-      filteredRecords = fetchedRecords.where((r) => r.supervisorId == currentUser.id).toList();
+      filteredRecords = fetchedRecords
+          .where((r) => r.supervisorId == currentUser.id)
+          .toList();
     }
 
     // List of people the current user is allowed to see
@@ -150,30 +169,47 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       // Filter by role requested by user
       if (_userRoleFilter == 'All' || _userRoleFilter == 'Guards') {
         if (isSupervisor) {
-          final rangeRecords = filteredRecords.where((r) => r.date.compareTo(startStr) >= 0 && r.date.compareTo(endStr) <= 0).toList();
+          final rangeRecords = filteredRecords
+              .where((r) =>
+                  r.date.compareTo(startStr) >= 0 &&
+                  r.date.compareTo(endStr) <= 0)
+              .toList();
           final guardIds = rangeRecords.map((r) => r.guardId).toSet();
           visiblePeople.addAll(guards.where((g) => guardIds.contains(g.id)));
         } else {
           visiblePeople.addAll(guards);
         }
       }
-      if ((isAdmin || isExecutive) && (_userRoleFilter == 'All' || _userRoleFilter == 'Supervisors')) {
+      if ((isAdmin || isExecutive) &&
+          (_userRoleFilter == 'All' || _userRoleFilter == 'Supervisors')) {
         visiblePeople.addAll(allUsers.where((u) => u.role == 'supervisor'));
       }
-      if ((isAdmin || isExecutive) && (_userRoleFilter == 'All' || _userRoleFilter == 'Office')) {
-        visiblePeople.addAll(allUsers.where((u) => u.role == 'office_employee'));
+      if ((isAdmin || isExecutive) &&
+          (_userRoleFilter == 'All' || _userRoleFilter == 'Office')) {
+        visiblePeople
+            .addAll(allUsers.where((u) => u.role == 'office_employee'));
       }
-      if (isAdmin && (_userRoleFilter == 'All' || _userRoleFilter == 'Executives')) {
+      if (isAdmin &&
+          (_userRoleFilter == 'All' || _userRoleFilter == 'Executives')) {
         visiblePeople.addAll(allUsers.where((u) => u.role == 'executive'));
       }
     }
 
     final totalVisible = visiblePeople.length;
-    final isSingleDay = _startDate.year == _endDate.year && _startDate.month == _endDate.month && _startDate.day == _endDate.day;
+    final isSingleDay = _startDate.year == _endDate.year &&
+        _startDate.month == _endDate.month &&
+        _startDate.day == _endDate.day;
 
     // Filter records for visible people (within the specifically selected date range for overall stats)
-    final visibleRecords = filteredRecords.where((r) => visiblePeople.any((p) => p.id == r.guardId) && r.date.compareTo(startStr) >= 0 && r.date.compareTo(endStr) <= 0).toList();
-    final presentCount = visibleRecords.where((r) => r.date == DateFormat('yyyy-MM-dd').format(_startDate)).length; // If single day
+    final visibleRecords = filteredRecords
+        .where((r) =>
+            visiblePeople.any((p) => p.id == r.guardId) &&
+            r.date.compareTo(startStr) >= 0 &&
+            r.date.compareTo(endStr) <= 0)
+        .toList();
+    final presentCount = visibleRecords
+        .where((r) => r.date == DateFormat('yyyy-MM-dd').format(_startDate))
+        .length; // If single day
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -196,19 +232,38 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           backgroundColor: context.colors.bgSurface,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          title: Text('Clear All Records?', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
-                          content: Text('This will permanently delete ALL attendance records from the database. This action cannot be undone.', style: TextStyle(color: context.colors.txtSec)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          title: Text('Clear All Records?',
+                              style: TextStyle(
+                                  color: context.colors.txtPrimary,
+                                  fontWeight: FontWeight.bold)),
+                          content: Text(
+                              'This will permanently delete ALL attendance records from the database. This action cannot be undone.',
+                              style: TextStyle(color: context.colors.txtSec)),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: context.colors.txtSec))),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: Text('Cancel',
+                                    style: TextStyle(
+                                        color: context.colors.txtSec))),
                             ElevatedButton(
-                              style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: context.colors.red),
+                              style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor: context.colors.red),
                               onPressed: () {
                                 ref.read(dbProvider).clearAttendance();
                                 Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('All records deleted.'), backgroundColor: context.colors.red));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            const Text('All records deleted.'),
+                                        backgroundColor: context.colors.red));
                               },
-                              child: Text('Delete All', style: TextStyle(color: context.colors.txtPrimary, fontWeight: FontWeight.bold)),
+                              child: Text('Delete All',
+                                  style: TextStyle(
+                                      color: context.colors.txtPrimary,
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -218,9 +273,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ]
               : null,
           flexibleSpace: FlexibleSpaceBar(
-            stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
-            titlePadding: const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-            title: Text('Reports', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.5)),
+            stretchModes: const [
+              StretchMode.zoomBackground,
+              StretchMode.blurBackground
+            ],
+            titlePadding:
+                const EdgeInsets.only(left: 24, bottom: 20, right: 24),
+            title: Text('Reports',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    letterSpacing: -0.5)),
             background: Stack(
               fit: StackFit.expand,
               children: [
@@ -239,7 +303,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   child: Container(
                     width: 250,
                     height: 250,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)),
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.1)),
                   ),
                 ),
                 Positioned(
@@ -248,7 +314,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   child: Container(
                     width: 200,
                     height: 200,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.08)),
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.08)),
                   ),
                 ),
                 Positioned(
@@ -256,13 +324,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   bottom: 40,
                   child: Transform.rotate(
                     angle: 0.2,
-                    child: Icon(Icons.bar_chart_rounded, size: 140, color: Colors.white.withValues(alpha: 0.15)),
+                    child: Icon(Icons.bar_chart_rounded,
+                        size: 140, color: Colors.white.withValues(alpha: 0.15)),
                   ),
                 ),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.6)
+                      ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       stops: const [0.6, 1.0],
@@ -275,124 +347,82 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ),
 
         SliverToBoxAdapter(
-          child: Column(
-            children: [
-              // Top Filter Chips (Time)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _filters.map((f) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(f),
-                        selected: _selectedFilter == f,
-                        onSelected: (_) {
-                          if (f == 'Custom') {
-                            _pickCustomRange();
-                          } else {
-                            setState(() {
-                              _selectedFilter = f;
-                              _updateDateRange();
-                            });
-                          }
-                        },
-                        selectedColor: context.colors.primary.withValues(alpha: 0.2),
-                        checkmarkColor: context.colors.primary,
-                        backgroundColor: context.colors.bgElevated,
-                        labelStyle: TextStyle(
-                          color: _selectedFilter == f ? context.colors.primary : context.colors.txtSec,
-                          fontWeight: _selectedFilter == f ? FontWeight.bold : FontWeight.normal,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: _selectedFilter == f ? context.colors.primary : context.colors.bord),
+          child: responsiveBody(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      _buildSummaryCard('Personnel', '$totalVisible',
+                          Icons.people, context.colors.primary),
+                      const SizedBox(width: 12),
+                      _buildSummaryCard('Records', '${visibleRecords.length}',
+                          Icons.history, context.colors.purple),
+                      const SizedBox(width: 12),
+                      _buildSummaryCard(
+                        isSingleDay ? 'Present' : 'Avg/Day',
+                        isSingleDay
+                            ? '$presentCount'
+                            : (visibleRecords.length /
+                                    max(1,
+                                        _endDate.difference(_startDate).inDays))
+                                .toStringAsFixed(1),
+                        Icons.check_circle,
+                        context.colors.green,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _buildFilterDropdown(
+                      isAdmin: isAdmin, isExecutive: isExecutive),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_month,
+                          color: context.colors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isSingleDay
+                              ? DateFormat('EEEE, MMM dd, yyyy')
+                                  .format(_startDate)
+                              : '${DateFormat('MMM dd').format(_startDate)} - ${DateFormat('MMM dd, yyyy').format(_endDate)}',
+                          style: TextStyle(
+                              color: context.colors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16),
                         ),
                       ),
-                    )).toList(),
+                    ],
                   ),
-                ),
+                ],
               ),
-
-              // Second Filter Chips (Role)
-              if (isAdmin || isExecutive)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: ['All', 'Guards', 'Supervisors', 'Office', if (isAdmin) 'Executives'].map((role) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(role, style: const TextStyle(fontSize: 12)),
-                          selected: _userRoleFilter == role,
-                          onSelected: (val) {
-                            if (val) setState(() => _userRoleFilter = role);
-                          },
-                          selectedColor: context.colors.yellow.withValues(alpha: 0.2),
-                          backgroundColor: context.colors.bgElevated,
-                          labelStyle: TextStyle(color: _userRoleFilter == role ? context.colors.yellow : context.colors.txtMuted, fontWeight: FontWeight.bold),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: _userRoleFilter == role ? context.colors.yellow : Colors.transparent),
-                          ),
-                        ),
-                      )).toList(),
-                    ),
-                  ),
-                ),
-
-              // Summary Cards
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    _buildSummaryCard('Personnel', '$totalVisible', Icons.people, context.colors.primary),
-                    const SizedBox(width: 12),
-                    _buildSummaryCard('Records', '${visibleRecords.length}', Icons.history, context.colors.purple),
-                    const SizedBox(width: 12),
-                    _buildSummaryCard(isSingleDay ? 'Present' : 'Avg/Day', 
-                                      isSingleDay ? '$presentCount' : (visibleRecords.length / max(1, _endDate.difference(_startDate).inDays)).toStringAsFixed(1), 
-                                      Icons.check_circle, context.colors.green),
-                  ],
-                ),
-              ),
-              
-              // Date indicator
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_month, color: context.colors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      isSingleDay 
-                        ? DateFormat('EEEE, MMM dd, yyyy').format(_startDate)
-                        : '${DateFormat('MMM dd').format(_startDate)} - ${DateFormat('MMM dd, yyyy').format(_endDate)}',
-                      style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
+            maxWidth: 1100,
           ),
         ),
 
         // Records View
-        isSingleDay 
-          ? _buildDailyView(visiblePeople, visibleRecords, allUsers, sites)
-          : _buildRangeView(visiblePeople, visibleRecords),
+        isSingleDay
+            ? _buildDailyView(visiblePeople, visibleRecords, allUsers, sites)
+            : _buildRangeView(visiblePeople, visibleRecords),
       ],
     );
   }
 
   // --- Grouped Daily View ---
-  Widget _buildDailyView(List<dynamic> people, List<Attendance> records, List<AppUser> allUsers, List<Site> sites) {
+  Widget _buildDailyView(List<dynamic> people, List<Attendance> records,
+      List<AppUser> allUsers, List<Site> sites) {
     if (people.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: Text('No personnel found.', style: TextStyle(color: context.colors.txtMuted, fontSize: 16, fontWeight: FontWeight.bold))),
+        child: Center(
+            child: Text('No personnel found.',
+                style: TextStyle(
+                    color: context.colors.txtMuted,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold))),
       );
     }
 
@@ -405,158 +435,268 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       return a.name.compareTo(b.name);
     });
 
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+    return ResponsiveSliverPadding(
+      extraPadding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (ctx, i) {
             final person = people[i];
-            final personRecords = records.where((r) => r.guardId == person.id).toList();
+            final personRecords =
+                records.where((r) => r.guardId == person.id).toList();
             personRecords.sort((a, b) => a.time.compareTo(b.time));
-            
-            final isPresent = personRecords.isNotEmpty && personRecords.any((r) => r.status.toLowerCase() == 'present');
+
+            final isPresent = personRecords.isNotEmpty &&
+                personRecords.any((r) => r.status.toLowerCase() == 'present');
             final color = isPresent ? context.colors.green : context.colors.red;
 
             return GestureDetector(
               onTap: () {
                 if (person is Guard) {
                   AppNav.push(context, GuardProfileScreen(guard: person));
-                } else if (person is AppUser && (person.role == 'supervisor' || person.role == 'office_employee' || person.role == 'executive')) {
-                  AppNav.push(context, SupervisorProfileScreen(supervisor: person));
+                } else if (person is AppUser &&
+                    (person.role == 'supervisor' ||
+                        person.role == 'office_employee' ||
+                        person.role == 'executive')) {
+                  AppNav.push(
+                      context, SupervisorProfileScreen(supervisor: person));
                 }
               },
               child: Container(
                 margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: context.colors.bgSurface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: context.colors.bord.withValues(alpha: 0.5)),
-                boxShadow: [
-                  BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: color.withValues(alpha: 0.5), width: 2)
-                          ),
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor: color.withValues(alpha: 0.1),
-                            backgroundImage: (person.photo != null && person.photo.toString().length > 200) ? MemoryImage(base64Decode(person.photo)) : null,
-                            child: (person.photo == null || person.photo.toString().length <= 200) ? Icon(Icons.person, color: color) : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(person.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: context.colors.txtPrimary)),
-                              const SizedBox(height: 2),
-                              Text(person is Guard ? 'Guard • ID: ${person.empId}' : '${(person as AppUser).role.replaceAll('_', ' ').toUpperCase()}', 
-                                   style: TextStyle(color: context.colors.txtMuted, fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: color.withValues(alpha: 0.3)),
-                          ),
-                          child: Text(
-                            isPresent ? 'PRESENT' : 'ABSENT',
-                            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (isPresent) ...[
-                      const SizedBox(height: 12),
-                      ...personRecords.map((record) {
-                        final hasCheckOut = record.checkOutTime.isNotEmpty;
-                        final isExecutive = person is AppUser && person.role == 'executive';
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(Icons.location_on, size: 14, color: context.colors.txtMuted),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    isExecutive && hasCheckOut && record.checkOutSiteId.isNotEmpty && record.checkOutSiteId != record.siteId
-                                      ? 'In: ${sites.where((s) => s.id == record.siteId).firstOrNull?.name ?? 'Unknown'} | Out: ${sites.where((s) => s.id == record.checkOutSiteId).firstOrNull?.name ?? 'Unknown'}'
-                                      : sites.where((s) => s.id == record.siteId).firstOrNull?.name ?? 'Unknown Site',
-                                    style: TextStyle(color: context.colors.txtMuted, fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (record.photoPath.isEmpty) ...[
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(Icons.edit_calendar, color: context.colors.yellow, size: 10),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'BY ${(record.supervisorId == 'admin') ? 'ADMIN' : (allUsers.where((u) => u.id == record.supervisorId).firstOrNull?.name.split(' ').first.toUpperCase() ?? 'UNKNOWN')}',
-                                    style: TextStyle(color: context.colors.yellow, fontSize: 9, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: context.colors.bgElevated,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Text('Check-In', style: TextStyle(fontSize: 11, color: context.colors.txtMuted, fontWeight: FontWeight.bold)),
-                                        const SizedBox(height: 4),
-                                        Text(record.time.isNotEmpty ? record.time : '--:--', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.colors.green)),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(width: 1, height: 30, color: context.colors.bord),
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Text('Check-Out', style: TextStyle(fontSize: 11, color: context.colors.txtMuted, fontWeight: FontWeight.bold)),
-                                        const SizedBox(height: 4),
-                                        Text(hasCheckOut ? record.checkOutTime : '--:--', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: hasCheckOut ? context.colors.yellow : context.colors.txtMuted)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      }),
-                    ],
+                decoration: BoxDecoration(
+                  color: context.colors.bgSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: context.colors.bord.withValues(alpha: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: color.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4)),
                   ],
                 ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: color.withValues(alpha: 0.5),
+                                    width: 2)),
+                            child: CircleAvatar(
+                              radius: 22,
+                              backgroundColor: color.withValues(alpha: 0.1),
+                              backgroundImage: (person.photo != null &&
+                                      person.photo.toString().length > 200)
+                                  ? MemoryImage(base64Decode(person.photo))
+                                  : null,
+                              child: (person.photo == null ||
+                                      person.photo.toString().length <= 200)
+                                  ? Icon(Icons.person, color: color)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(person.name,
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: context.colors.txtPrimary)),
+                                const SizedBox(height: 2),
+                                Text(
+                                    person is Guard
+                                        ? 'Guard • ID: ${person.empId}'
+                                        : '${(person as AppUser).role.replaceAll('_', ' ').toUpperCase()}',
+                                    style: TextStyle(
+                                        color: context.colors.txtMuted,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: color.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              isPresent ? 'PRESENT' : 'ABSENT',
+                              style: TextStyle(
+                                  color: color,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (isPresent) ...[
+                        const SizedBox(height: 12),
+                        ...personRecords.map((record) {
+                          final hasCheckOut = record.checkOutTime.isNotEmpty;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: context.colors.bgElevated,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text('Check-In',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color:
+                                                      context.colors.txtMuted,
+                                                  fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              record.time.isNotEmpty
+                                                  ? record.time
+                                                  : '--:--',
+                                              style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: context.colors.green)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              sites
+                                                      .where((s) =>
+                                                          s.id == record.siteId)
+                                                      .firstOrNull
+                                                      ?.name ??
+                                                  'Unknown',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color:
+                                                      context.colors.txtMuted),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis),
+                                          if (record.photoPath == 'manual' ||
+                                              record.photoPath.isEmpty)
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.only(top: 4),
+                                              child: Text(
+                                                  (record.supervisorId ==
+                                                              'admin' ||
+                                                          record.supervisorId
+                                                              .isNotEmpty)
+                                                      ? 'BY ${record.supervisorId == 'admin' ? 'ADMIN' : (allUsers.where((u) => u.id == record.supervisorId).firstOrNull?.name.split(' ').first.toUpperCase() ?? 'ADMIN')}'
+                                                      : 'MANUAL',
+                                                  style: TextStyle(
+                                                      fontSize: 9,
+                                                      color:
+                                                          context.colors.yellow,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            )
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                        width: 1,
+                                        height: 50,
+                                        color: context.colors.bord),
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text('Check-Out',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color:
+                                                      context.colors.txtMuted,
+                                                  fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              hasCheckOut
+                                                  ? record.checkOutTime
+                                                  : '--:--',
+                                              style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: hasCheckOut
+                                                      ? context.colors.yellow
+                                                      : context
+                                                          .colors.txtMuted)),
+                                          if (hasCheckOut) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                                record.checkOutSiteId.isNotEmpty
+                                                    ? (sites
+                                                            .where((s) =>
+                                                                s.id ==
+                                                                record
+                                                                    .checkOutSiteId)
+                                                            .firstOrNull
+                                                            ?.name ??
+                                                        'Unknown')
+                                                    : (sites
+                                                            .where((s) =>
+                                                                s.id ==
+                                                                record.siteId)
+                                                            .firstOrNull
+                                                            ?.name ??
+                                                        'Unknown'),
+                                                style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: context
+                                                        .colors.txtMuted),
+                                                textAlign: TextAlign.center,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis),
+                                            if (record.checkOutPhotoPath ==
+                                                    'manual' ||
+                                                record
+                                                    .checkOutPhotoPath.isEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 4),
+                                                child: Text('MANUAL',
+                                                    style: TextStyle(
+                                                        fontSize: 9,
+                                                        color: context
+                                                            .colors.yellow,
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                              )
+                                          ]
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
           childCount: people.length,
         ),
       ),
@@ -568,128 +708,345 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     if (people.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: Text('No personnel found.', style: TextStyle(color: context.colors.txtMuted, fontSize: 16, fontWeight: FontWeight.bold))),
+        child: Center(
+            child: Text('No personnel found.',
+                style: TextStyle(
+                    color: context.colors.txtMuted,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold))),
       );
     }
 
     final String startStr = DateFormat('yyyy-MM-dd').format(_startDate);
     final String endStr = DateFormat('yyyy-MM-dd').format(_endDate);
-    final fetchedRecords = records; 
+    final fetchedRecords = records;
 
     final selectedTotalDays = _endDate.difference(_startDate).inDays + 1;
-    final monthStartStr = DateFormat('yyyy-MM-dd').format(DateTime(_startDate.year, _startDate.month, 1));
-    final monthEndStr = DateFormat('yyyy-MM-dd').format(DateTime(_startDate.year, _startDate.month + 1, 0));
+    final monthStartStr = DateFormat('yyyy-MM-dd')
+        .format(DateTime(_startDate.year, _startDate.month, 1));
+    final monthEndStr = DateFormat('yyyy-MM-dd')
+        .format(DateTime(_startDate.year, _startDate.month + 1, 0));
     final daysInMonth = DateTime(_startDate.year, _startDate.month + 1, 0).day;
 
     // Sort people by the number of present days in the selected range
     people.sort((a, b) {
-      final aCount = fetchedRecords.where((r) => r.guardId == a.id && r.date.compareTo(startStr) >= 0 && r.date.compareTo(endStr) <= 0).length;
-      final bCount = fetchedRecords.where((r) => r.guardId == b.id && r.date.compareTo(startStr) >= 0 && r.date.compareTo(endStr) <= 0).length;
+      final aCount = fetchedRecords
+          .where((r) =>
+              r.guardId == a.id &&
+              r.date.compareTo(startStr) >= 0 &&
+              r.date.compareTo(endStr) <= 0)
+          .length;
+      final bCount = fetchedRecords
+          .where((r) =>
+              r.guardId == b.id &&
+              r.date.compareTo(startStr) >= 0 &&
+              r.date.compareTo(endStr) <= 0)
+          .length;
       return bCount.compareTo(aCount);
     });
 
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+    return ResponsiveSliverPadding(
+      extraPadding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (ctx, i) {
             final person = people[i];
-            
+
             // Monthly records for score
-            final pMonthRecords = fetchedRecords.where((r) => r.guardId == person.id && r.date.compareTo(monthStartStr) >= 0 && r.date.compareTo(monthEndStr) <= 0).toList();
-            
+            final pMonthRecords = fetchedRecords
+                .where((r) =>
+                    r.guardId == person.id &&
+                    r.date.compareTo(monthStartStr) >= 0 &&
+                    r.date.compareTo(monthEndStr) <= 0)
+                .toList();
+
             // Selected range records for chips
-            final pSelectedRecords = fetchedRecords.where((r) => r.guardId == person.id && r.date.compareTo(startStr) >= 0 && r.date.compareTo(endStr) <= 0).toList();
-            
-            final presentCount = pSelectedRecords.map((r) => r.date).toSet().length;
+            final pSelectedRecords = fetchedRecords
+                .where((r) =>
+                    r.guardId == person.id &&
+                    r.date.compareTo(startStr) >= 0 &&
+                    r.date.compareTo(endStr) <= 0)
+                .toList();
+
+            final presentCount =
+                pSelectedRecords.map((r) => r.date).toSet().length;
             final absentCount = selectedTotalDays - presentCount;
-            
-            final monthPresentCount = pMonthRecords.map((r) => r.date).toSet().length;
+
+            final monthPresentCount =
+                pMonthRecords.map((r) => r.date).toSet().length;
             final double score = (monthPresentCount / daysInMonth) * 100;
-            
+
             Color scoreColor = context.colors.red;
-            if (score >= 80) scoreColor = context.colors.green;
+            if (score >= 80)
+              scoreColor = context.colors.green;
             else if (score >= 50) scoreColor = context.colors.yellow;
 
             return GestureDetector(
               onTap: () {
                 if (person is Guard) {
                   AppNav.push(context, GuardProfileScreen(guard: person));
-                } else if (person is AppUser && (person.role == 'supervisor' || person.role == 'office_employee' || person.role == 'executive')) {
-                  AppNav.push(context, SupervisorProfileScreen(supervisor: person));
+                } else if (person is AppUser &&
+                    (person.role == 'supervisor' ||
+                        person.role == 'office_employee' ||
+                        person.role == 'executive')) {
+                  AppNav.push(
+                      context, SupervisorProfileScreen(supervisor: person));
                 }
               },
               child: Container(
                 margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: context.colors.bgSurface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: context.colors.bord.withValues(alpha: 0.5)),
-                boxShadow: [
-                  BoxShadow(color: scoreColor.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: scoreColor.withValues(alpha: 0.5), width: 2)
-                      ),
-                      child: CircleAvatar(
-                        radius: 22,
-                        backgroundColor: scoreColor.withValues(alpha: 0.1),
-                        backgroundImage: (person.photo != null && person.photo.toString().length > 200) ? MemoryImage(base64Decode(person.photo)) : null,
-                        child: (person.photo == null || person.photo.toString().length <= 200) ? Icon(Icons.person, color: scoreColor) : null,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(person.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: context.colors.txtPrimary)),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: context.colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                                child: Text('$presentCount Present', style: TextStyle(color: context.colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: context.colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                                child: Text('$absentCount Absent', style: TextStyle(color: context.colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('${score.toStringAsFixed(0)}%', style: TextStyle(color: scoreColor, fontSize: 20, fontWeight: FontWeight.w900)),
-                        Text('Attendance', style: TextStyle(color: context.colors.txtMuted, fontSize: 11, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                decoration: BoxDecoration(
+                  color: context.colors.bgSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: context.colors.bord.withValues(alpha: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: scoreColor.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4)),
                   ],
                 ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: scoreColor.withValues(alpha: 0.5),
+                                width: 2)),
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: scoreColor.withValues(alpha: 0.1),
+                          backgroundImage: (person.photo != null &&
+                                  person.photo.toString().length > 200)
+                              ? MemoryImage(base64Decode(person.photo))
+                              : null,
+                          child: (person.photo == null ||
+                                  person.photo.toString().length <= 200)
+                              ? Icon(Icons.person, color: scoreColor)
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(person.name,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: context.colors.txtPrimary)),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: context.colors.green
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6)),
+                                  child: Text('$presentCount Present',
+                                      style: TextStyle(
+                                          color: context.colors.green,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: context.colors.red
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6)),
+                                  child: Text('$absentCount Absent',
+                                      style: TextStyle(
+                                          color: context.colors.red,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('${score.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                  color: scoreColor,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900)),
+                          Text('Attendance',
+                              style: TextStyle(
+                                  color: context.colors.txtMuted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
           childCount: people.length,
         ),
       ),
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildFilterDropdown(
+      {required bool isAdmin, required bool isExecutive}) {
+    final roleOptions = [
+      'All',
+      'Guards',
+      'Supervisors',
+      'Office',
+      if (isAdmin) 'Executives'
+    ];
+    final roleAllowed = isAdmin || isExecutive;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.colors.bgSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.bord),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          leading: Icon(Icons.tune, color: context.colors.primary),
+          title: Text(
+            'Filters',
+            style: TextStyle(
+                color: context.colors.txtPrimary, fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            roleAllowed
+                ? '$_selectedFilter • $_userRoleFilter'
+                : _selectedFilter,
+            style: TextStyle(color: context.colors.txtMuted, fontSize: 12),
+          ),
+          iconColor: context.colors.primary,
+          collapsedIconColor: context.colors.txtSec,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final twoColumns = constraints.maxWidth >= 640;
+                final fieldWidth = twoColumns
+                    ? (constraints.maxWidth - 12) / 2
+                    : constraints.maxWidth;
+
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    SizedBox(
+                      width: fieldWidth,
+                      child: _buildFilterField(
+                        label: 'Date Range',
+                        icon: Icons.calendar_month,
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedFilter,
+                          dropdownColor: context.colors.bgSurface,
+                          iconEnabledColor: context.colors.txtSec,
+                          decoration:
+                              const InputDecoration(border: InputBorder.none),
+                          style: TextStyle(
+                              color: context.colors.txtPrimary,
+                              fontWeight: FontWeight.w600),
+                          items: _filters
+                              .map((f) =>
+                                  DropdownMenuItem(value: f, child: Text(f)))
+                              .toList(),
+                          onChanged: (value) async {
+                            if (value == null) return;
+                            if (value == 'Custom') {
+                              await _pickCustomRange();
+                            } else {
+                              _selectedFilter = value;
+                              _updateDateRange();
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    if (roleAllowed)
+                      SizedBox(
+                        width: fieldWidth,
+                        child: _buildFilterField(
+                          label: 'Personnel',
+                          icon: Icons.people_alt,
+                          child: DropdownButtonFormField<String>(
+                            value: _userRoleFilter,
+                            dropdownColor: context.colors.bgSurface,
+                            iconEnabledColor: context.colors.txtSec,
+                            decoration:
+                                const InputDecoration(border: InputBorder.none),
+                            style: TextStyle(
+                                color: context.colors.txtPrimary,
+                                fontWeight: FontWeight.w600),
+                            items: roleOptions
+                                .map((role) => DropdownMenuItem(
+                                    value: role, child: Text(role)))
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null)
+                                setState(() => _userRoleFilter = value);
+                            },
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterField(
+      {required String label, required IconData icon, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+      decoration: BoxDecoration(
+        color: context.colors.bgBase,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.colors.bord.withValues(alpha: 0.7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: context.colors.txtMuted, size: 16),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                      color: context.colors.txtMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
+            ],
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+      String title, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
@@ -702,8 +1059,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 6),
-            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 20)),
-            Text(title, style: TextStyle(color: context.colors.txtSec, fontSize: 10), textAlign: TextAlign.center),
+            Text(value,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 20)),
+            Text(title,
+                style: TextStyle(color: context.colors.txtSec, fontSize: 10),
+                textAlign: TextAlign.center),
           ],
         ),
       ),

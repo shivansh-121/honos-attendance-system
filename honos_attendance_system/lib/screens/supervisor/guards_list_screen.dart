@@ -34,10 +34,12 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openGuardForm(context, db),
         icon: Icon(Icons.person_add, color: context.colors.bgBase),
-        label: Text('Add Guard', style: TextStyle(color: context.colors.bgBase, fontWeight: FontWeight.bold)),
+        label: Text('Add Guard',
+            style: TextStyle(
+                color: context.colors.bgBase, fontWeight: FontWeight.bold)),
         backgroundColor: context.colors.primary,
       ),
-      body: CustomScrollView(
+      body: responsiveBody(CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 240,
@@ -48,16 +50,28 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
             elevation: 0,
             iconTheme: const IconThemeData(color: Colors.white),
             flexibleSpace: FlexibleSpaceBar(
-              stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
-              titlePadding: const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-              title: Text('Guards Management', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.5)),
+              stretchModes: const [
+                StretchMode.zoomBackground,
+                StretchMode.blurBackground
+              ],
+              titlePadding:
+                  const EdgeInsets.only(left: 24, bottom: 20, right: 24),
+              title: Text('Guards Management',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      letterSpacing: -0.5)),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [context.colors.primaryDark, context.colors.primary],
+                        colors: [
+                          context.colors.primaryDark,
+                          context.colors.primary
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -69,8 +83,14 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                     child: Container(
                       width: 250,
                       height: 250,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)),
-                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(begin: const Offset(1, 1), end: const Offset(1.15, 1.15), duration: 4.seconds, curve: Curves.easeInOut),
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.1)),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.15, 1.15),
+                        duration: 4.seconds,
+                        curve: Curves.easeInOut),
                   ),
                   Positioned(
                     bottom: -80,
@@ -78,21 +98,36 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                     child: Container(
                       width: 200,
                       height: 200,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.08)),
-                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(begin: const Offset(1.15, 1.15), end: const Offset(1, 1), duration: 3.seconds, curve: Curves.easeInOut),
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.08)),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(
+                        begin: const Offset(1.15, 1.15),
+                        end: const Offset(1, 1),
+                        duration: 3.seconds,
+                        curve: Curves.easeInOut),
                   ),
                   Positioned(
                     right: 20,
                     bottom: 40,
                     child: Transform.rotate(
                       angle: -0.15,
-                      child: Icon(Icons.security_rounded, size: 140, color: Colors.white.withValues(alpha: 0.15)),
-                    ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.3, end: 0, duration: 800.ms, curve: Curves.easeOutBack),
+                      child: Icon(Icons.security_rounded,
+                          size: 140,
+                          color: Colors.white.withValues(alpha: 0.15)),
+                    ).animate().fadeIn(duration: 800.ms).slideY(
+                        begin: 0.3,
+                        end: 0,
+                        duration: 800.ms,
+                        curve: Curves.easeOutBack),
                   ),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.6)
+                        ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         stops: const [0.6, 1.0],
@@ -106,21 +141,33 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
               guardsAsync.when(
                 data: (guards) => guards.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.delete_sweep_outlined, color: context.colors.red),
+                        icon: Icon(Icons.delete_sweep_outlined,
+                            color: context.colors.red),
                         tooltip: 'Clear All Attendance',
                         onPressed: () async {
                           final ok = await showDialog<bool>(
                             context: context,
                             builder: (c) => AlertDialog(
                               backgroundColor: context.colors.bgSurface,
-                              title: Text('Clear All Attendance', style: TextStyle(color: context.colors.txtPrimary)),
-                              content: Text('Are you sure? This will delete ALL attendance records permanently.', style: TextStyle(color: context.colors.txtSec)),
+                              title: Text('Clear All Attendance',
+                                  style: TextStyle(
+                                      color: context.colors.txtPrimary)),
+                              content: Text(
+                                  'Are you sure? This will delete ALL attendance records permanently.',
+                                  style:
+                                      TextStyle(color: context.colors.txtSec)),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                TextButton(
+                                    onPressed: () => Navigator.pop(c, false),
+                                    child: const Text('Cancel')),
                                 ElevatedButton(
-                                  style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: context.colors.red),
+                                  style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      backgroundColor: context.colors.red),
                                   onPressed: () => Navigator.pop(c, true),
-                                  child: Text('Clear All', style: TextStyle(color: context.colors.txtPrimary)),
+                                  child: Text('Clear All',
+                                      style: TextStyle(
+                                          color: context.colors.txtPrimary)),
                                 ),
                               ],
                             ),
@@ -128,7 +175,13 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                           if (ok == true) {
                             await db.clearAttendance();
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('All attendance records cleared.', style: TextStyle(color: context.colors.txtPrimary))));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          'All attendance records cleared.',
+                                          style: TextStyle(
+                                              color:
+                                                  context.colors.txtPrimary))));
                             }
                           }
                         },
@@ -141,7 +194,8 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
           ),
           guardsAsync.when(
             data: (allGuards) {
-              final myGuards = allGuards.where((g) => g.siteId == authUser?.siteId).toList();
+              final myGuards =
+                  allGuards.where((g) => g.siteId == authUser?.siteId).toList();
               return myGuards.isEmpty
                   ? SliverFillRemaining(
                       hasScrollBody: false,
@@ -150,24 +204,36 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.people_outline, size: 80, color: context.colors.txtMuted),
+                            Icon(Icons.people_outline,
+                                size: 80, color: context.colors.txtMuted),
                             const SizedBox(height: 24),
-                            Text('No guards registered yet.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtSec, fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('No guards registered yet.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: context.colors.txtSec,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold)),
                             const SizedBox(height: 12),
-                            Text('Use the "Add Guard" button below to register a new guard.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.txtMuted, fontSize: 14)),
+                            Text(
+                                'Use the "Add Guard" button below to register a new guard.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: context.colors.txtMuted,
+                                    fontSize: 14)),
                           ],
                         ),
                       ),
                     )
-                  : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                  : ResponsiveSliverPadding(
+                      extraPadding: const EdgeInsets.fromLTRB(0, 16, 0, 100),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, i) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _GuardCard(
                               guard: myGuards[i],
-                              onEdit: () => _openGuardForm(context, db, existing: myGuards[i]),
+                              onEdit: () => _openGuardForm(context, db,
+                                  existing: myGuards[i]),
                             ),
                           ),
                           childCount: myGuards.length,
@@ -175,15 +241,24 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                       ),
                     );
             },
-            loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))),
-            error: (e, __) => SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: Text('Error: $e', style: TextStyle(color: context.colors.red))))),
+            loading: () => const SliverToBoxAdapter(
+                child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator()))),
+            error: (e, __) => SliverToBoxAdapter(
+                child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                        child: Text('Error: $e',
+                            style: TextStyle(color: context.colors.red))))),
           ),
         ],
-      ),
+      )),
     );
   }
 
-  void _openGuardForm(BuildContext context, DbService db, {Guard? existing}) async {
+  void _openGuardForm(BuildContext context, DbService db,
+      {Guard? existing}) async {
     final authUser = ref.read(authProvider);
     final sitesAsync = ref.read(sitesStreamProvider);
     final allSites = sitesAsync.value ?? [];
@@ -194,7 +269,8 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: context.colors.bgSurface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => _GuardFormSheet(
         db: db,
         siteId: siteId,
@@ -207,31 +283,41 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
 
     if (existing != null && existing.isEditableBySupervisor) {
       await db.updateGuardField(existing.id, {'isEditableBySupervisor': false});
-      
+
       final updatedGuards = await db.guardsStream().first;
-      final newGuard = updatedGuards.firstWhere((g) => g.id == existing.id, orElse: () => existing);
-      
+      final newGuard = updatedGuards.firstWhere((g) => g.id == existing.id,
+          orElse: () => existing);
+
       List<String> changes = [];
-      if (existing.name != newGuard.name) changes.add('Name: ${existing.name} -> ${newGuard.name}');
-      if (existing.phone != newGuard.phone) changes.add('Phone: ${existing.phone} -> ${newGuard.phone}');
-      if (existing.address != newGuard.address) changes.add('Address: ${existing.address} -> ${newGuard.address}');
-      if (existing.aadharNo != newGuard.aadharNo) changes.add('Aadhaar: ${existing.aadharNo} -> ${newGuard.aadharNo}');
-      if (existing.uanNo != newGuard.uanNo) changes.add('UAN: ${existing.uanNo} -> ${newGuard.uanNo}');
-      if (existing.bankName != newGuard.bankName) changes.add('Bank: ${existing.bankName} -> ${newGuard.bankName}');
-      if (existing.accountNo != newGuard.accountNo) changes.add('Account: ${existing.accountNo} -> ${newGuard.accountNo}');
-      if (existing.ifsc != newGuard.ifsc) changes.add('IFSC: ${existing.ifsc} -> ${newGuard.ifsc}');
-      
+      if (existing.name != newGuard.name)
+        changes.add('Name: ${existing.name} -> ${newGuard.name}');
+      if (existing.phone != newGuard.phone)
+        changes.add('Phone: ${existing.phone} -> ${newGuard.phone}');
+      if (existing.address != newGuard.address)
+        changes.add('Address: ${existing.address} -> ${newGuard.address}');
+      if (existing.aadharNo != newGuard.aadharNo)
+        changes.add('Aadhaar: ${existing.aadharNo} -> ${newGuard.aadharNo}');
+      if (existing.uanNo != newGuard.uanNo)
+        changes.add('UAN: ${existing.uanNo} -> ${newGuard.uanNo}');
+      if (existing.bankName != newGuard.bankName)
+        changes.add('Bank: ${existing.bankName} -> ${newGuard.bankName}');
+      if (existing.accountNo != newGuard.accountNo)
+        changes.add('Account: ${existing.accountNo} -> ${newGuard.accountNo}');
+      if (existing.ifsc != newGuard.ifsc)
+        changes.add('IFSC: ${existing.ifsc} -> ${newGuard.ifsc}');
+
       if (changes.isNotEmpty) {
-         final notif = AppNotification(
-            id: const Uuid().v4(),
-            type: 'profile_updated',
-            title: '${existing.name} Guard Profile Updated',
-            message: '${authUser?.name ?? 'Supervisor'} updated guard ${existing.name}:\n\n${changes.join('\n')}',
-            supervisorId: 'admin',
-            guardId: existing.id,
-            timestamp: DateTime.now().toIso8601String(),
-         );
-         await db.saveNotification(notif);
+        final notif = AppNotification(
+          id: const Uuid().v4(),
+          type: 'profile_updated',
+          title: '${existing.name} Guard Profile Updated',
+          message:
+              '${authUser?.name ?? 'Supervisor'} updated guard ${existing.name}:\n\n${changes.join('\n')}',
+          supervisorId: 'admin',
+          guardId: existing.id,
+          timestamp: DateTime.now().toIso8601String(),
+        );
+        await db.saveNotification(notif);
       }
     }
   }
@@ -263,8 +349,19 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
   final _formKey = GlobalKey<FormState>();
 
   // Controllers
-  late final TextEditingController _name, _empId, _phone, _dob,
-      _address, _aadhaar, _uan, _bank, _ifsc, _account, _branch, _salary, _details;
+  late final TextEditingController _name,
+      _empId,
+      _phone,
+      _dob,
+      _address,
+      _aadhaar,
+      _uan,
+      _bank,
+      _ifsc,
+      _account,
+      _branch,
+      _salary,
+      _details;
 
   Uint8List? _photoBytes;
   String _existingPhotoPath = '';
@@ -274,19 +371,21 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
   void initState() {
     super.initState();
     final g = widget.existing;
-    _name     = TextEditingController(text: g?.name ?? '');
-    _empId    = TextEditingController(text: g?.empId ?? '');
-    _phone    = TextEditingController(text: g?.phone ?? '');
-    _dob      = TextEditingController(text: g?.dob ?? '');
-    _address  = TextEditingController(text: g?.address ?? '');
-    _aadhaar  = TextEditingController(text: g?.aadharNo ?? '');
-    _uan      = TextEditingController(text: g?.uanNo ?? '');
-    _bank     = TextEditingController(text: g?.bankName ?? '');
-    _ifsc     = TextEditingController(text: g?.ifsc ?? '');
-    _account  = TextEditingController(text: g?.accountNo ?? '');
-    _branch   = TextEditingController(text: g?.branch ?? '');
-    _salary   = TextEditingController(text: g == null || g.salary == 0 ? '' : g.salary.toStringAsFixed(0));
-    _details  = TextEditingController(text: g?.passbookPhoto ?? ''); // notes stored here
+    _name = TextEditingController(text: g?.name ?? '');
+    _empId = TextEditingController(text: g?.empId ?? '');
+    _phone = TextEditingController(text: g?.phone ?? '');
+    _dob = TextEditingController(text: g?.dob ?? '');
+    _address = TextEditingController(text: g?.address ?? '');
+    _aadhaar = TextEditingController(text: g?.aadharNo ?? '');
+    _uan = TextEditingController(text: g?.uanNo ?? '');
+    _bank = TextEditingController(text: g?.bankName ?? '');
+    _ifsc = TextEditingController(text: g?.ifsc ?? '');
+    _account = TextEditingController(text: g?.accountNo ?? '');
+    _branch = TextEditingController(text: g?.branch ?? '');
+    _salary = TextEditingController(
+        text: g == null || g.salary == 0 ? '' : g.salary.toStringAsFixed(0));
+    _details = TextEditingController(
+        text: g?.passbookPhoto ?? ''); // notes stored here
     _existingPhotoPath = g?.photo ?? '';
   }
 
@@ -341,7 +440,8 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
   // ── Photo ───────────────────────────────────────────────────────────────────
   Future<void> _pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, maxWidth: 500, maxHeight: 500, imageQuality: 70);
+    final picked = await picker.pickImage(
+        source: source, maxWidth: 500, maxHeight: 500, imageQuality: 70);
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     setState(() {
@@ -360,12 +460,18 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
           ListTile(
             leading: Icon(Icons.camera_alt, color: context.colors.primary),
             title: const Text('Take Photo with Camera'),
-            onTap: () { Navigator.pop(ctx); _pickPhoto(ImageSource.camera); },
+            onTap: () {
+              Navigator.pop(ctx);
+              _pickPhoto(ImageSource.camera);
+            },
           ),
           ListTile(
             leading: Icon(Icons.photo_library, color: context.colors.primary),
             title: const Text('Choose from Gallery'),
-            onTap: () { Navigator.pop(ctx); _pickPhoto(ImageSource.gallery); },
+            onTap: () {
+              Navigator.pop(ctx);
+              _pickPhoto(ImageSource.gallery);
+            },
           ),
           const SizedBox(height: 8),
         ]),
@@ -376,7 +482,9 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
   // ── Save ────────────────────────────────────────────────────────────────────
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Please fix the errors above'), backgroundColor: context.colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Please fix the errors above'),
+          backgroundColor: context.colors.red));
       return;
     }
     setState(() => _saving = true);
@@ -407,7 +515,8 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
       photo: _existingPhotoPath,
       siteId: widget.siteId,
       supervisorId: widget.supervisorId,
-      joinDate: widget.existing?.joinDate ?? DateTime.now().toIso8601String().split('T').first,
+      joinDate: widget.existing?.joinDate ??
+          DateTime.now().toIso8601String().split('T').first,
       status: widget.existing?.status ?? 'active',
       aadharPhoto: widget.existing?.aadharPhoto ?? '',
       passbookPhoto: _details.text.trim(), // notes
@@ -431,47 +540,79 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
 
     widget.onSaved();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Guard saved and profile locked.'), backgroundColor: context.colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Guard saved and profile locked.'),
+          backgroundColor: context.colors.green));
       Navigator.pop(context);
     }
   }
 
   // ── Shared UI helpers ───────────────────────────────────────────────────────
-  InputDecoration _field(String label, {String? hint, Widget? prefix}) => InputDecoration(
-    labelText: label, hintText: hint,
-    prefixIcon: prefix,
-    labelStyle: TextStyle(color: context.colors.txtSec, fontSize: 13),
-    hintStyle: TextStyle(color: context.colors.txtMuted, fontSize: 12),
-    filled: true, fillColor: Colors.white.withValues(alpha: 0.05),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.bord)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.primary)),
-    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.red)),
-    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.red)),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-  );
+  InputDecoration _field(String label, {String? hint, Widget? prefix}) =>
+      InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: prefix,
+        labelStyle: TextStyle(color: context.colors.txtSec, fontSize: 13),
+        hintStyle: TextStyle(color: context.colors.txtMuted, fontSize: 12),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.05),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: context.colors.bord)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: context.colors.primary)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: context.colors.red)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: context.colors.red)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      );
 
   Widget _sectionHeader(String title, IconData icon) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 10),
-    child: Row(children: [
-      Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: context.colors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, size: 14, color: context.colors.primary)),
-      const SizedBox(width: 10),
-      Text(title, style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
-    ]),
-  );
+        padding: const EdgeInsets.only(top: 20, bottom: 10),
+        child: Row(children: [
+          Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                  color: context.colors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, size: 14, color: context.colors.primary)),
+          const SizedBox(width: 10),
+          Text(title,
+              style: TextStyle(
+                  color: context.colors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13)),
+        ]),
+      );
 
   @override
   Widget build(BuildContext context) {
     if (widget.existing != null && !widget.existing!.isEditableBySupervisor) {
       return Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 40, bottom: MediaQuery.of(context).viewInsets.bottom + 40),
+        padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 40,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.lock, size: 64, color: context.colors.txtMuted),
             const SizedBox(height: 16),
-            Text('Edit Locked', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+            Text('Edit Locked',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: context.colors.txtPrimary)),
             const SizedBox(height: 8),
             Text(
               'Guard profiles are locked for editing after creation to prevent unauthorized changes. You must request permission from an admin to update these details.',
@@ -482,28 +623,41 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: _saving 
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send),
                 label: const Text('Request Edit Access'),
-                style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
-                onPressed: _saving ? null : () async {
-                  setState(() => _saving = true);
-                  final notif = AppNotification(
-                    id: const Uuid().v4(),
-                    type: 'edit_request',
-                    title: 'Edit Access Requested',
-                    message: 'Supervisor is requesting permission to edit guard: ${widget.existing!.name}',
-                    guardId: widget.existing!.id,
-                    supervisorId: widget.supervisorId,
-                    timestamp: DateTime.now().toIso8601String(),
-                  );
-                  await widget.db.saveNotification(notif);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Edit request sent to Admin!'), backgroundColor: context.colors.green));
-                  }
-                },
+                style: ElevatedButton.styleFrom(
+                    foregroundColor: context.colors.bgBase,
+                    backgroundColor: context.colors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: _saving
+                    ? null
+                    : () async {
+                        setState(() => _saving = true);
+                        final notif = AppNotification(
+                          id: const Uuid().v4(),
+                          type: 'edit_request',
+                          title: 'Edit Access Requested',
+                          message:
+                              'Supervisor is requesting permission to edit guard: ${widget.existing!.name}',
+                          guardId: widget.existing!.id,
+                          supervisorId: widget.supervisorId,
+                          timestamp: DateTime.now().toIso8601String(),
+                        );
+                        await widget.db.saveNotification(notif);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content:
+                                  const Text('Edit request sent to Admin!'),
+                              backgroundColor: context.colors.green));
+                        }
+                      },
               ),
             ),
           ],
@@ -514,7 +668,11 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
     final hasPhoto = _photoBytes != null || _existingPhotoPath.length > 200;
 
     return Padding(
-      padding: EdgeInsets.only(left: 20, right: 20, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24),
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -525,7 +683,10 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
               // Header
               Row(children: [
                 Text(widget.existing == null ? 'Add New Guard' : 'Edit Guard',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.txtPrimary)),
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: context.colors.txtPrimary)),
               ]),
               const SizedBox(height: 20),
 
@@ -539,14 +700,22 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
                       backgroundColor: context.colors.bgElevated,
                       backgroundImage: _photoBytes != null
                           ? MemoryImage(_photoBytes!) as ImageProvider
-                          : (_existingPhotoPath.length > 200 ? MemoryImage(base64Decode(_existingPhotoPath)) : null),
+                          : (_existingPhotoPath.length > 200
+                              ? MemoryImage(base64Decode(_existingPhotoPath))
+                              : null),
                       child: (!hasPhoto)
-                          ? Icon(Icons.add_a_photo, size: 36, color: context.colors.txtMuted)
+                          ? Icon(Icons.add_a_photo,
+                              size: 36, color: context.colors.txtMuted)
                           : null,
                     ),
                     Positioned(
-                      bottom: 0, right: 0,
-                      child: CircleAvatar(radius: 16, backgroundColor: context.colors.primary, child: const Icon(Icons.camera_alt, size: 16, color: Colors.white)),
+                      bottom: 0,
+                      right: 0,
+                      child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: context.colors.primary,
+                          child: const Icon(Icons.camera_alt,
+                              size: 16, color: Colors.white)),
                     ),
                   ]),
                 ),
@@ -554,71 +723,172 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
               if (!hasPhoto)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text('⚠ Photo required for face verification', textAlign: TextAlign.center, style: TextStyle(color: context.colors.yellow, fontSize: 12)),
+                  child: Text('⚠ Photo required for face verification',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: context.colors.yellow, fontSize: 12)),
                 ),
 
               // ── Personal Info ───────────────────────────────────────────────
               _sectionHeader('Personal Information', Icons.person),
-              TextFormField(controller: _name, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Full Name *', prefix: const Icon(Icons.person, size: 18)), validator: _validateName),
+              TextFormField(
+                  controller: _name,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('Full Name *',
+                      prefix: const Icon(Icons.person, size: 18)),
+                  validator: _validateName),
               const SizedBox(height: 10),
               if (widget.existing != null) ...[
-                TextFormField(controller: _empId, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Employee ID *', prefix: const Icon(Icons.badge, size: 18)), readOnly: true, validator: _validateEmpId),
+                TextFormField(
+                    controller: _empId,
+                    style: TextStyle(color: context.colors.txtPrimary),
+                    decoration: _field('Employee ID *',
+                        prefix: const Icon(Icons.badge, size: 18)),
+                    readOnly: true,
+                    validator: _validateEmpId),
                 const SizedBox(height: 10),
               ],
-              TextFormField(controller: _phone, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Phone Number *', hint: '10-digit mobile', prefix: const Icon(Icons.phone, size: 18)), keyboardType: TextInputType.phone, maxLength: 10, validator: _validatePhone),
+              TextFormField(
+                  controller: _phone,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('Phone Number *',
+                      hint: '10-digit mobile',
+                      prefix: const Icon(Icons.phone, size: 18)),
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  validator: _validatePhone),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _dob, style: TextStyle(color: context.colors.txtPrimary),
-                decoration: _field('Date of Birth', hint: 'Tap to select', prefix: const Icon(Icons.cake, size: 18)).copyWith(suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.colors.txtMuted)),
+                controller: _dob,
+                style: TextStyle(color: context.colors.txtPrimary),
+                decoration: _field('Date of Birth',
+                        hint: 'Tap to select',
+                        prefix: const Icon(Icons.cake, size: 18))
+                    .copyWith(
+                        suffixIcon: Icon(Icons.calendar_today,
+                            size: 16, color: context.colors.txtMuted)),
                 readOnly: true,
                 onTap: () async {
-                  final d = await showDatePicker(context: context, initialDate: DateTime(2000), firstDate: DateTime(1950), lastDate: DateTime.now().subtract(const Duration(days: 6570)));
-                  if (d != null) setState(() => _dob.text = d.toIso8601String().split('T').first);
+                  final d = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime(2000),
+                      firstDate: DateTime(1950),
+                      lastDate:
+                          DateTime.now().subtract(const Duration(days: 6570)));
+                  if (d != null)
+                    setState(
+                        () => _dob.text = d.toIso8601String().split('T').first);
                 },
               ),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _address, style: TextStyle(color: context.colors.txtPrimary),
-                decoration: _field('Address *', hint: 'Full residential address', prefix: const Icon(Icons.home, size: 18)),
+                controller: _address,
+                style: TextStyle(color: context.colors.txtPrimary),
+                decoration: _field('Address *',
+                    hint: 'Full residential address',
+                    prefix: const Icon(Icons.home, size: 18)),
                 maxLines: 2,
-                validator: (v) => (v == null || v.trim().length < 10) ? 'Enter full address (min 10 chars)' : null,
+                validator: (v) => (v == null || v.trim().length < 10)
+                    ? 'Enter full address (min 10 chars)'
+                    : null,
               ),
 
               // ── Identity ────────────────────────────────────────────────────
               _sectionHeader('Identity Document', Icons.credit_card),
-              TextFormField(controller: _aadhaar, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Aadhaar Card Number *', hint: '12-digit number', prefix: const Icon(Icons.credit_card, size: 18)), keyboardType: TextInputType.number, maxLength: 12, validator: _validateAadhaar),
+              TextFormField(
+                  controller: _aadhaar,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('Aadhaar Card Number *',
+                      hint: '12-digit number',
+                      prefix: const Icon(Icons.credit_card, size: 18)),
+                  keyboardType: TextInputType.number,
+                  maxLength: 12,
+                  validator: _validateAadhaar),
               const SizedBox(height: 10),
-              TextFormField(controller: _uan, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('UAN Number', hint: 'Optional 12-digit UAN', prefix: const Icon(Icons.badge, size: 18)), keyboardType: TextInputType.number, maxLength: 12),
+              TextFormField(
+                  controller: _uan,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('UAN Number',
+                      hint: 'Optional 12-digit UAN',
+                      prefix: const Icon(Icons.badge, size: 18)),
+                  keyboardType: TextInputType.number,
+                  maxLength: 12),
 
               // ── Bank Details ────────────────────────────────────────────────
               _sectionHeader('Bank Details', Icons.account_balance),
-              TextFormField(controller: _bank, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Bank Name *', hint: 'e.g. State Bank of India', prefix: const Icon(Icons.account_balance, size: 18)), validator: (v) => (v == null || v.trim().isEmpty) ? 'Bank name is required' : null),
+              TextFormField(
+                  controller: _bank,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('Bank Name *',
+                      hint: 'e.g. State Bank of India',
+                      prefix: const Icon(Icons.account_balance, size: 18)),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Bank name is required'
+                      : null),
               const SizedBox(height: 10),
-              TextFormField(controller: _ifsc, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('IFSC Code *', hint: 'e.g. SBIN0001234', prefix: const Icon(Icons.code, size: 18)), textCapitalization: TextCapitalization.characters, maxLength: 11, validator: _validateIFSC),
+              TextFormField(
+                  controller: _ifsc,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('IFSC Code *',
+                      hint: 'e.g. SBIN0001234',
+                      prefix: const Icon(Icons.code, size: 18)),
+                  textCapitalization: TextCapitalization.characters,
+                  maxLength: 11,
+                  validator: _validateIFSC),
               const SizedBox(height: 10),
-              TextFormField(controller: _account, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Account Number *', hint: '9 to 18 digits', prefix: const Icon(Icons.numbers, size: 18)), keyboardType: TextInputType.number, validator: _validateAccountNo),
+              TextFormField(
+                  controller: _account,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('Account Number *',
+                      hint: '9 to 18 digits',
+                      prefix: const Icon(Icons.numbers, size: 18)),
+                  keyboardType: TextInputType.number,
+                  validator: _validateAccountNo),
               const SizedBox(height: 10),
-              TextFormField(controller: _branch, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Branch Name (optional)', prefix: const Icon(Icons.location_city, size: 18))),
+              TextFormField(
+                  controller: _branch,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('Branch Name (optional)',
+                      prefix: const Icon(Icons.location_city, size: 18))),
 
               // ── Employment ──────────────────────────────────────────────────
               _sectionHeader('Employment Details', Icons.work),
-              TextFormField(controller: _salary, style: TextStyle(color: context.colors.txtPrimary), decoration: _field('Monthly Salary ₹ *', hint: 'e.g. 15000', prefix: const Icon(Icons.currency_rupee, size: 18)), keyboardType: TextInputType.number, validator: _validateSalary),
+              TextFormField(
+                  controller: _salary,
+                  style: TextStyle(color: context.colors.txtPrimary),
+                  decoration: _field('Monthly Salary ₹ *',
+                      hint: 'e.g. 15000',
+                      prefix: const Icon(Icons.currency_rupee, size: 18)),
+                  keyboardType: TextInputType.number,
+                  validator: _validateSalary),
 
               // ── Notes ───────────────────────────────────────────────────────
               _sectionHeader('Additional Notes', Icons.notes),
               TextFormField(
-                controller: _details, style: TextStyle(color: context.colors.txtPrimary),
-                decoration: _field('Guard Details / Notes (optional)', hint: 'Medical conditions, skills, remarks...', prefix: const Icon(Icons.notes, size: 18)),
-                maxLines: 3, maxLength: 500,
+                controller: _details,
+                style: TextStyle(color: context.colors.txtPrimary),
+                decoration: _field('Guard Details / Notes (optional)',
+                    hint: 'Medical conditions, skills, remarks...',
+                    prefix: const Icon(Icons.notes, size: 18)),
+                maxLines: 3,
+                maxLength: 500,
               ),
 
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 icon: _saving
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save),
-                label: Text(widget.existing == null ? 'Add Guard' : 'Save Changes'),
-                style: ElevatedButton.styleFrom(foregroundColor: context.colors.bgBase, backgroundColor: context.colors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                label: Text(
+                    widget.existing == null ? 'Add Guard' : 'Save Changes'),
+                style: ElevatedButton.styleFrom(
+                    foregroundColor: context.colors.bgBase,
+                    backgroundColor: context.colors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: _saving ? null : _save,
               ),
               const SizedBox(height: 8),
@@ -651,40 +921,71 @@ class _GuardCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(30),
               child: SizedBox(
-                width: 60, height: 60,
+                width: 60,
+                height: 60,
                 child: hasPhoto
-                    ? Base64ImageWidget(base64String: guard.photo, fit: BoxFit.cover,
-                        placeholder: Text(guard.name[0].toUpperCase(), style: TextStyle(color: context.colors.primary, fontSize: 22, fontWeight: FontWeight.bold)))
+                    ? Base64ImageWidget(
+                        base64String: guard.photo,
+                        fit: BoxFit.cover,
+                        placeholder: Text(guard.name[0].toUpperCase(),
+                            style: TextStyle(
+                                color: context.colors.primary,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold)))
                     : Container(
                         color: context.colors.primary.withValues(alpha: 0.15),
                         alignment: Alignment.center,
-                        child: Text(guard.name[0].toUpperCase(), style: TextStyle(color: context.colors.primary, fontSize: 22, fontWeight: FontWeight.bold))),
+                        child: Text(guard.name[0].toUpperCase(),
+                            style: TextStyle(
+                                color: context.colors.primary,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold))),
               ),
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text(guard.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: hasPhoto ? context.colors.green.withValues(alpha: 0.15) : context.colors.red.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(hasPhoto ? '✓ Photo' : '✗ No Photo',
-                        style: TextStyle(fontSize: 10, color: hasPhoto ? context.colors.green : context.colors.red, fontWeight: FontWeight.bold)),
-                  ),
-                ]),
-                const SizedBox(height: 4),
-                _info(context, Icons.badge_outlined, guard.empId),
-                _info(context, Icons.phone_outlined, guard.phone.isEmpty ? '—' : guard.phone),
-                _info(context, Icons.currency_rupee, '₹${guard.salary.toStringAsFixed(0)}/month'),
-                if (guard.bankName.isNotEmpty) _info(context, Icons.account_balance_outlined, guard.bankName),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(
+                          child: Text(guard.name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: hasPhoto
+                              ? context.colors.green.withValues(alpha: 0.15)
+                              : context.colors.red.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(hasPhoto ? '✓ Photo' : '✗ No Photo',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: hasPhoto
+                                    ? context.colors.green
+                                    : context.colors.red,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ]),
+                    const SizedBox(height: 4),
+                    _info(context, Icons.badge_outlined, guard.empId),
+                    _info(context, Icons.phone_outlined,
+                        guard.phone.isEmpty ? '—' : guard.phone),
+                    _info(context, Icons.currency_rupee,
+                        '₹${guard.salary.toStringAsFixed(0)}/month'),
+                    if (guard.bankName.isNotEmpty)
+                      _info(context, Icons.account_balance_outlined,
+                          guard.bankName),
+                  ]),
             ),
             Column(children: [
-              IconButton(icon: Icon(Icons.edit_outlined, color: context.colors.primary, size: 20), onPressed: onEdit),
+              IconButton(
+                  icon: Icon(Icons.edit_outlined,
+                      color: context.colors.primary, size: 20),
+                  onPressed: onEdit),
               const SizedBox(height: 12),
               Icon(Icons.chevron_right, color: context.colors.txtMuted),
             ]),
@@ -695,11 +996,14 @@ class _GuardCard extends StatelessWidget {
   }
 
   Widget _info(BuildContext context, IconData icon, String text) => Padding(
-    padding: const EdgeInsets.only(top: 2),
-    child: Row(children: [
-      Icon(icon, size: 12, color: context.colors.txtMuted),
-      const SizedBox(width: 5),
-      Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: context.colors.txtSec), overflow: TextOverflow.ellipsis)),
-    ]),
-  );
+        padding: const EdgeInsets.only(top: 2),
+        child: Row(children: [
+          Icon(icon, size: 12, color: context.colors.txtMuted),
+          const SizedBox(width: 5),
+          Expanded(
+              child: Text(text,
+                  style: TextStyle(fontSize: 12, color: context.colors.txtSec),
+                  overflow: TextOverflow.ellipsis)),
+        ]),
+      );
 }
