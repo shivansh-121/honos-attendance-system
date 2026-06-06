@@ -39,6 +39,11 @@ final todayAttendanceProvider = StreamProvider<List<Attendance>>((ref) {
   return ref.watch(dbProvider).attendanceStreamForDate(today);
 });
 
+final attendanceForDateProvider = StreamProvider.family<List<Attendance>, String>((ref, date) {
+  ref.keepAlive();
+  return ref.watch(dbProvider).attendanceStreamForDate(date);
+});
+
 /// Scoped to a specific guard only — loaded on guard profile screen
 final guardAttendanceProvider = StreamProvider.family<List<Attendance>, String>((ref, guardId) {
   ref.keepAlive();

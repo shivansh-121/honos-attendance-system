@@ -245,7 +245,7 @@ class _SupervisorDashboardScreenState
               ),
               const SizedBox(height: 16),
               InkWell(
-                onTap: () {
+                onTap: () async {
                   if (!isMobileAttendanceDevice) {
                     showMobileAttendanceRequiredDialog(context,
                         isCheckOut: isCheckOut);
@@ -253,7 +253,7 @@ class _SupervisorDashboardScreenState
                   }
                   Navigator.pop(ctx);
                   if (user.siteId.isEmpty) return;
-                  final sites = ref.read(sitesStreamProvider).value ?? [];
+                  final sites = await ref.read(sitesStreamProvider.future);
                   final site = sites.firstWhere((s) => s.id == user.siteId,
                       orElse: () => Site(
                           id: '',

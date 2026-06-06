@@ -129,37 +129,62 @@ class _ExecutiveTakeAttendanceScreenState
             'Mock Location detected. Please disable Fake GPS apps.');
       }
 
-      // Find the closest site
-      final sitesAsync = ref.read(sitesStreamProvider);
-      final sites = sitesAsync.value ?? [];
+      // Await future to ensure sites are loaded
+      final sites = await ref.read(sitesStreamProvider.future);
+      final user = ref.read(authProvider)!;
 
-      Site? nearestSite;
-      double minDistance = double.infinity;
-
-      for (var site in sites) {
-        final dist = Geolocator.distanceBetween(
-            pos.latitude, pos.longitude, site.lat, site.lng);
-        if (dist < minDistance) {
-          minDistance = dist;
-          nearestSite = site;
+      if (user.role.toLowerCase() == 'supervisor') {
+        // STRICT PROTOCOL: Supervisors must be at their assigned site
+        if (user.siteId.isEmpty) {
+          throw Exception('You are not assigned to a site. Please contact Admin.');
         }
-      }
-
-      if (nearestSite != null && minDistance <= nearestSite.radius) {
-        if (mounted) {
-          setState(() {
-            _closestSite = nearestSite;
-            _gpsOk = true;
-          });
+        
+        final assignedSite = sites.firstWhere((s) => s.id == user.siteId, 
+            orElse: () => throw Exception('Assigned site not found in database. Please contact Admin.'));
+            
+        final dist = Geolocator.distanceBetween(
+            pos.latitude, pos.longitude, assignedSite.lat, assignedSite.lng);
+            
+        if (dist <= assignedSite.radius) {
+          if (mounted) {
+            setState(() {
+              _closestSite = assignedSite;
+              _gpsOk = true;
+            });
+          }
+        } else {
+          throw Exception('You are ${dist.toInt()}m from your assigned site (${assignedSite.name}). You must be within ${assignedSite.radius.toInt()}m to check in.');
         }
       } else {
-        if (nearestSite != null) {
-          if (mounted)
-            setState(() => _gpsError =
-                'You are ${minDistance.toInt()}m from ${nearestSite!.name}. Required: within ${nearestSite.radius.toInt()}m.');
+        // STRICT PROTOCOL: Executives can check in at any site
+        Site? nearestSite;
+        double minDistance = double.infinity;
+
+        for (var site in sites) {
+          final dist = Geolocator.distanceBetween(
+              pos.latitude, pos.longitude, site.lat, site.lng);
+          if (dist < minDistance) {
+            minDistance = dist;
+            nearestSite = site;
+          }
+        }
+
+        if (nearestSite != null && minDistance <= nearestSite.radius) {
+          if (mounted) {
+            setState(() {
+              _closestSite = nearestSite;
+              _gpsOk = true;
+            });
+          }
         } else {
-          if (mounted)
-            setState(() => _gpsError = 'No sites found in the system.');
+          if (nearestSite != null) {
+            if (mounted)
+              setState(() => _gpsError =
+                  'You are ${minDistance.toInt()}m from ${nearestSite!.name}. Required: within ${nearestSite.radius.toInt()}m.');
+          } else {
+            if (mounted)
+              setState(() => _gpsError = 'No sites found in the system.');
+          }
         }
       }
     } catch (e) {
