@@ -48,8 +48,9 @@ class ExcelService {
     }).toList();
 
     final excel = Excel.createExcel();
+    excel.rename('Sheet1', 'Central Ledger');
     final sheet = excel['Central Ledger'];
-    excel.delete('Sheet1');
+    excel.setDefaultSheet('Central Ledger');
 
     final monthStr = DateFormat('MMM yyyy').format(month);
     
