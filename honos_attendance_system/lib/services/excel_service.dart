@@ -52,9 +52,7 @@ class ExcelService {
     }).toList();
 
     final excel = Excel.createExcel();
-    excel.rename('Sheet1', 'Central Ledger');
-    final sheet = excel['Central Ledger'];
-    excel.setDefaultSheet('Central Ledger');
+    final sheet = excel['Sheet1'];
 
     final monthStr = DateFormat('MMM yyyy').format(month);
     
@@ -141,7 +139,7 @@ class ExcelService {
       final earnedSalary = (salary / daysInMonth) * daysWorked;
 
       final myAdv = monthAdv.where((a) => a['userId'] == id).toList();
-      final totalAdvances = myAdv.fold(0.0, (sum, item) => sum + (double.tryParse(item['amount'].toString()) ?? 0.0));
+      final totalAdvances = myAdv.fold(0.0, (acc, item) => acc + (double.tryParse(item['amount'].toString()) ?? 0.0));
 
       final netPayable = earnedSalary - totalAdvances;
 
@@ -185,16 +183,18 @@ class ExcelService {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/$fileName');
       await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Monthly Payroll Ledger ($monthStr)',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Monthly Payroll Ledger ($monthStr)',
+        ),
       );
       return null;
     } else {
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         final FileSaveLocation? result = await getSaveLocation(
           suggestedName: fileName,
-          acceptedTypeGroups: [
+          acceptedTypeGroups: const [
             XTypeGroup(
               label: 'Excel',
               extensions: ['xlsx'],

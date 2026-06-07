@@ -8,21 +8,21 @@ void main() async {
 
   final db = FirebaseFirestore.instance;
   
-  print('SUPERVISORS:');
+  debugPrint('SUPERVISORS:');
   final users = await db.collection('users').where('role', isEqualTo: 'supervisor').get();
   for (var d in users.docs) {
-    print('${d.id}: ${d.data()['username']} - siteId: ${d.data()['siteId']}');
+    debugPrint('${d.id}: ${d.data()['username']} - siteId: ${d.data()['siteId']}');
   }
 
-  print('\nGUARDS:');
+  debugPrint('\nGUARDS:');
   final guards = await db.collection('guards').get();
   for (var d in guards.docs) {
-    print('${d.id}: ${d.data()['name']} - siteId: ${d.data()['siteId']} - supervisorId: ${d.data()['supervisorId']}');
+    debugPrint('${d.id}: ${d.data()['name']} - siteId: ${d.data()['siteId']} - supervisorId: ${d.data()['supervisorId']}');
   }
 
-  print('\nSITES:');
+  debugPrint('\nSITES:');
   final sites = await db.collection('sites').get();
   for (var d in sites.docs) {
-    print('${d.id}: ${d.data()['name']}');
+    debugPrint('${d.id}: ${d.data()['name']}');
   }
 }

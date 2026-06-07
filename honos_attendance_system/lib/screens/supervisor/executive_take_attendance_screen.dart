@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +22,7 @@ import '../../services/permission_service.dart';
 import '../../services/camera_service.dart';
 import '../../services/face_match_service.dart';
 import '../../services/mobile_attendance_guard.dart';
+import '../../services/offline_queue_service.dart';
 import 'liveness_detector_widget.dart';
 
 enum _Step { location, liveness, confirmation }
@@ -117,8 +118,9 @@ class _ExecutiveTakeAttendanceScreenState
       if (!gpsEnabled) throw Exception('GPS is disabled. Please turn it on.');
 
       final hasPerms = await PermissionService.requestSupervisorPermissions();
-      if (!hasPerms)
+      if (!hasPerms) {
         throw Exception('Location and Camera permissions are required.');
+      }
 
       Position pos = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.high)
@@ -178,12 +180,14 @@ class _ExecutiveTakeAttendanceScreenState
           }
         } else {
           if (nearestSite != null) {
-            if (mounted)
+            if (mounted) {
               setState(() => _gpsError =
                   'You are ${minDistance.toInt()}m from ${nearestSite!.name}. Required: within ${nearestSite.radius.toInt()}m.');
+            }
           } else {
-            if (mounted)
+            if (mounted) {
               setState(() => _gpsError = 'No sites found in the system.');
+            }
           }
         }
       }
@@ -223,9 +227,11 @@ class _ExecutiveTakeAttendanceScreenState
           photoPath: photoUrl,
           markedAt: now.toIso8601String(),
         );
-        db
-            .saveAttendance(att)
-            .catchError((e) => debugPrint('Exec in error: $e'));
+        try {
+          await db.saveAttendance(att);
+        } catch (e) {
+          await OfflineQueueService.addRecord(att);
+        }
       } else {
         // CHECK OUT
         final existing = _existingRecord!;
@@ -245,9 +251,11 @@ class _ExecutiveTakeAttendanceScreenState
           checkOutPhotoPath: photoUrl,
           checkOutSiteId: _closestSite!.id,
         );
-        db
-            .saveAttendance(updated)
-            .catchError((e) => debugPrint('Exec out error: $e'));
+        try {
+          await db.saveAttendance(updated);
+        } catch (e) {
+          await OfflineQueueService.addRecord(updated);
+        }
       }
 
       if (mounted) {

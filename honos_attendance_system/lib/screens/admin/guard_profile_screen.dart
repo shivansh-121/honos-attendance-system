@@ -228,8 +228,9 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
     return advancesAsync.when(
       data: (allAdvances) {
         final monthAdvances = allAdvances.where((a) {
-          if (a.userId != widget.guard.id || a.userType != 'guard')
+          if (a.userId != widget.guard.id || a.userType != 'guard') {
             return false;
+          }
           final d = DateTime.tryParse(a.date);
           return d != null &&
               d.year == _selectedMonth.year &&

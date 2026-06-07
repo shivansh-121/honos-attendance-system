@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 
 import '../../services/auth_service.dart';
+import '../../providers/view_models_provider.dart';
 import '../../services/db_service.dart';
 import '../../services/background_location_service.dart';
 import '../../services/app_nav.dart';
@@ -101,10 +102,11 @@ class _SupervisorDashboardScreenState
       await ref.read(dbProvider).saveUser(updatedUser);
       ref.read(authProvider.notifier).updateUser(updatedUser);
       _checkPhotoStatus();
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: const Text('Profile picture updated!'),
             backgroundColor: context.colors.green));
+      }
     } catch (e) {
       debugPrint('Error: $e');
     }
@@ -125,10 +127,11 @@ class _SupervisorDashboardScreenState
     } else {
       final hasPerms = await PermissionService.requestSupervisorPermissions();
       if (!hasPerms) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('Permissions required for tracking.'),
               backgroundColor: Colors.red));
+        }
         return;
       }
       toggleTracking(true, user.id);
@@ -263,7 +266,8 @@ class _SupervisorDashboardScreenState
                           lng: 0,
                           radius: 0,
                           supervisorId: user.id));
-                  if (site.id.isNotEmpty && mounted) {
+                  if (!context.mounted) return;
+                  if (site.id.isNotEmpty) {
                     AppNav.push(
                         context,
                         TakeAttendanceScreen(
@@ -333,13 +337,7 @@ class _SupervisorDashboardScreenState
           const ThemeToggleButton(),
           Consumer(
             builder: (context, ref, child) {
-              final notificationsAsync = ref.watch(notificationsStreamProvider);
-              final unreadCount = notificationsAsync.value?.where((n) {
-                    if (n.isRead) return false;
-                    if (n.type == 'edit_request') return false;
-                    return n.supervisorId == user.id || n.guardId == user.id;
-                  }).length ??
-                  0;
+              final unreadCount = ref.watch(unreadNotificationsCountForUserProvider(user.id));
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -396,7 +394,7 @@ class _SupervisorDashboardScreenState
                             .animate()
                             .fadeIn()
                             .slideX(),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Row(
                           children: [
                             Text('SUPERVISOR DASHBOARD',
@@ -415,7 +413,7 @@ class _SupervisorDashboardScreenState
                       borderRadius: BorderRadius.circular(30),
                       child: Container(
                         padding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: _isOnDuty
                               ? context.colors.green.withValues(alpha: 0.2)
@@ -435,7 +433,7 @@ class _SupervisorDashboardScreenState
                                 color: _isOnDuty
                                     ? context.colors.green
                                     : context.colors.txtSec),
-                            SizedBox(width: 6),
+                            const SizedBox(width: 6),
                             Text(_isOnDuty ? 'ON DUTY' : 'OFF DUTY',
                                 style: TextStyle(
                                     fontSize: 10,
@@ -450,7 +448,7 @@ class _SupervisorDashboardScreenState
                   ],
                 ),
 
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
 
                 // Attendance Action
                 Row(
@@ -463,7 +461,7 @@ class _SupervisorDashboardScreenState
                           () =>
                               _showAttendanceActionSheet(context, user, false)),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _buildAttendanceButton(
                           'Check Out',
@@ -475,7 +473,7 @@ class _SupervisorDashboardScreenState
                   ],
                 ).animate().fadeIn(delay: 300.ms).slideY(),
 
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
 
                 // Timeline Card
                 attendanceAsync.when(
@@ -696,8 +694,8 @@ class _SupervisorDashboardScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(24.0),
+            const Padding(
+              padding: EdgeInsets.all(24.0),
               child: Text('HONOS.',
                   style: TextStyle(
                       color: Colors.white,
@@ -751,7 +749,7 @@ class _SupervisorDashboardScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(user.name,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12)),

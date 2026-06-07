@@ -167,13 +167,14 @@ class _ManageSupervisorsScreenState
                           onTap: () async {
                             Navigator.pop(ctx);
                             final updatedUser = u.copyWith(siteId: site.id);
+                            final messenger = ScaffoldMessenger.of(context);
+                            final green = context.colors.green;
                             await ref.read(dbProvider).saveUser(updatedUser);
                             if (mounted) {
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(SnackBar(
+                              messenger.showSnackBar(SnackBar(
                                 content:
                                     Text('${u.name} assigned to ${site.name}'),
-                                backgroundColor: context.colors.green,
+                                backgroundColor: green,
                               ));
                             }
                           },
@@ -227,7 +228,7 @@ class _ManageSupervisorsScreenState
                 ],
               ),
             ),
-            actions: [],
+            actions: const [],
           ),
           SliverToBoxAdapter(
             child: Padding(

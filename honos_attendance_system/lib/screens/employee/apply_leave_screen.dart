@@ -118,9 +118,10 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Error: $e'), backgroundColor: context.colors.red));
+      }
       if (mounted) setState(() => _isSubmitting = false);
     }
   }

@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/background_location_service.dart';
 import 'services/local_push_service.dart';
+import 'services/offline_queue_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/supervisor/sup_dashboard_screen.dart';
 import 'screens/employee/employee_dashboard_screen.dart';
@@ -24,6 +25,7 @@ void main() async {
   try {
     await Hive.initFlutter();
     await Hive.openBox('session');
+    await OfflineQueueService.init();
   } catch (e) {
     debugPrint("Hive error: $e");
   }

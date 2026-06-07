@@ -1,18 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 
 void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   final sites = await FirebaseFirestore.instance.collection('sites').get();
-  print('--- SITES ---');
+  debugPrint('--- SITES ---');
   for (var s in sites.docs) {
-    print('${s.id} : ${s.data()['name']}');
+    debugPrint('${s.id} : ${s.data()['name']}');
   }
   
   final guards = await FirebaseFirestore.instance.collection('guards').get();
-  print('--- GUARDS ---');
+  debugPrint('--- GUARDS ---');
   for (var g in guards.docs) {
-    print('${g.id} : ${g.data()['name']} (SiteID: ${g.data()['siteId']})');
+    debugPrint('${g.id} : ${g.data()['name']} (SiteID: ${g.data()['siteId']})');
   }
 }

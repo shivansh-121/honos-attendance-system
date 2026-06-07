@@ -204,7 +204,7 @@ class PdfService {
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         final FileSaveLocation? result = await getSaveLocation(
           suggestedName: filename,
-          acceptedTypeGroups: [
+          acceptedTypeGroups: const [
             XTypeGroup(label: 'PDF', extensions: ['pdf']),
           ],
         );
@@ -418,7 +418,7 @@ class PdfService {
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         final FileSaveLocation? result = await getSaveLocation(
           suggestedName: filename,
-          acceptedTypeGroups: [
+          acceptedTypeGroups: const [
             XTypeGroup(label: 'PDF', extensions: ['pdf']),
           ],
         );
@@ -438,7 +438,7 @@ class PdfService {
         } else {
           directory = await getDownloadsDirectory();
         }
-        if (directory == null) directory = await getApplicationDocumentsDirectory();
+        directory ??= await getApplicationDocumentsDirectory();
         
         final savePath = '${directory.path}/$filename';
         final file = File(savePath);

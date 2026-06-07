@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -212,7 +211,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
               ],
               titlePadding:
                   const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-              title: Text('Sites & Geofencing',
+              title: const Text('Sites & Geofencing',
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,

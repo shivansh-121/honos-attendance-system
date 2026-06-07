@@ -64,7 +64,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
               ],
               titlePadding:
                   const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-              title: Text('Advances & Salary',
+              title: const Text('Advances & Salary',
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,

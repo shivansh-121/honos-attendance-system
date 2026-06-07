@@ -279,7 +279,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ],
             titlePadding:
                 const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-            title: Text('Reports',
+            title: const Text('Reports',
                 style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -514,7 +514,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 Text(
                                     person is Guard
                                         ? 'Guard • ID: ${person.empId}'
-                                        : '${(person as AppUser).role.replaceAll('_', ' ').toUpperCase()}',
+                                        : (person as AppUser).role.replaceAll('_', ' ').toUpperCase(),
                                     style: TextStyle(
                                         color: context.colors.txtMuted,
                                         fontSize: 12)),
@@ -777,9 +777,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             final double score = (monthPresentCount / daysInMonth) * 100;
 
             Color scoreColor = context.colors.red;
-            if (score >= 80)
+            if (score >= 80) {
               scoreColor = context.colors.green;
-            else if (score >= 50) scoreColor = context.colors.yellow;
+            } else if (score >= 50) {
+              scoreColor = context.colors.yellow;
+            }
 
             return GestureDetector(
               onTap: () {
@@ -956,7 +958,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         label: 'Date Range',
                         icon: Icons.calendar_month,
                         child: DropdownButtonFormField<String>(
-                          value: _selectedFilter,
+                          initialValue: _selectedFilter,
                           dropdownColor: context.colors.bgSurface,
                           iconEnabledColor: context.colors.txtSec,
                           decoration:
@@ -987,7 +989,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           label: 'Personnel',
                           icon: Icons.people_alt,
                           child: DropdownButtonFormField<String>(
-                            value: _userRoleFilter,
+                            initialValue: _userRoleFilter,
                             dropdownColor: context.colors.bgSurface,
                             iconEnabledColor: context.colors.txtSec,
                             decoration:
@@ -1000,8 +1002,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                     value: role, child: Text(role)))
                                 .toList(),
                             onChanged: (value) {
-                              if (value != null)
+                              if (value != null) {
                                 setState(() => _userRoleFilter = value);
+                              }
                             },
                           ),
                         ),

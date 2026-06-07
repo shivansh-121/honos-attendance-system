@@ -100,10 +100,11 @@ class _ExecutiveDashboardScreenState
       await ref.read(dbProvider).saveUser(updatedUser);
       ref.read(authProvider.notifier).updateUser(updatedUser);
       _checkPhotoStatus();
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('Profile picture updated!'),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Profile picture updated!'),
             backgroundColor: NLTheme.accentGreen));
+      }
     } catch (e) {
       debugPrint('Error: $e');
     }
@@ -466,16 +467,16 @@ class _ExecutiveDashboardScreenState
                         Icon(Icons.edit_calendar,
                             color: context.colors.primary, size: 32),
                         const SizedBox(height: 16),
-                        Text('MANUAL ATTENDANCE',
-                            style: const TextStyle(
+                        const Text('MANUAL ATTENDANCE',
+                            style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1)),
                         const SizedBox(height: 4),
-                        Text(
+                        const Text(
                             'Manually check in/out staff without face recognition',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: Colors.white70, fontSize: 12)),
                       ],
                     ),
@@ -668,8 +669,8 @@ class _ExecutiveDashboardScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(24.0),
+            const Padding(
+              padding: EdgeInsets.all(24.0),
               child: Text('HONOS.',
                   style: TextStyle(
                       color: Colors.white,
@@ -755,7 +756,7 @@ class _ExecutiveDashboardScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(user.name,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12)),

@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../services/offline_queue_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:camera/camera.dart';
@@ -95,8 +95,9 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       if (!gpsEnabled) throw Exception('GPS is disabled. Please turn it on.');
 
       final hasPerms = await PermissionService.requestSupervisorPermissions();
-      if (!hasPerms)
+      if (!hasPerms) {
         throw Exception('Location and Camera permissions are required.');
+      }
 
       Position pos = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.high)
@@ -112,9 +113,10 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       if (dist <= widget.site.radius) {
         if (mounted) setState(() => _gpsOk = true);
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() => _gpsError =
               'You are ${dist.toInt()}m from site. Required: within ${widget.site.radius.toInt()}m.');
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _gpsError = e.toString());
@@ -148,7 +150,11 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           checkOutPhotoPath: _livePhotoBase64 ?? '',
         );
 
-        await db.saveAttendance(updatedRecord);
+        try {
+          await db.saveAttendance(updatedRecord);
+        } catch (e) {
+          await OfflineQueueService.addRecord(updatedRecord);
+        }
       } else {
         final record = Attendance(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -164,7 +170,11 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           lng: widget.site.lng,
         );
 
-        await db.saveAttendance(record);
+        try {
+          await db.saveAttendance(record);
+        } catch (e) {
+          await OfflineQueueService.addRecord(record);
+        }
       }
 
       final updatedGuard = _selectedGuard!.copyWith(

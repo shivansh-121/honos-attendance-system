@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/attendance.dart';
+import 'offline_queue_service.dart';
 
 final syncProvider = Provider<SyncService>((ref) => SyncService());
 
@@ -58,8 +59,19 @@ class SyncService {
   }
 
   // --- Attendance Sync (Hive -> Firebase) --- //
+  Future<void> flushOfflineQueue() async {
+    if (!OfflineQueueService.hasPending) return;
 
-  // --- Attendance Sync (Optional, already handled by db_service) --- //
+    final records = OfflineQueueService.getPendingRecords();
+    for (var record in records) {
+      try {
+        await _firestore.collection('attendance').doc(record.id).set(record.toJson());
+        await OfflineQueueService.removeRecord(record.id);
+      } catch (e) {
+        debugPrint("Offline Sync failed for ${record.id}: $e");
+      }
+    }
+  }
 
   Future<void> pushAttendance(Attendance record) async {
     try {

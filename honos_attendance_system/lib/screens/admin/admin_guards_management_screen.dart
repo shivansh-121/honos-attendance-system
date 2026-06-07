@@ -92,7 +92,7 @@ class _AdminGuardsManagementScreenState
               ],
               titlePadding:
                   const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-              title: Text('Guard Management',
+              title: const Text('Guard Management',
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -686,8 +686,9 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
 
   String? _validateIFSC(String? v) {
     if (v == null || v.trim().isEmpty) return 'IFSC is required';
-    if (!RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$').hasMatch(v.trim().toUpperCase()))
+    if (!RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$').hasMatch(v.trim().toUpperCase())) {
       return 'Invalid — e.g. SBIN0001234';
+    }
     return null;
   }
 
@@ -953,9 +954,10 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
                       firstDate: DateTime(1950),
                       lastDate:
                           DateTime.now().subtract(const Duration(days: 6570)));
-                  if (d != null)
+                  if (d != null) {
                     setState(
                         () => _dob.text = d.toIso8601String().split('T').first);
+                  }
                 },
               ),
               const SizedBox(height: 10),

@@ -56,7 +56,7 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
               ],
               titlePadding:
                   const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-              title: Text('Guards Management',
+              title: const Text('Guards Management',
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -247,7 +247,7 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                     child: Center(child: CircularProgressIndicator()))),
             error: (e, __) => SliverToBoxAdapter(
                 child: Padding(
-                    padding: EdgeInsets.all(40),
+                    padding: const EdgeInsets.all(40),
                     child: Center(
                         child: Text('Error: $e',
                             style: TextStyle(color: context.colors.red))))),
@@ -289,22 +289,30 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
           orElse: () => existing);
 
       List<String> changes = [];
-      if (existing.name != newGuard.name)
+      if (existing.name != newGuard.name) {
         changes.add('Name: ${existing.name} -> ${newGuard.name}');
-      if (existing.phone != newGuard.phone)
+      }
+      if (existing.phone != newGuard.phone) {
         changes.add('Phone: ${existing.phone} -> ${newGuard.phone}');
-      if (existing.address != newGuard.address)
+      }
+      if (existing.address != newGuard.address) {
         changes.add('Address: ${existing.address} -> ${newGuard.address}');
-      if (existing.aadharNo != newGuard.aadharNo)
+      }
+      if (existing.aadharNo != newGuard.aadharNo) {
         changes.add('Aadhaar: ${existing.aadharNo} -> ${newGuard.aadharNo}');
-      if (existing.uanNo != newGuard.uanNo)
+      }
+      if (existing.uanNo != newGuard.uanNo) {
         changes.add('UAN: ${existing.uanNo} -> ${newGuard.uanNo}');
-      if (existing.bankName != newGuard.bankName)
+      }
+      if (existing.bankName != newGuard.bankName) {
         changes.add('Bank: ${existing.bankName} -> ${newGuard.bankName}');
-      if (existing.accountNo != newGuard.accountNo)
+      }
+      if (existing.accountNo != newGuard.accountNo) {
         changes.add('Account: ${existing.accountNo} -> ${newGuard.accountNo}');
-      if (existing.ifsc != newGuard.ifsc)
+      }
+      if (existing.ifsc != newGuard.ifsc) {
         changes.add('IFSC: ${existing.ifsc} -> ${newGuard.ifsc}');
+      }
 
       if (changes.isNotEmpty) {
         final notif = AppNotification(
@@ -775,9 +783,10 @@ class _GuardFormSheetState extends State<_GuardFormSheet> {
                       firstDate: DateTime(1950),
                       lastDate:
                           DateTime.now().subtract(const Duration(days: 6570)));
-                  if (d != null)
+                  if (d != null) {
                     setState(
                         () => _dob.text = d.toIso8601String().split('T').first);
+                  }
                 },
               ),
               const SizedBox(height: 10),

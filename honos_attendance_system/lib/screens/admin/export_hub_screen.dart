@@ -330,69 +330,72 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
                   },
                 ),
         ),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: context.colors.bgSurface,
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  offset: const Offset(0, -4),
-                  blurRadius: 10)
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 54,
-                  child: ElevatedButton.icon(
-                    onPressed: (_isExportingPdf || _selectedPdfUser == null)
-                        ? null
-                        : () => _exportPdf(false),
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: context.colors.bgBase,
-                      backgroundColor: context.colors.primary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                    ),
-                    icon: _isExportingPdf
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.download),
-                    label: Text(
-                        _isExportingPdf ? 'Generating...' : 'Download',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ),
-              if (Platform.isAndroid || Platform.isIOS) ...[
-                const SizedBox(width: 16),
+        SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            decoration: BoxDecoration(
+              color: context.colors.bgSurface,
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    offset: const Offset(0, -4),
+                    blurRadius: 10)
+              ],
+            ),
+            child: Row(
+              children: [
                 Expanded(
                   child: SizedBox(
                     height: 54,
                     child: ElevatedButton.icon(
-                      onPressed: (_isExportingPdf || _selectedPdfUser == null) ? null : () => _exportPdf(true),
+                      onPressed: (_isExportingPdf || _selectedPdfUser == null)
+                          ? null
+                          : () => _exportPdf(false),
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: context.colors.primary,
-                        backgroundColor: context.colors.bgSurface,
+                        foregroundColor: context.colors.bgBase,
+                        backgroundColor: context.colors.primary,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: context.colors.primary, width: 2)),
+                            borderRadius: BorderRadius.circular(16)),
                       ),
-                      icon: const Icon(Icons.share),
-                      label: const Text('Share',
-                          style: TextStyle(
+                      icon: _isExportingPdf
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.download),
+                      label: Text(
+                          _isExportingPdf ? 'Generating...' : 'Download',
+                          style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),
+                if (Platform.isAndroid || Platform.isIOS) ...[
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: SizedBox(
+                      height: 54,
+                      child: ElevatedButton.icon(
+                        onPressed: (_isExportingPdf || _selectedPdfUser == null) ? null : () => _exportPdf(true),
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: context.colors.primary,
+                          backgroundColor: context.colors.bgSurface,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: context.colors.primary, width: 2)),
+                        ),
+                        icon: const Icon(Icons.share),
+                        label: const Text('Share',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],
@@ -506,10 +509,11 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
             backgroundColor: context.colors.primary));
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Failed to export: $e'),
             backgroundColor: context.colors.red));
+      }
     } finally {
       if (mounted) setState(() => _isExportingExcel = false);
     }
@@ -591,10 +595,11 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
             backgroundColor: context.colors.primary));
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Failed to export: $e'),
             backgroundColor: context.colors.red));
+      }
     } finally {
       if (mounted) setState(() => _isExportingPdf = false);
     }

@@ -15,6 +15,7 @@ import '../supervisor/reports_screen.dart';
 import 'admin_leaves_screen.dart';
 import 'admin_guards_management_screen.dart';
 import 'admin_advances_screen.dart';
+import '../../providers/view_models_provider.dart';
 import 'notifications_screen.dart';
 import 'admin_manual_attendance_screen.dart';
 import 'export_hub_screen.dart';
@@ -40,7 +41,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);
-    final leavesAsync = ref.watch(leavesStreamProvider);
 
     if (user == null) return const Scaffold();
 
@@ -142,11 +142,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     Expanded(
                         child: _buildStatSquare(
                                 'Pending\nLeaves',
-                                leavesAsync.value
-                                        ?.where((l) => l.status == 'pending')
-                                        .length
-                                        .toString() ??
-                                    '-',
+                                ref.watch(pendingLeavesCountProvider).toString(),
                                 'Review',
                                 context.colors.red.withValues(alpha: 0.1))
                             .animate()
@@ -327,16 +323,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         Icon(Icons.edit_calendar,
                             color: context.colors.primary, size: 32),
                         const SizedBox(height: 16),
-                        Text('MANUAL ATTENDANCE',
-                            style: const TextStyle(
+                        const Text('MANUAL ATTENDANCE',
+                            style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1)),
                         const SizedBox(height: 4),
-                        Text(
+                        const Text(
                             'Manually check in/out staff without face recognition',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: Colors.white70, fontSize: 12)),
                       ],
                     ),
@@ -493,8 +489,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 8),
               child: Text('HONOS.',
                   style: TextStyle(
                       color: Colors.white,
@@ -616,7 +612,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(user.name,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13),

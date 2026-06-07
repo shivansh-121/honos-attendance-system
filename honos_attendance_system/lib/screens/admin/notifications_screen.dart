@@ -484,8 +484,9 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                                           .read(dbProvider)
                                           .saveNotification(reply);
                                     } finally {
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _isProcessing = false);
+                                      }
                                     }
                                   },
                             child: const Text('Reject',
@@ -584,8 +585,9 @@ class _NotificationCardState extends ConsumerState<_NotificationCard> {
                                             .saveNotification(reply);
                                       }
                                     } finally {
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _isProcessing = false);
+                                      }
                                     }
                                   },
                             child: const Text('Approve',

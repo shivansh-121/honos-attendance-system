@@ -34,7 +34,7 @@ class AdminLeavesScreen extends ConsumerWidget {
               ],
               titlePadding:
                   const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-              title: Text('Leave Requests',
+              title: const Text('Leave Requests',
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -162,10 +162,12 @@ class AdminLeavesScreen extends ConsumerWidget {
                       final isPending = leave.status == 'pending';
 
                       Color statusColor = context.colors.yellow;
-                      if (leave.status == 'approved')
+                      if (leave.status == 'approved') {
                         statusColor = context.colors.green;
-                      if (leave.status == 'declined')
+                      }
+                      if (leave.status == 'declined') {
                         statusColor = context.colors.red;
+                      }
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -382,13 +384,14 @@ class AdminLeavesScreen extends ConsumerWidget {
                                             .catchError((e) =>
                                                 debugPrint(e.toString()));
 
-                                        if (context.mounted)
+                                        if (context.mounted) {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(SnackBar(
                                                   content: const Text(
                                                       'Leave Declined'),
                                                   backgroundColor:
                                                       context.colors.red));
+                                        }
                                       },
                                       label: const Text('Decline',
                                           style: TextStyle(
@@ -432,13 +435,14 @@ class AdminLeavesScreen extends ConsumerWidget {
                                             .catchError((e) =>
                                                 debugPrint(e.toString()));
 
-                                        if (context.mounted)
+                                        if (context.mounted) {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(SnackBar(
                                                   content: const Text(
                                                       'Leave Approved'),
                                                   backgroundColor:
                                                       context.colors.green));
+                                        }
                                       },
                                       label: const Text('Approve',
                                           style: TextStyle(

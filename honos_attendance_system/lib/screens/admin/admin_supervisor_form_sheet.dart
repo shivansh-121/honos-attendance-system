@@ -126,9 +126,11 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
     setState(() {
       if (type == 'photo') {
         _photoBytes = b64;
-      } else if (type == 'aadhaar')
+      } else if (type == 'aadhaar') {
         _aadhaarBytes = b64;
-      else if (type == 'passbook') _passbookBytes = b64;
+      } else if (type == 'passbook') {
+        _passbookBytes = b64;
+      }
     });
   }
 
@@ -213,22 +215,30 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
       List<String> changes = [];
       if (widget.existing != null) {
         final e = widget.existing!;
-        if (e.name != _name.text.trim())
+        if (e.name != _name.text.trim()) {
           changes.add('Name: ${e.name} -> ${_name.text.trim()}');
-        if (e.phone != _phone.text.trim())
+        }
+        if (e.phone != _phone.text.trim()) {
           changes.add('Phone: ${e.phone} -> ${_phone.text.trim()}');
-        if (e.address != _address.text.trim())
+        }
+        if (e.address != _address.text.trim()) {
           changes.add('Address: ${e.address} -> ${_address.text.trim()}');
-        if (e.aadharNo != _aadhaar.text.trim())
+        }
+        if (e.aadharNo != _aadhaar.text.trim()) {
           changes.add('Aadhaar: ${e.aadharNo} -> ${_aadhaar.text.trim()}');
-        if (e.uanNo != _uan.text.trim())
+        }
+        if (e.uanNo != _uan.text.trim()) {
           changes.add('UAN: ${e.uanNo} -> ${_uan.text.trim()}');
-        if (e.bankName != _bank.text.trim())
+        }
+        if (e.bankName != _bank.text.trim()) {
           changes.add('Bank: ${e.bankName} -> ${_bank.text.trim()}');
-        if (e.accountNo != _account.text.trim())
+        }
+        if (e.accountNo != _account.text.trim()) {
           changes.add('Account: ${e.accountNo} -> ${_account.text.trim()}');
-        if (e.ifsc != _ifsc.text.trim())
+        }
+        if (e.ifsc != _ifsc.text.trim()) {
           changes.add('IFSC: ${e.ifsc} -> ${_ifsc.text.trim()}');
+        }
       } else {
         changes.add('New ${widget.role} created.');
       }
@@ -442,9 +452,10 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
                       initialDate: DateTime(2000),
                       firstDate: DateTime(1950),
                       lastDate: DateTime.now());
-                  if (d != null)
+                  if (d != null) {
                     setState(
                         () => _dob.text = d.toIso8601String().split('T').first);
+                  }
                 },
               ),
               const SizedBox(height: 10),
@@ -574,9 +585,10 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const MapPickerScreen()));
-                  if (result != null)
+                  if (result != null) {
                     setState(
                         () => _customSiteLoc = result as Map<String, dynamic>);
+                  }
                 },
               ),
 

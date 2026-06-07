@@ -45,10 +45,11 @@ class _EmployeeDashboardScreenState
         await picker.pickImage(source: ImageSource.camera, maxWidth: 600);
     if (xfile == null) return;
 
-    if (mounted)
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Processing photo...'),
           backgroundColor: NLTheme.accentGreen));
+    }
 
     try {
       final bytes = await xfile.readAsBytes();
@@ -84,14 +85,16 @@ class _EmployeeDashboardScreenState
 
       await ref.read(dbProvider).saveUser(updatedUser);
       ref.read(authProvider.notifier).updateUser(updatedUser);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Profile picture updated!'),
             backgroundColor: NLTheme.accentGreen));
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -308,8 +311,8 @@ class _EmployeeDashboardScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(24.0),
+            const Padding(
+              padding: EdgeInsets.all(24.0),
               child: Text('HONOS.',
                   style: TextStyle(
                       color: Colors.white,
@@ -362,7 +365,7 @@ class _EmployeeDashboardScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(user.name,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12)),
@@ -503,7 +506,7 @@ class _EmployeeDashboardScreenState
           const SizedBox(height: 20),
           if (leaves.isEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: Center(
                   child: Text('No leave requests.',
                       style: TextStyle(color: context.colors.txtSec))),
@@ -562,7 +565,7 @@ class _EmployeeDashboardScreenState
                   ],
                 ),
               );
-            }).toList(),
+            }),
         ],
       ),
     );

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +21,7 @@ import '../../services/permission_service.dart';
 import '../../services/camera_service.dart';
 import '../../services/face_match_service.dart';
 import '../../services/mobile_attendance_guard.dart';
+import '../../services/offline_queue_service.dart';
 import '../supervisor/liveness_detector_widget.dart';
 
 enum _Step { location, liveness, confirmation }
@@ -126,8 +126,9 @@ class _EmployeeTakeAttendanceScreenState
       if (!gpsEnabled) throw Exception('GPS is disabled. Please turn it on.');
 
       final hasPerms = await PermissionService.requestSupervisorPermissions();
-      if (!hasPerms)
+      if (!hasPerms) {
         throw Exception('Location and Camera permissions are required.');
+      }
 
       Position pos = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.high)
@@ -199,9 +200,11 @@ class _EmployeeTakeAttendanceScreenState
           photoPath: photoUrl,
           markedAt: now.toIso8601String(),
         );
-        db
-            .saveAttendance(att)
-            .catchError((e) => debugPrint('Att in error: $e'));
+        try {
+          await db.saveAttendance(att);
+        } catch (e) {
+          await OfflineQueueService.addRecord(att);
+        }
       } else {
         // CHECK OUT
         final existing = _existingRecord!;
@@ -220,9 +223,11 @@ class _EmployeeTakeAttendanceScreenState
           checkOutTime: time,
           checkOutPhotoPath: photoUrl,
         );
-        db
-            .saveAttendance(updated)
-            .catchError((e) => debugPrint('Att out error: $e'));
+        try {
+          await db.saveAttendance(updated);
+        } catch (e) {
+          await OfflineQueueService.addRecord(updated);
+        }
       }
 
       if (mounted) {
@@ -481,7 +486,7 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
   bool _busy = false;
   String _msg = 'Ready...';
   bool _blinked = false;
-  CameraLensDirection _currentDirection = CameraLensDirection.front;
+  final CameraLensDirection _currentDirection = CameraLensDirection.front;
 
   @override
   void initState() {

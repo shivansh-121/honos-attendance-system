@@ -154,8 +154,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final localUser = ref.watch(authProvider);
-    if (localUser == null)
+    if (localUser == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     final usersAsync = ref.watch(usersStreamProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);

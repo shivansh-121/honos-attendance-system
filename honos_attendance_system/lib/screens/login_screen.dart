@@ -57,42 +57,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final logoSize = (screenHeight * 0.09).clamp(50.0, 80.0);
     return Scaffold(
       backgroundColor: context.colors.bgBase,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-            decoration: BoxDecoration(
-              color: context.colors.bgSurface,
-              borderRadius: BorderRadius.circular(32),
-              boxShadow: [
-                BoxShadow(
-                    color: context.colors.bord,
-                    blurRadius: 20,
-                    offset: const Offset(0, 10))
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Logo
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: context.colors.bord),
-                  ),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    height: 70,
-                    fit: BoxFit.contain,
-                  ),
-                ).animate().fadeIn(duration: 800.ms).scale(
-                    begin: const Offset(0.7, 0.7), curve: Curves.elasticOut),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+              decoration: BoxDecoration(
+                color: context.colors.bgSurface,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                      color: context.colors.bord,
+                      blurRadius: 20,
+                      offset: const Offset(0, 10))
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Logo
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: context.colors.bord),
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: logoSize,
+                      width: logoSize * 2,
+                      fit: BoxFit.contain,
+                    ),
+                  ).animate().fadeIn(duration: 800.ms).scale(
+                      begin: const Offset(0.7, 0.7), curve: Curves.elasticOut),
+
 
                 const SizedBox(height: 28),
                 Text('HONOS',
@@ -200,6 +205,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }

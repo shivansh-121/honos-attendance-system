@@ -23,7 +23,7 @@ class AdminManualAttendanceScreen extends ConsumerStatefulWidget {
 class _AdminManualAttendanceScreenState
     extends ConsumerState<AdminManualAttendanceScreen> {
   String _searchQuery = '';
-  DateTime _selectedDate = DateTime.now();
+  final DateTime _selectedDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +274,9 @@ class _ManualAttendanceFormState extends ConsumerState<_ManualAttendanceForm> {
                                 surface: context.colors.bgSurface,
                                 onSurface: context.colors.txtPrimary,
                               ),
-                              dialogBackgroundColor: context.colors.bgSurface,
+                              dialogTheme: DialogThemeData(
+                                backgroundColor: context.colors.bgSurface,
+                              ),
                             ),
                             child: child!,
                           );
