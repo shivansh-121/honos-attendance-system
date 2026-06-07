@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -36,6 +37,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(sitesStreamProvider);
     return Scaffold(
       backgroundColor: context.colors.bgBase,
       appBar: AppBar(
@@ -152,31 +154,56 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
             ),
           ),
           const SizedBox(height: 40),
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton.icon(
-              onPressed: _isExportingExcel ? null : _exportExcel,
-              style: ElevatedButton.styleFrom(
-                foregroundColor: context.colors.bgBase,
-                backgroundColor: context.colors.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: _isExportingExcel ? null : () => _exportExcel(false),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: context.colors.bgBase,
+                      backgroundColor: context.colors.primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    icon: _isExportingExcel
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.download),
+                    label: Text(
+                        _isExportingExcel ? 'Generating...' : 'Download',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
               ),
-              icon: _isExportingExcel
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.download),
-              label: Text(
-                  _isExportingExcel
-                      ? 'Generating Ledger...'
-                      : 'Download Excel Ledger',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
+              if (Platform.isAndroid || Platform.isIOS) ...[
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 54,
+                    child: ElevatedButton.icon(
+                      onPressed: _isExportingExcel ? null : () => _exportExcel(true),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: context.colors.primary,
+                        backgroundColor: context.colors.bgSurface,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: context.colors.primary, width: 2)),
+                      ),
+                      icon: const Icon(Icons.share),
+                      label: const Text('Share',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -314,31 +341,58 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
                   blurRadius: 10)
             ],
           ),
-          child: SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton.icon(
-              onPressed: (_isExportingPdf || _selectedPdfUser == null)
-                  ? null
-                  : _exportPdf,
-              style: ElevatedButton.styleFrom(
-                foregroundColor: context.colors.bgBase,
-                backgroundColor: context.colors.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: (_isExportingPdf || _selectedPdfUser == null)
+                        ? null
+                        : () => _exportPdf(false),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: context.colors.bgBase,
+                      backgroundColor: context.colors.primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    icon: _isExportingPdf
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.download),
+                    label: Text(
+                        _isExportingPdf ? 'Generating...' : 'Download',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
               ),
-              icon: _isExportingPdf
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf),
-              label: Text(
-                  _isExportingPdf ? 'Generating PDF...' : 'Download PDF',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
+              if (Platform.isAndroid || Platform.isIOS) ...[
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 54,
+                    child: ElevatedButton.icon(
+                      onPressed: (_isExportingPdf || _selectedPdfUser == null) ? null : () => _exportPdf(true),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: context.colors.primary,
+                        backgroundColor: context.colors.bgSurface,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: context.colors.primary, width: 2)),
+                      ),
+                      icon: const Icon(Icons.share),
+                      label: const Text('Share',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -419,7 +473,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
     );
   }
 
-  Future<void> _exportExcel() async {
+  Future<void> _exportExcel(bool share) async {
     if (!_includeGuards &&
         !_includeSupervisors &&
         !_includeExecutives &&
@@ -435,7 +489,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
       final guards = ref.read(guardsStreamProvider).value ?? [];
       final users = ref.read(usersStreamProvider).value ?? [];
 
-      await ExcelService.exportCentralLedger(
+      final savePath = await ExcelService.exportCentralLedger(
         month: _excelMonth,
         allGuards: guards,
         allUsers: users,
@@ -443,7 +497,14 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         includeSupervisors: _includeSupervisors,
         includeExecutives: _includeExecutives,
         includeEmployees: _includeEmployees,
+        share: share,
       );
+
+      if (!share && savePath != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Ledger saved to: $savePath'),
+            backgroundColor: context.colors.primary));
+      }
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -454,7 +515,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
     }
   }
 
-  Future<void> _exportPdf() async {
+  Future<void> _exportPdf(bool share) async {
     if (_selectedPdfUser == null) return;
 
     setState(() => _isExportingPdf = true);
@@ -501,24 +562,33 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
       final users = ref.read(usersStreamProvider).value ?? [];
       final userNames = {for (var u in users) u.id: u.name};
 
+      String? savePath;
       if (isGuard) {
-        await PdfService.generateAndPrintGuardReport(
+        savePath = await PdfService.generateAndPrintGuardReport(
           guard: _selectedPdfUser as Guard,
           month: _pdfMonth,
           attendanceRecords: records,
           siteNames: siteNames,
           supervisorNames: userNames,
           monthAdvances: advances,
+          share: share,
         );
       } else {
-        await PdfService.generateAndPrintSupervisorReport(
+        savePath = await PdfService.generateAndPrintSupervisorReport(
           supervisor: _selectedPdfUser as AppUser,
           month: _pdfMonth,
           attendanceRecords: records,
           siteNames: siteNames,
           supervisorNames: userNames,
           monthAdvances: advances,
+          share: share,
         );
+      }
+
+      if (!share && savePath != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Report saved to: $savePath'),
+            backgroundColor: context.colors.primary));
       }
     } catch (e) {
       if (mounted)

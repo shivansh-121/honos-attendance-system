@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 
@@ -10,7 +13,7 @@ import '../models/app_user.dart';
 import '../models/guard.dart';
 
 class ExcelService {
-  static Future<void> exportCentralLedger({
+  static Future<String?> exportCentralLedger({
     required DateTime month,
     required List<Guard> allGuards,
     required List<AppUser> allUsers,
@@ -18,6 +21,7 @@ class ExcelService {
     required bool includeSupervisors,
     required bool includeExecutives,
     required bool includeEmployees,
+    bool share = true,
   }) async {
     final db = FirebaseFirestore.instance;
 
@@ -28,7 +32,7 @@ class ExcelService {
     final allAdvances = advancesSnap.docs.map((d) => d.data()).toList();
 
     final monthAtt = allRecords.where((a) {
-      final dateStr = a['markedAt'] as String? ?? '';
+      final dateStr = (a['markedAt']?.toString() ?? a['date']?.toString()) ?? '';
       try {
         final d = DateTime.parse(dateStr);
         return d.year == month.year && d.month == month.month;
@@ -174,16 +178,44 @@ class ExcelService {
     final bytes = excel.encode();
     if (bytes == null) throw Exception("Failed to encode Excel file");
 
-    final dir = await getTemporaryDirectory();
     final currentDate = DateFormat('yyyy_MM_dd').format(DateTime.now());
     final fileName = 'Central_Ledger_$currentDate.xlsx';
-    final file = File('${dir.path}/$fileName');
-    
-    await file.writeAsBytes(bytes);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Monthly Payroll Ledger ($monthStr)',
-    );
+    if (share) {
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Monthly Payroll Ledger ($monthStr)',
+      );
+      return null;
+    } else {
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        final FileSaveLocation? result = await getSaveLocation(
+          suggestedName: fileName,
+          acceptedTypeGroups: [
+            XTypeGroup(
+              label: 'Excel',
+              extensions: ['xlsx'],
+            ),
+          ],
+        );
+
+        if (result == null) {
+          return null; // User canceled the picker
+        }
+
+        final file = File(result.path);
+        final savePath = result.path;
+        await file.writeAsBytes(bytes);
+        return savePath;
+      } else {
+        final uint8Bytes = Uint8List.fromList(bytes);
+        final params = SaveFileDialogParams(data: uint8Bytes, fileName: fileName);
+        final filePath = await FlutterFileDialog.saveFile(params: params);
+        return filePath;
+      }
+    }
   }
 }

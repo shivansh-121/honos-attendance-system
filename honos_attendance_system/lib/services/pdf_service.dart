@@ -1,21 +1,26 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import '../models/guard.dart';
 import '../models/attendance.dart';
 import '../models/app_user.dart';
 import '../models/advance.dart';
 
 class PdfService {
-  static Future<void> generateAndPrintGuardReport({
+  static Future<String?> generateAndPrintGuardReport({
     required Guard guard,
     required DateTime month,
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
     List<Advance> monthAdvances = const [],
+    bool share = true,
   }) async {
     final pdf = pw.Document();
 
@@ -192,16 +197,37 @@ class PdfService {
     final bytes = await pdf.save();
     final filename = '${guard.name.replaceAll(' ', '_')}_Report_${DateFormat('MMM_yyyy').format(month)}.pdf';
     
-    await Printing.sharePdf(bytes: bytes, filename: filename);
+    if (share) {
+      await Printing.sharePdf(bytes: bytes, filename: filename);
+      return null;
+    } else {
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        final FileSaveLocation? result = await getSaveLocation(
+          suggestedName: filename,
+          acceptedTypeGroups: [
+            XTypeGroup(label: 'PDF', extensions: ['pdf']),
+          ],
+        );
+        if (result == null) return null;
+        final file = File(result.path);
+        await file.writeAsBytes(bytes);
+        return result.path;
+      } else {
+        final params = SaveFileDialogParams(data: bytes, fileName: filename);
+        final filePath = await FlutterFileDialog.saveFile(params: params);
+        return filePath;
+      }
+    }
   }
 
-  static Future<void> generateAndPrintSupervisorReport({
+  static Future<String?> generateAndPrintSupervisorReport({
     required AppUser supervisor,
     required DateTime month,
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
     List<Advance> monthAdvances = const [],
+    bool share = true,
   }) async {
     final pdf = pw.Document();
 
@@ -352,7 +378,12 @@ class PdfService {
             pw.SizedBox(height: 12),
 
             // Table
-            _buildAttendanceTable(attendanceRecords, siteNames, supervisorNames),
+            _buildAttendanceTable(
+              attendanceRecords, 
+              siteNames, 
+              supervisorNames,
+              showSupervisorColumn: supervisor.role.trim().toLowerCase() != 'executive' && supervisor.role.trim().toLowerCase() != 'employee' && supervisor.role.trim().toLowerCase() != 'office_employee',
+            ),
 
             pw.SizedBox(height: 28),
             pw.Divider(color: PdfColor.fromHex('#b0bec5'), thickness: 1.5),
@@ -380,10 +411,44 @@ class PdfService {
     final bytes = await pdf.save();
     final filename = '${supervisor.name.replaceAll(' ', '_')}_Report_${DateFormat('MMM_yyyy').format(month)}.pdf';
     
-    await Printing.sharePdf(bytes: bytes, filename: filename);
+    if (share) {
+      await Printing.sharePdf(bytes: bytes, filename: filename);
+      return null;
+    } else {
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        final FileSaveLocation? result = await getSaveLocation(
+          suggestedName: filename,
+          acceptedTypeGroups: [
+            XTypeGroup(label: 'PDF', extensions: ['pdf']),
+          ],
+        );
+        if (result == null) return null;
+        final file = File(result.path);
+        await file.writeAsBytes(bytes);
+        return result.path;
+      } else {
+        Directory? directory;
+        if (Platform.isAndroid) {
+          directory = Directory('/storage/emulated/0/Download');
+          if (!await directory.exists()) {
+            directory = Directory('/storage/emulated/0/Downloads');
+          }
+        } else if (Platform.isIOS) {
+          directory = await getApplicationDocumentsDirectory();
+        } else {
+          directory = await getDownloadsDirectory();
+        }
+        if (directory == null) directory = await getApplicationDocumentsDirectory();
+        
+        final savePath = '${directory.path}/$filename';
+        final file = File(savePath);
+        await file.writeAsBytes(bytes);
+        return savePath;
+      }
+    }
   }
 
-  static pw.Widget _buildAttendanceTable(List<Attendance> records, Map<String, String> siteNames, Map<String, String> supervisorNames) {
+  static pw.Widget _buildAttendanceTable(List<Attendance> records, Map<String, String> siteNames, Map<String, String> supervisorNames, {bool showSupervisorColumn = true}) {
     if (records.isEmpty) {
       return pw.Container(
         padding: const pw.EdgeInsets.all(24),
@@ -396,11 +461,26 @@ class PdfService {
       );
     }
 
-    final headers = ['Date', 'Site', 'Supervisor', 'Check In', 'Check Out', 'Status', 'Hours'];
+    final headers = ['Date', 'Site'];
+    if (showSupervisorColumn) headers.add('Supervisor');
+    headers.addAll(['Check In', 'Check Out', 'Status', 'Hours']);
 
     final data = records.map((a) {
       final date = DateTime.tryParse(a.markedAt) ?? DateTime.tryParse(a.date) ?? DateTime.now();
-      final site = siteNames[a.siteId] ?? 'Unknown Site';
+      
+      String displaySite = siteNames[a.siteId] ?? '';
+      if (displaySite.isEmpty) {
+        if (a.siteId == 'admin_manual') {
+          displaySite = 'Manual Entry';
+        } else if (a.siteId.toLowerCase().contains('main') || a.siteId.toLowerCase().contains('office')) {
+          displaySite = 'Main Office';
+        } else if (a.siteId.length < 20) {
+          displaySite = a.siteId; // Could be a custom short name
+        } else {
+          displaySite = 'Unknown/Deleted Site';
+        }
+      }
+
       final supervisor = supervisorNames[a.supervisorId] ?? 'Unknown';
       final checkIn = a.time.isNotEmpty ? a.time : '--';
       
@@ -424,16 +504,40 @@ class PdfService {
 
       final hoursStr = hoursValue > 0 ? '${hoursValue.toStringAsFixed(1)} h' : '--';
 
-      return [
+      final row = [
         DateFormat('dd MMM yyyy').format(date),
-        site,
-        supervisor,
+        displaySite,
+      ];
+      if (showSupervisorColumn) row.add(supervisor);
+      row.addAll([
         checkIn,
         checkOut,
         a.status.toUpperCase(),
         hoursStr,
-      ];
+      ]);
+
+      return row;
     }).toList();
+
+    Map<int, pw.Alignment> alignments = {};
+    int index = 0;
+    alignments[index++] = pw.Alignment.centerLeft; // Date
+    alignments[index++] = pw.Alignment.centerLeft; // Site
+    if (showSupervisorColumn) alignments[index++] = pw.Alignment.centerLeft; // Supervisor
+    alignments[index++] = pw.Alignment.center; // Check In
+    alignments[index++] = pw.Alignment.center; // Check Out
+    alignments[index++] = pw.Alignment.center; // Status
+    alignments[index++] = pw.Alignment.center; // Hours
+
+    Map<int, pw.TableColumnWidth> colWidths = {};
+    int cIndex = 0;
+    colWidths[cIndex++] = const pw.FlexColumnWidth(2.5); // Date
+    colWidths[cIndex++] = const pw.FlexColumnWidth(3.0); // Site
+    if (showSupervisorColumn) colWidths[cIndex++] = const pw.FlexColumnWidth(2.5); // Supervisor
+    colWidths[cIndex++] = const pw.FlexColumnWidth(2.0); // Check In
+    colWidths[cIndex++] = const pw.FlexColumnWidth(2.0); // Check Out
+    colWidths[cIndex++] = const pw.FlexColumnWidth(2.5); // Status
+    colWidths[cIndex++] = const pw.FlexColumnWidth(2.0); // Hours
 
     return pw.TableHelper.fromTextArray(
       headers: headers,
@@ -445,15 +549,8 @@ class PdfService {
       oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#f1f8ff')),
       cellStyle: const pw.TextStyle(fontSize: 10, color: PdfColors.black),
       cellHeight: 28,
-      cellAlignments: {
-        0: pw.Alignment.centerLeft,
-        1: pw.Alignment.centerLeft,
-        2: pw.Alignment.centerLeft,
-        3: pw.Alignment.center,
-        4: pw.Alignment.center,
-        5: pw.Alignment.center,
-        6: pw.Alignment.centerRight,
-      },
+      cellAlignments: alignments,
+      columnWidths: colWidths,
     );
   }
 

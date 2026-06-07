@@ -189,6 +189,70 @@ class DbService {
   }
 
   Future<void> saveAttendance(Attendance record) async {
+    final now = DateTime.now();
+
+    if (record.checkOutTime.isEmpty) {
+      // Check-In deduplication logic: only 1 check-in allowed per 8 hours
+      final snapshot = await _firestore
+          .collection('attendance')
+          .where('guardId', isEqualTo: record.guardId)
+          .where('date', isEqualTo: record.date)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final existingRecords = snapshot.docs.map((d) => Attendance.fromJson(d.data())).toList();
+        existingRecords.sort((a, b) => a.time.compareTo(b.time));
+        final earliestRecord = existingRecords.first;
+
+        try {
+          final timeParts = earliestRecord.time.split(':');
+          final earliestTime = DateTime(
+            now.year, now.month, now.day,
+            int.parse(timeParts[0]),
+            int.parse(timeParts[1]),
+          );
+
+          final recordParts = record.time.split(':');
+          final recordTime = DateTime(
+            now.year, now.month, now.day,
+            int.parse(recordParts[0]),
+            int.parse(recordParts[1]),
+          );
+
+          final diff = recordTime.difference(earliestTime).inMinutes;
+          // If within 8 hours (480 mins), silently drop this new check-in
+          if (diff >= 0 && diff < 480) {
+            return;
+          }
+        } catch (_) {}
+      }
+    } else {
+      // Check-Out logic: ensure we only overwrite with a LATER time
+      final docSnap = await _firestore.collection('attendance').doc(record.id).get();
+      if (docSnap.exists) {
+        final existing = Attendance.fromJson(docSnap.data()!);
+        if (existing.checkOutTime.isNotEmpty && record.checkOutTime.isNotEmpty) {
+          try {
+            final eParts = existing.checkOutTime.split(':');
+            final rParts = record.checkOutTime.split(':');
+            var eTime = DateTime(2000, 1, 1, int.parse(eParts[0]), int.parse(eParts[1]));
+            var rTime = DateTime(2000, 1, 1, int.parse(rParts[0]), int.parse(rParts[1]));
+
+            final inParts = existing.time.split(':');
+            final inTime = DateTime(2000, 1, 1, int.parse(inParts[0]), int.parse(inParts[1]));
+
+            if (eTime.isBefore(inTime)) eTime = eTime.add(const Duration(days: 1));
+            if (rTime.isBefore(inTime)) rTime = rTime.add(const Duration(days: 1));
+
+            if (rTime.isBefore(eTime)) {
+              // The new check-out time is earlier. User wants the LATEST one only.
+              return;
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
     final data = record.toJson();
     data['serverCreatedAt'] = FieldValue.serverTimestamp();
     await _firestore.collection('attendance').doc(record.id).set(data);
