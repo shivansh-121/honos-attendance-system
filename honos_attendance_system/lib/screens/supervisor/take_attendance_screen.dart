@@ -5,7 +5,6 @@ import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/offline_queue_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:camera/camera.dart';
@@ -150,11 +149,7 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           checkOutPhotoPath: _livePhotoBase64 ?? '',
         );
 
-        try {
-          await db.saveAttendance(updatedRecord);
-        } catch (e) {
-          await OfflineQueueService.addRecord(updatedRecord);
-        }
+        await db.saveAttendance(updatedRecord);
       } else {
         final record = Attendance(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -170,11 +165,7 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           lng: widget.site.lng,
         );
 
-        try {
-          await db.saveAttendance(record);
-        } catch (e) {
-          await OfflineQueueService.addRecord(record);
-        }
+        await db.saveAttendance(record);
       }
 
       final updatedGuard = _selectedGuard!.copyWith(

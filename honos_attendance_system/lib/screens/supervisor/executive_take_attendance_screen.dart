@@ -22,7 +22,6 @@ import '../../services/permission_service.dart';
 import '../../services/camera_service.dart';
 import '../../services/face_match_service.dart';
 import '../../services/mobile_attendance_guard.dart';
-import '../../services/offline_queue_service.dart';
 import 'liveness_detector_widget.dart';
 
 enum _Step { location, liveness, confirmation }
@@ -227,11 +226,7 @@ class _ExecutiveTakeAttendanceScreenState
           photoPath: photoUrl,
           markedAt: now.toIso8601String(),
         );
-        try {
-          await db.saveAttendance(att);
-        } catch (e) {
-          await OfflineQueueService.addRecord(att);
-        }
+        await db.saveAttendance(att);
       } else {
         // CHECK OUT
         final existing = _existingRecord!;
@@ -251,11 +246,7 @@ class _ExecutiveTakeAttendanceScreenState
           checkOutPhotoPath: photoUrl,
           checkOutSiteId: _closestSite!.id,
         );
-        try {
-          await db.saveAttendance(updated);
-        } catch (e) {
-          await OfflineQueueService.addRecord(updated);
-        }
+        await db.saveAttendance(updated);
       }
 
       if (mounted) {
