@@ -23,7 +23,18 @@ class FaceMatchService {
   static Future<void> init() async {
     if (_isInitialized) return;
     try {
-      _interpreter = await Interpreter.fromAsset('assets/models/mobilefacenet.tflite');
+      final options = InterpreterOptions();
+      try {
+        if (Platform.isAndroid) {
+          options.addDelegate(GpuDelegateV2());
+        } else if (Platform.isIOS) {
+          options.addDelegate(GpuDelegate());
+        }
+      } catch (e) {
+        debugPrint("FaceMatchService: GPU delegate failed to load: $e");
+      }
+
+      _interpreter = await Interpreter.fromAsset('assets/models/mobilefacenet.tflite', options: options);
       _isInitialized = true;
       debugPrint("FaceMatchService: Model loaded successfully.");
     } catch (e) {
