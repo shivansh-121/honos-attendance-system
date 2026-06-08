@@ -39,7 +39,7 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                 color: context.colors.bgBase, fontWeight: FontWeight.bold)),
         backgroundColor: context.colors.primary,
       ),
-      body: responsiveBody(CustomScrollView(
+      body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 240,
@@ -253,7 +253,7 @@ class _GuardsListScreenState extends ConsumerState<GuardsListScreen> {
                             style: TextStyle(color: context.colors.red))))),
           ),
         ],
-      )),
+      ),
     );
   }
 

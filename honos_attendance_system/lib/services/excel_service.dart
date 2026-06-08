@@ -22,6 +22,7 @@ class ExcelService {
     required bool includeExecutives,
     required bool includeEmployees,
     bool share = true,
+    String? filterSiteId,
   }) async {
     final db = FirebaseFirestore.instance;
 
@@ -35,7 +36,9 @@ class ExcelService {
       final dateStr = (a['markedAt']?.toString() ?? a['date']?.toString()) ?? '';
       try {
         final d = DateTime.parse(dateStr);
-        return d.year == month.year && d.month == month.month;
+        if (d.year != month.year || d.month != month.month) return false;
+        if (filterSiteId != null && a['siteId'] != filterSiteId) return false;
+        return true;
       } catch (_) {
         return false;
       }

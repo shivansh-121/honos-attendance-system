@@ -320,6 +320,14 @@ class DbService {
     await _firestore.collection('notifications').doc(id).delete();
   }
 
+  Future<void> deleteAllNotifications(List<String> ids) async {
+    final batch = _firestore.batch();
+    for (final id in ids) {
+      batch.delete(_firestore.collection('notifications').doc(id));
+    }
+    await batch.commit();
+  }
+
   // --- Advances ---
   Stream<List<Advance>> advancesStream() {
     return _firestore.collection('advances').snapshots().map(

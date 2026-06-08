@@ -74,7 +74,7 @@ class _AdminGuardsManagementScreenState
             .animate(onPlay: (c) => c.repeat(reverse: true))
             .shimmer(duration: 2.seconds, color: Colors.white24),
       ),
-      body: responsiveBody(CustomScrollView(
+      body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
@@ -583,7 +583,7 @@ class _AdminGuardsManagementScreenState
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
         ],
-      )),
+      ),
     );
   }
 }

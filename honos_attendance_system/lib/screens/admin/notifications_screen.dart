@@ -16,15 +16,101 @@ import 'supervisor_profile_screen.dart';
 import '../user_profile_screen.dart';
 import '../employee/apply_leave_screen.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  bool _isDeletingAll = false;
+
+  Future<void> _confirmDeleteAll(List<AppNotification> notifications) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: context.colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.delete_sweep_rounded,
+                  color: context.colors.red, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Text('Clear All Notifications',
+                style: TextStyle(
+                    color: context.colors.txtPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete all ${notifications.length} notifications? This cannot be undone.',
+          style: TextStyle(color: context.colors.txtSec, fontSize: 14, height: 1.5),
+        ),
+        actionsPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: context.colors.bord),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('No, Keep',
+                style: TextStyle(
+                    color: context.colors.txtPrimary,
+                    fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              elevation: 0,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yes, Delete All',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isDeletingAll = true);
+      try {
+        final ids = notifications.map((n) => n.id).toList();
+        await ref.read(dbProvider).deleteAllNotifications(ids);
+      } finally {
+        if (mounted) setState(() => _isDeletingAll = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notificationsAsync = ref.watch(notificationsStreamProvider);
     final user = ref.watch(authProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);
     final usersAsync = ref.watch(usersStreamProvider);
+
+    final isAdminOrExecutive =
+        user?.role == 'admin' || user?.role == 'executive';
 
     return Scaffold(
       backgroundColor: context.colors.bgBase,
@@ -34,6 +120,38 @@ class NotificationsScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+        actions: [
+          if (isAdminOrExecutive)
+            notificationsAsync.whenOrNull(
+              data: (allNotifs) {
+                final visible = allNotifs.where((n) {
+                  if (user?.role == 'admin') return true;
+                  if (n.type == 'edit_request') return false;
+                  return n.supervisorId == user?.id || n.guardId == user?.id;
+                }).toList();
+                if (visible.isEmpty) return const SizedBox.shrink();
+                return _isDeletingAll
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: context.colors.red),
+                        ),
+                      )
+                    : IconButton(
+                        tooltip: 'Delete All',
+                        icon: Icon(Icons.delete_sweep_rounded,
+                            color: context.colors.red),
+                        onPressed: () => _confirmDeleteAll(visible),
+                      );
+              },
+            ) ??
+            const SizedBox.shrink(),
+          const SizedBox(width: 4),
+        ],
       ),
       body: responsiveBody(
         notificationsAsync.when(

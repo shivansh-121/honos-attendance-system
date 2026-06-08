@@ -208,7 +208,7 @@ class _ManageSupervisorsScreenState
           foregroundColor: Colors.white,
         ),
       ),
-      body: responsiveBody(CustomScrollView(
+      body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 180,
@@ -434,7 +434,7 @@ class _ManageSupervisorsScreenState
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
         ],
-      )),
+      ),
     );
   }
 }

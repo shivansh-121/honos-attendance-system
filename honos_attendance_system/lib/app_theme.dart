@@ -296,11 +296,16 @@ class AppTheme {
 /// Wraps [child] in a centered ConstrainedBox so content never
 /// stretches beyond [maxWidth] pixels on wide/desktop screens.
 Widget responsiveBody(Widget child, {double maxWidth = 900}) {
-  return Center(
-    child: ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: child,
-    ),
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final width = constraints.maxWidth > maxWidth ? maxWidth : constraints.maxWidth;
+      return Center(
+        child: SizedBox(
+          width: width,
+          child: child,
+        ),
+      );
+    },
   );
 }
 
@@ -331,12 +336,10 @@ class ResponsiveSliverPadding extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final hPad = screenWidth > maxWidth ? (screenWidth - maxWidth) / 2 + 20 : 20.0;
     return SliverPadding(
       padding: EdgeInsets.only(
-        left: hPad,
-        right: hPad,
+        left: 20.0,
+        right: 20.0,
         top: extraPadding.top,
         bottom: extraPadding.bottom,
       ),

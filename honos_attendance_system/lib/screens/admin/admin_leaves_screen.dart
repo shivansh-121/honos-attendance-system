@@ -16,7 +16,7 @@ class AdminLeavesScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: context.colors.bgBase,
-      body: responsiveBody(CustomScrollView(
+      body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
@@ -473,7 +473,7 @@ class AdminLeavesScreen extends ConsumerWidget {
                         style: TextStyle(color: context.colors.red)))),
           ),
         ],
-      )),
+      ),
     );
   }
 }

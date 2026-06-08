@@ -193,7 +193,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
       )
           .animate(onPlay: (c) => c.repeat(reverse: true))
           .shimmer(duration: 2.seconds, color: Colors.white24),
-      body: responsiveBody(CustomScrollView(
+      body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
@@ -500,7 +500,7 @@ class _AdminSitesScreenState extends ConsumerState<AdminSitesScreen> {
                         style: const TextStyle(color: Colors.red)))),
           ),
         ],
-      )),
+      ),
     );
   }
 }

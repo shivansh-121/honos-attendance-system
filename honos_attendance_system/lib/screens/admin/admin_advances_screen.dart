@@ -9,6 +9,8 @@ import '../../services/db_service.dart';
 import '../../models/advance.dart';
 import '../../models/guard.dart';
 import '../../models/app_user.dart';
+import '../../models/site.dart';
+import '../../models/attendance.dart';
 
 class AdminAdvancesScreen extends ConsumerStatefulWidget {
   const AdminAdvancesScreen({super.key});
@@ -28,12 +30,17 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     final advancesAsync = ref.watch(advancesStreamProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);
     final usersAsync = ref.watch(usersStreamProvider);
+    final sitesAsync = ref.watch(sitesStreamProvider);
+    final attendanceAsync = ref.watch(attendanceStreamProvider);
 
     return Scaffold(
       backgroundColor: context.colors.bgBase,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddAdvanceDialog(
-            guardsAsync.value ?? [], usersAsync.value ?? []),
+            guardsAsync.value ?? [], 
+            usersAsync.value ?? [],
+            sitesAsync.value ?? [],
+            attendanceAsync.value ?? []),
         icon: Icon(Icons.add, color: context.colors.bgBase),
         label: Text('Give Advance',
             style: TextStyle(
@@ -565,9 +572,10 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     );
   }
 
-  void _showAddAdvanceDialog(List<Guard> guards, List<AppUser> allStaff) {
+  void _showAddAdvanceDialog(List<Guard> guards, List<AppUser> allStaff, List<Site> sites, List<Attendance> attendances) {
     String selectedType = _selectedTab;
     String? selectedUserId;
+    String? selectedSiteId;
     final amountCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
 
@@ -581,10 +589,22 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
           builder: (ctx, setSt) {
             List<DropdownMenuItem<String>> items = [];
             if (selectedType == 'guard') {
-              items = guards
+              List<Guard> filteredGuards = [];
+              if (selectedSiteId != null) {
+                final guardsWithAttendance = attendances.where((a) {
+                  if (a.siteId != selectedSiteId) return false;
+                  final d = DateTime.tryParse(a.date);
+                  if (d == null) return false;
+                  return d.year == _selectedMonth.year && d.month == _selectedMonth.month;
+                }).map((a) => a.guardId).toSet();
+                
+                filteredGuards = guards.where((g) => guardsWithAttendance.contains(g.id)).toList();
+              }
+
+              items = filteredGuards
                   .map((g) => DropdownMenuItem(
                       value: g.id,
-                      child: Text(g.name,
+                      child: Text('${g.name} ${g.empId.isNotEmpty ? "(ID: ${g.empId})" : ""}'.trim(),
                           style: TextStyle(
                               color: context.colors.txtPrimary, fontSize: 14))))
                   .toList();
@@ -593,7 +613,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                   .where((s) => s.role == selectedType)
                   .map((s) => DropdownMenuItem(
                       value: s.id,
-                      child: Text(s.name,
+                      child: Text('${s.name} ${s.empId.isNotEmpty ? "(ID: ${s.empId})" : ""}'.trim(),
                           style: TextStyle(
                               color: context.colors.txtPrimary, fontSize: 14))))
                   .toList();
@@ -616,7 +636,11 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                         value: 'guard',
                         groupValue: selectedType,
                         activeColor: context.colors.primary,
-                        onChanged: (val) => setSt(() => selectedType = val!),
+                        onChanged: (val) => setSt(() {
+                          selectedType = val!;
+                          selectedSiteId = null;
+                          selectedUserId = null;
+                        }),
                       ),
                       Text('Guard',
                           style: TextStyle(color: context.colors.txtPrimary)),
@@ -624,7 +648,11 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                         value: 'supervisor',
                         groupValue: selectedType,
                         activeColor: context.colors.primary,
-                        onChanged: (val) => setSt(() => selectedType = val!),
+                        onChanged: (val) => setSt(() {
+                          selectedType = val!;
+                          selectedSiteId = null;
+                          selectedUserId = null;
+                        }),
                       ),
                       Text('Supervisor',
                           style: TextStyle(color: context.colors.txtPrimary)),
@@ -636,16 +664,41 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                         value: 'executive',
                         groupValue: selectedType,
                         activeColor: context.colors.primary,
-                        onChanged: (val) => setSt(() => selectedType = val!),
+                        onChanged: (val) => setSt(() {
+                          selectedType = val!;
+                          selectedSiteId = null;
+                          selectedUserId = null;
+                        }),
                       ),
                       Text('Executive',
                           style: TextStyle(color: context.colors.txtPrimary)),
                     ],
                   ),
                   const SizedBox(height: 12),
+                  if (selectedType == 'guard') ...[
+                    DropdownButtonFormField<String>(
+                      value: selectedSiteId,
+                      hint: Text('Select Site',
+                          style: TextStyle(color: context.colors.txtSec)),
+                      dropdownColor: context.colors.bgBase,
+                      items: sites
+                          .map((s) => DropdownMenuItem(
+                              value: s.id,
+                              child: Text(s.name,
+                                  style: TextStyle(
+                                      color: context.colors.txtPrimary,
+                                      fontSize: 14))))
+                          .toList(),
+                      onChanged: (val) => setSt(() {
+                        selectedSiteId = val;
+                        selectedUserId = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   DropdownButtonFormField<String>(
-                    initialValue: selectedUserId,
-                    hint: Text('Select Employee',
+                    value: selectedUserId,
+                    hint: Text(selectedType == 'guard' && selectedSiteId == null ? 'Please select a site first' : 'Select Employee',
                         style: TextStyle(color: context.colors.txtSec)),
                     dropdownColor: context.colors.bgBase,
                     items: items,

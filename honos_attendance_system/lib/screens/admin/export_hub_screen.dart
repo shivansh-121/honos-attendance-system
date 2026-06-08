@@ -12,6 +12,7 @@ import '../../models/app_user.dart';
 import '../../models/guard.dart';
 import '../../models/attendance.dart';
 import '../../models/advance.dart';
+import '../../models/site.dart';
 
 class ExportHubScreen extends ConsumerStatefulWidget {
   const ExportHubScreen({super.key});
@@ -28,6 +29,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
   bool _includeExecutives = true;
   bool _includeEmployees = true;
   bool _isExportingExcel = false;
+  String? _selectedExcelSiteId; // null = All Sites
 
   // PDF Export State
   DateTime _pdfMonth = DateTime.now();
@@ -94,6 +96,9 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
   }
 
   Widget _buildExcelTab() {
+    final sitesAsync = ref.watch(sitesStreamProvider);
+    final sites = sitesAsync.value ?? [];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -105,7 +110,57 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
             currentMonth: _excelMonth,
             onMonthChanged: (m) => setState(() => _excelMonth = m),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Filter by Site', Icons.business),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: context.colors.bgSurface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.colors.bord),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _selectedExcelSiteId,
+                isExpanded: true,
+                dropdownColor: context.colors.bgSurface,
+                style: TextStyle(color: context.colors.txtPrimary, fontSize: 15),
+                icon: Icon(Icons.arrow_drop_down, color: context.colors.txtSec),
+                onChanged: (val) => setState(() => _selectedExcelSiteId = val),
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Row(
+                      children: [
+                        Icon(Icons.public, color: context.colors.primary, size: 18),
+                        const SizedBox(width: 10),
+                        Text('All Sites',
+                            style: TextStyle(
+                                color: context.colors.txtPrimary,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  ...sites.map((Site s) => DropdownMenuItem<String?>(
+                        value: s.id,
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on, color: context.colors.txtSec, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(s.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: context.colors.txtPrimary)),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
           _buildSectionHeader('Select Roles', Icons.people_alt),
           const SizedBox(height: 12),
           Container(
@@ -160,7 +215,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
                 child: SizedBox(
                   height: 54,
                   child: ElevatedButton.icon(
-                    onPressed: _isExportingExcel ? null : () => _exportExcel(false),
+                    onPressed: _isExportingExcel ? null : () => _exportExcel(false, siteId: _selectedExcelSiteId),
                     style: ElevatedButton.styleFrom(
                       foregroundColor: context.colors.bgBase,
                       backgroundColor: context.colors.primary,
@@ -187,7 +242,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
                   child: SizedBox(
                     height: 54,
                     child: ElevatedButton.icon(
-                      onPressed: _isExportingExcel ? null : () => _exportExcel(true),
+                      onPressed: _isExportingExcel ? null : () => _exportExcel(true, siteId: _selectedExcelSiteId),
                       style: ElevatedButton.styleFrom(
                         foregroundColor: context.colors.primary,
                         backgroundColor: context.colors.bgSurface,
@@ -476,7 +531,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
     );
   }
 
-  Future<void> _exportExcel(bool share) async {
+  Future<void> _exportExcel(bool share, {String? siteId}) async {
     if (!_includeGuards &&
         !_includeSupervisors &&
         !_includeExecutives &&
@@ -501,6 +556,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         includeExecutives: _includeExecutives,
         includeEmployees: _includeEmployees,
         share: share,
+        filterSiteId: siteId,
       );
 
       if (!share && savePath != null && mounted) {
