@@ -547,6 +547,12 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
       final guards = ref.read(guardsStreamProvider).value ?? [];
       final users = ref.read(usersStreamProvider).value ?? [];
 
+      // Resolve site name for the selected siteId
+      final sites = ref.read(sitesStreamProvider).value ?? [];
+      final selectedSiteName = siteId != null
+          ? sites.firstWhere((s) => s.id == siteId, orElse: () => sites.first).name
+          : null;
+
       final savePath = await ExcelService.exportCentralLedger(
         month: _excelMonth,
         allGuards: guards,
@@ -557,6 +563,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         includeEmployees: _includeEmployees,
         share: share,
         filterSiteId: siteId,
+        filterSiteName: selectedSiteName,
       );
 
       if (!share && savePath != null && mounted) {
