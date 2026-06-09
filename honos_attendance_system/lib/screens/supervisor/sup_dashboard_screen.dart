@@ -20,9 +20,9 @@ import '../../models/app_user.dart';
 import '../../models/attendance.dart';
 import '../../app_theme.dart';
 import '../../widgets/theme_toggle_button.dart';
-import 'take_attendance_screen.dart';
 import 'executive_take_attendance_screen.dart';
 import 'guards_list_screen.dart';
+import 'scan_identify_screen.dart';
 import 'reports_screen.dart';
 import '../admin/notifications_screen.dart';
 import '../user_profile_screen.dart';
@@ -268,9 +268,10 @@ class _SupervisorDashboardScreenState
                           supervisorId: user.id));
                   if (!context.mounted) return;
                   if (site.id.isNotEmpty) {
+                    // 1:N Face Identification Scan — supervisor cannot bypass
                     AppNav.push(
                         context,
-                        TakeAttendanceScreen(
+                        ScanIdentifyScreen(
                             site: site, isCheckOutFlow: isCheckOut));
                   }
                 },
@@ -288,19 +289,19 @@ class _SupervisorDashboardScreenState
                       CircleAvatar(
                           backgroundColor: context.colors.bgElevated,
                           child:
-                              const Icon(Icons.security, color: Colors.white)),
+                              const Icon(Icons.face_retouching_natural, color: Colors.white)),
                       const SizedBox(width: 16),
                       Expanded(
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Text('A Guard',
+                            Text('Scan a Guard\'s Face',
                                 style: TextStyle(
                                     color: context.colors.txtPrimary,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16)),
                             Text(
-                                'Scan a guard\'s face to mark their attendance',
+                                'Auto-identify guard by face — no manual search',
                                 style: TextStyle(
                                     color: context.colors.txtSec,
                                     fontSize: 12)),

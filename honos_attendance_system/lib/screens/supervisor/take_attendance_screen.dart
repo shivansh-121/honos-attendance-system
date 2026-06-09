@@ -31,6 +31,8 @@ class TakeAttendanceScreen extends ConsumerStatefulWidget {
   final bool isCheckOutFlow;
   final Guard? preselectedGuard;
   final Attendance? existingRecord;
+  /// When true, skip the GPS check step (GPS already verified by caller).
+  final bool skipGpsCheck;
 
   const TakeAttendanceScreen({
     super.key,
@@ -38,6 +40,7 @@ class TakeAttendanceScreen extends ConsumerStatefulWidget {
     this.isCheckOutFlow = false,
     this.preselectedGuard,
     this.existingRecord,
+    this.skipGpsCheck = false,
   });
 
   @override
@@ -65,7 +68,14 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       _existingRecord = widget.existingRecord;
       _step = _Step.liveness;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkGps());
+    if (widget.skipGpsCheck) {
+      // GPS was already verified by ScanIdentifyScreen — skip to guard step
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() { _gpsOk = true; _checkingGps = false; _step = _Step.guard; });
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkGps());
+    }
   }
 
   Future<void> _checkGps() async {
