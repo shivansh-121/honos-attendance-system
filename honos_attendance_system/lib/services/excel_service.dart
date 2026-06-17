@@ -1,11 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 
@@ -13,7 +10,7 @@ import '../models/app_user.dart';
 import '../models/guard.dart';
 
 class ExcelService {
-  static Future<String?> exportCentralLedger({
+  static Future<void> exportCentralLedger({
     required DateTime month,
     required List<Guard> allGuards,
     required List<AppUser> allUsers,
@@ -21,9 +18,6 @@ class ExcelService {
     required bool includeSupervisors,
     required bool includeExecutives,
     required bool includeEmployees,
-    bool share = true,
-    String? filterSiteId,
-    String? filterSiteName, // display name for the selected site
   }) async {
     final db = FirebaseFirestore.instance;
 
@@ -34,12 +28,10 @@ class ExcelService {
     final allAdvances = advancesSnap.docs.map((d) => d.data()).toList();
 
     final monthAtt = allRecords.where((a) {
-      final dateStr = (a['markedAt']?.toString() ?? a['date']?.toString()) ?? '';
+      final dateStr = a['markedAt'] as String? ?? '';
       try {
         final d = DateTime.parse(dateStr);
-        if (d.year != month.year || d.month != month.month) return false;
-        if (filterSiteId != null && a['siteId'] != filterSiteId) return false;
-        return true;
+        return d.year == month.year && d.month == month.month;
       } catch (_) {
         return false;
       }
@@ -56,7 +48,8 @@ class ExcelService {
     }).toList();
 
     final excel = Excel.createExcel();
-    final sheet = excel['Sheet1'];
+    final sheet = excel['Central Ledger'];
+    excel.delete('Sheet1');
 
     final monthStr = DateFormat('MMM yyyy').format(month);
     
@@ -76,10 +69,7 @@ class ExcelService {
 
     sheet.merge(CellIndex.indexByString("A2"), CellIndex.indexByString("C2"));
     var siteCell = sheet.cell(CellIndex.indexByString("A2"));
-    final siteLabel = (filterSiteName != null && filterSiteName.isNotEmpty)
-        ? filterSiteName
-        : 'Central Ledger';
-    siteCell.value = TextCellValue("Name of Point :- $siteLabel");
+    siteCell.value = TextCellValue("Name of Point :- Central Ledger");
     siteCell.cellStyle = CellStyle(bold: true);
 
     var monthCell = sheet.cell(CellIndex.indexByString("Q2"));
@@ -120,20 +110,11 @@ class ExcelService {
 
     final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
 
-    // ── RULE: when a site filter is active, ONLY Guards are shown.
-    //    No supervisors, executives, or office employees appear in a
-    //    site-specific export — regardless of the role checkboxes.
     final List<dynamic> includedPeople = [];
-    if (filterSiteId != null) {
-      // Site-specific export → Guards only
-      includedPeople.addAll(allGuards);
-    } else {
-      // All-sites export → respect the role checkboxes as usual
-      if (includeGuards) includedPeople.addAll(allGuards);
-      if (includeSupervisors) includedPeople.addAll(allUsers.where((u) => u.role == 'supervisor'));
-      if (includeExecutives) includedPeople.addAll(allUsers.where((u) => u.role == 'executive'));
-      if (includeEmployees) includedPeople.addAll(allUsers.where((u) => u.role == 'employee'));
-    }
+    if (includeGuards) includedPeople.addAll(allGuards);
+    if (includeSupervisors) includedPeople.addAll(allUsers.where((u) => u.role == 'supervisor'));
+    if (includeExecutives) includedPeople.addAll(allUsers.where((u) => u.role == 'executive'));
+    if (includeEmployees) includedPeople.addAll(allUsers.where((u) => u.role == 'employee'));
 
     for (var person in includedPeople) {
       final isGuard = person is Guard;
@@ -144,34 +125,18 @@ class ExcelService {
       final salary = double.tryParse(salaryStr.toString()) ?? 0.0;
       final bankDetails = isGuard ? 'A/c: ${person.accountNo} | IFSC: ${person.ifsc}' : '';
 
-      // Build this person's attendance list for the selected month (+ site if filtered).
-      // For Guards: match on 'guardId' only — a Guard is never a supervisor.
-      // For non-Guards (only reached in All-Sites mode): match supervisorId OR guardId.
       final myAtt = monthAtt.where((a) {
-        if (isGuard) return a['guardId']?.toString() == id;
-        return a['supervisorId']?.toString() == id;
+        if (isGuard) return a['guardId'] == id;
+        return a['supervisorId'] == id || a['guardId'] == id; 
       }).toList();
 
-      // ── HARD GATE: skip this person entirely if they have zero
-      //    attendance records at the selected site for this month.
-      //    This is the single source-of-truth check — it can never be
-      //    bypassed because monthAtt is already pre-filtered by siteId.
-      if (filterSiteId != null && myAtt.isEmpty) continue;
-
-      // Count unique days worked (deduplicated by date string)
-      final myUniqueDates = myAtt
-          .map((a) => a['date']?.toString() ?? '')
-          .where((d) => d.isNotEmpty)
-          .toSet();
+      final myUniqueDates = myAtt.map((a) => a['date']).toSet();
       final daysWorked = myUniqueDates.length;
 
-      final earnedSalary = daysInMonth > 0 ? (salary / daysInMonth) * daysWorked : 0.0;
+      final earnedSalary = (salary / daysInMonth) * daysWorked;
 
-      final myAdv = monthAdv.where((a) => a['userId']?.toString() == id).toList();
-      final totalAdvances = myAdv.fold(
-        0.0,
-        (acc, item) => acc + (double.tryParse(item['amount'].toString()) ?? 0.0),
-      );
+      final myAdv = monthAdv.where((a) => a['userId'] == id).toList();
+      final totalAdvances = myAdv.fold(0.0, (sum, item) => sum + (double.tryParse(item['amount'].toString()) ?? 0.0));
 
       final netPayable = earnedSalary - totalAdvances;
 
@@ -196,9 +161,7 @@ class ExcelService {
       ];
 
       for (int col = 0; col < rowData.length; col++) {
-        var cell = sheet.cell(
-          CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow),
-        );
+        var cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow));
         cell.value = rowData[col];
         cell.cellStyle = normalStyle;
       }
@@ -210,46 +173,16 @@ class ExcelService {
     final bytes = excel.encode();
     if (bytes == null) throw Exception("Failed to encode Excel file");
 
+    final dir = await getTemporaryDirectory();
     final currentDate = DateFormat('yyyy_MM_dd').format(DateTime.now());
     final fileName = 'Central_Ledger_$currentDate.xlsx';
+    final file = File('${dir.path}/$fileName');
+    
+    await file.writeAsBytes(bytes);
 
-    if (share) {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(bytes);
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          text: 'Monthly Payroll Ledger ($monthStr)',
-        ),
-      );
-      return null;
-    } else {
-      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        final FileSaveLocation? result = await getSaveLocation(
-          suggestedName: fileName,
-          acceptedTypeGroups: const [
-            XTypeGroup(
-              label: 'Excel',
-              extensions: ['xlsx'],
-            ),
-          ],
-        );
-
-        if (result == null) {
-          return null; // User canceled the picker
-        }
-
-        final file = File(result.path);
-        final savePath = result.path;
-        await file.writeAsBytes(bytes);
-        return savePath;
-      } else {
-        final uint8Bytes = Uint8List.fromList(bytes);
-        final params = SaveFileDialogParams(data: uint8Bytes, fileName: fileName);
-        final filePath = await FlutterFileDialog.saveFile(params: params);
-        return filePath;
-      }
-    }
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Monthly Payroll Ledger ($monthStr)',
+    );
   }
 }

@@ -553,7 +553,7 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
           ? sites.firstWhere((s) => s.id == siteId, orElse: () => sites.first).name
           : null;
 
-      final savePath = await ExcelService.exportCentralLedger(
+      await ExcelService.exportCentralLedger(
         month: _excelMonth,
         allGuards: guards,
         allUsers: users,
@@ -561,14 +561,11 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         includeSupervisors: _includeSupervisors,
         includeExecutives: _includeExecutives,
         includeEmployees: _includeEmployees,
-        share: share,
-        filterSiteId: siteId,
-        filterSiteName: selectedSiteName,
       );
 
-      if (!share && savePath != null && mounted) {
+      if (!share && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Ledger saved to: $savePath'),
+            content: const Text('Ledger exported successfully'),
             backgroundColor: context.colors.primary));
       }
     } catch (e) {

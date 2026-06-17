@@ -7,22 +7,24 @@ void main() async {
   await Firebase.initializeApp();
 
   final db = FirebaseFirestore.instance;
-  
-  debugPrint('SUPERVISORS:');
-  final users = await db.collection('users').where('role', isEqualTo: 'supervisor').get();
+
+  print('SUPERVISORS:');
+  final users =
+      await db.collection('users').where('role', isEqualTo: 'supervisor').get();
   for (var d in users.docs) {
-    debugPrint('${d.id}: ${d.data()['username']} - siteId: ${d.data()['siteId']}');
+    print('${d.id}: ${d.data()['username']} - siteId: ${d.data()['siteId']}');
   }
 
-  debugPrint('\nGUARDS:');
+  print('\nGUARDS:');
   final guards = await db.collection('guards').get();
   for (var d in guards.docs) {
-    debugPrint('${d.id}: ${d.data()['name']} - siteId: ${d.data()['siteId']} - supervisorId: ${d.data()['supervisorId']}');
+    print(
+        '${d.id}: ${d.data()['name']} - siteId: ${d.data()['siteId']} - supervisorId: ${d.data()['supervisorId']}');
   }
 
-  debugPrint('\nSITES:');
+  print('\nSITES:');
   final sites = await db.collection('sites').get();
   for (var d in sites.docs) {
-    debugPrint('${d.id}: ${d.data()['name']}');
+    print('${d.id}: ${d.data()['name']}');
   }
 }
