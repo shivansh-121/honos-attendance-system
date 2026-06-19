@@ -71,7 +71,7 @@ class _MatchResult {
       _MatchResult._(guard: null, score: score, recognized: false, hadFace: true);
 
   factory _MatchResult.noFace() =>
-      _MatchResult._(guard: null, score: 0, recognized: false, hadFace: false);
+      const _MatchResult._(guard: null, score: 0, recognized: false, hadFace: false);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ class _ScanIdentifyScreenState extends ConsumerState<ScanIdentifyScreen>
     super.initState();
     _countdownAnim = AnimationController(
       vsync: this,
-      duration: Duration(seconds: _kCountdownSeconds),
+      duration: const Duration(seconds: _kCountdownSeconds),
     );
     _pulseAnim = AnimationController(
       vsync: this,

@@ -101,7 +101,7 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
     if (src == null) return;
     
     final picker = ImagePicker();
-    final xfile = await picker.pickImage(source: src, imageQuality: 50, maxWidth: 800);
+    final xfile = await picker.pickImage(source: src, imageQuality: 60, maxWidth: 600);
     if (xfile == null) return;
 
     final bytes = await xfile.readAsBytes();
@@ -109,8 +109,11 @@ class _AdminSupervisorFormSheetState extends State<AdminSupervisorFormSheet> {
     setState(() {
       if (type == 'photo') {
         _photoBytes = b64;
-      } else if (type == 'aadhaar') _aadhaarBytes = b64;
-      else if (type == 'passbook') _passbookBytes = b64;
+      } else if (type == 'aadhaar') {
+        _aadhaarBytes = b64;
+      } else if (type == 'passbook') {
+        _passbookBytes = b64;
+      }
     });
   }
 

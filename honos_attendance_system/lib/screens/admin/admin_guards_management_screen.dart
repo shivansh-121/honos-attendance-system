@@ -475,7 +475,7 @@ class _AdminGuardFormSheetState extends State<_AdminGuardFormSheet> {
   // Photo
   Future<void> _pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, maxWidth: 500, maxHeight: 500, imageQuality: 70);
+    final picked = await picker.pickImage(source: source, maxWidth: 600, maxHeight: 600, imageQuality: 60);
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     setState(() {

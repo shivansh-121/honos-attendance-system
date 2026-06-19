@@ -57,7 +57,7 @@ class _ExecutiveDashboardScreenState extends ConsumerState<ExecutiveDashboardScr
 
   Future<void> _uploadPhoto(AppUser user) async {
     final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+    final xFile = await picker.pickImage(source: ImageSource.camera, maxWidth: 600, imageQuality: 60);
     if (xFile == null) return;
     try {
       final bytes = await xFile.readAsBytes();
@@ -79,7 +79,9 @@ class _ExecutiveDashboardScreenState extends ConsumerState<ExecutiveDashboardScr
       ref.read(authProvider.notifier).updateUser(updatedUser);
       _checkPhotoStatus();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated!'), backgroundColor: NLTheme.accentGreen));
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error uploading photo: $e');
+    }
   }
 
   void _showPhotoPrompt(BuildContext context, AppUser user) {
@@ -129,7 +131,6 @@ class _ExecutiveDashboardScreenState extends ConsumerState<ExecutiveDashboardScr
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);
-    final leavesAsync = ref.watch(leavesStreamProvider);
 
     if (user == null) return const Scaffold();
 

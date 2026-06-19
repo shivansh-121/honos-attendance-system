@@ -58,7 +58,7 @@ class _SupervisorDashboardScreenState extends ConsumerState<SupervisorDashboardS
 
   Future<void> _uploadPhoto(AppUser user) async {
     final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+    final xFile = await picker.pickImage(source: ImageSource.camera, maxWidth: 600, imageQuality: 60);
     if (xFile == null) return;
     try {
       final bytes = await xFile.readAsBytes();
@@ -80,7 +80,9 @@ class _SupervisorDashboardScreenState extends ConsumerState<SupervisorDashboardS
       ref.read(authProvider.notifier).updateUser(updatedUser);
       _checkPhotoStatus();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Profile picture updated!'), backgroundColor: context.colors.green));
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error uploading photo: $e');
+    }
   }
 
   Future<void> _checkServiceStatus() async {

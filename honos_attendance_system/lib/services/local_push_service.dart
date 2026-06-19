@@ -33,8 +33,7 @@ class LocalPushService {
       onDidReceiveNotificationResponse: (response) {
         if (response.payload != null) {
           try {
-            final payload = jsonDecode(response.payload!);
-            final role = payload['role'];
+            jsonDecode(response.payload!);
             navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
           } catch (e) {
             debugPrint('Error parsing notification payload: $e');

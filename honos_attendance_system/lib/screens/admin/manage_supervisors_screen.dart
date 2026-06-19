@@ -127,7 +127,7 @@ class _ManageSupervisorsScreenState extends ConsumerState<ManageSupervisorsScree
                               Navigator.pop(ctx);
                               final updatedUser = u.copyWith(siteId: site.id);
                               await ref.read(dbProvider).saveUser(updatedUser);
-                              if (mounted) {
+                              if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                   content: Text('${u.name} assigned to ${site.name}'),
                                   backgroundColor: context.colors.green,

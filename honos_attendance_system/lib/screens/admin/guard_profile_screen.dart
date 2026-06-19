@@ -20,7 +20,6 @@ class GuardProfileScreen extends ConsumerStatefulWidget {
 
 class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
   late DateTime _selectedMonth;
-  final bool _isGeneratingPdf = false;
 
   @override
   void initState() {
@@ -38,7 +37,6 @@ class _GuardProfileScreenState extends ConsumerState<GuardProfileScreen> {
   Widget build(BuildContext context) {
     final attendanceAsync = ref.watch(guardAttendanceProvider(widget.guard.id));
     final sitesAsync = ref.watch(sitesStreamProvider);
-    final usersAsync = ref.watch(usersStreamProvider);
     final advancesAsync = ref.watch(advancesStreamProvider);
     final authUser = ref.watch(authProvider);
     final isAdmin = authUser?.role == 'admin';

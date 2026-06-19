@@ -59,11 +59,24 @@ class PdfService {
       }
     }
 
-    // Calculate Advances
-    double totalAdvances = 0;
+    // Calculate Advances and Deductions
+    double advAmt = 0;
+    double uniAmt = 0;
+    double messAmt = 0;
+    double othAmt = 0;
+
     for (var adv in monthAdvances) {
-      totalAdvances += adv.amount;
+      if (adv.type == 'uniform') {
+        uniAmt += adv.amount;
+      } else if (adv.type == 'mess') {
+        messAmt += adv.amount;
+      } else if (adv.type == 'other') {
+        othAmt += adv.amount;
+      } else {
+        advAmt += adv.amount;
+      }
     }
+    double totalAdvances = advAmt + uniAmt + messAmt + othAmt;
     double netPay = guard.salary - totalAdvances;
 
     pdf.addPage(
@@ -153,7 +166,11 @@ class PdfService {
                             _buildDetailRow('Bank Name', guard.bankName),
                             _buildDetailRow('Account No', guard.accountNo),
                             _buildDetailRow('IFSC Code', guard.ifsc),
-                            _buildDetailRow('Total Advances', totalAdvances > 0 ? 'INR ${totalAdvances.toStringAsFixed(0)}' : '--'),
+                            if (advAmt > 0) _buildDetailRow('Advances Taken', 'INR ${advAmt.toStringAsFixed(0)}'),
+                            if (uniAmt > 0) _buildDetailRow('Uniform Fee', 'INR ${uniAmt.toStringAsFixed(0)}'),
+                            if (messAmt > 0) _buildDetailRow('Mess/Canteen Fee', 'INR ${messAmt.toStringAsFixed(0)}'),
+                            if (othAmt > 0) _buildDetailRow('Other Deductions', 'INR ${othAmt.toStringAsFixed(0)}'),
+                            if (totalAdvances == 0) _buildDetailRow('Deductions', '--'),
                             _buildDetailRow('Est. Net Pay', 'INR ${netPay.toStringAsFixed(0)}'),
                           ],
                         ),
@@ -267,11 +284,24 @@ class PdfService {
       }
     }
 
-    // Calculate Advances
-    double totalAdvances = 0;
+    // Calculate Advances and Deductions
+    double advAmt = 0;
+    double uniAmt = 0;
+    double messAmt = 0;
+    double othAmt = 0;
+
     for (var adv in monthAdvances) {
-      totalAdvances += adv.amount;
+      if (adv.type == 'uniform') {
+        uniAmt += adv.amount;
+      } else if (adv.type == 'mess') {
+        messAmt += adv.amount;
+      } else if (adv.type == 'other') {
+        othAmt += adv.amount;
+      } else {
+        advAmt += adv.amount;
+      }
     }
+    double totalAdvances = advAmt + uniAmt + messAmt + othAmt;
     double netPay = supervisor.salary - totalAdvances;
 
     pdf.addPage(
@@ -362,7 +392,11 @@ class PdfService {
                             _buildDetailRow('Bank Name', supervisor.bankName),
                             _buildDetailRow('Account No', supervisor.accountNo),
                             _buildDetailRow('IFSC Code', supervisor.ifsc),
-                            _buildDetailRow('Total Advances', totalAdvances > 0 ? 'INR ${totalAdvances.toStringAsFixed(0)}' : '--'),
+                            if (advAmt > 0) _buildDetailRow('Advances Taken', 'INR ${advAmt.toStringAsFixed(0)}'),
+                            if (uniAmt > 0) _buildDetailRow('Uniform Fee', 'INR ${uniAmt.toStringAsFixed(0)}'),
+                            if (messAmt > 0) _buildDetailRow('Mess/Canteen Fee', 'INR ${messAmt.toStringAsFixed(0)}'),
+                            if (othAmt > 0) _buildDetailRow('Other Deductions', 'INR ${othAmt.toStringAsFixed(0)}'),
+                            if (totalAdvances == 0) _buildDetailRow('Deductions', '--'),
                             _buildDetailRow('Est. Net Pay', 'INR ${netPay.toStringAsFixed(0)}'),
                           ],
                         ),

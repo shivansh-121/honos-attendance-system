@@ -41,7 +41,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
     final guardsAsync = ref.watch(guardsStreamProvider);
-    final usersAsync = ref.watch(usersStreamProvider);
     final leavesAsync = ref.watch(leavesStreamProvider);
 
     if (user == null) return const Scaffold();
@@ -150,7 +149,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               children: [
                 _buildActionButton(title: 'Reports', icon: Icons.bar_chart, color: context.colors.green, textColor: context.colors.bgSurface, onTap: () => AppNav.push(context, const ReportsScreen())),
                 _buildActionButton(title: 'Leave Approvals', icon: Icons.event_available, color: context.colors.txtPrimary, textColor: context.colors.bgSurface, onTap: () => AppNav.push(context, const AdminLeavesScreen())),
-                _buildActionButton(title: 'Advances', icon: Icons.account_balance_wallet, color: context.colors.bgSurface, textColor: context.colors.txtPrimary, onTap: () => AppNav.push(context, const AdminAdvancesScreen())),
+                _buildActionButton(title: 'Deductions', icon: Icons.account_balance_wallet, color: context.colors.bgSurface, textColor: context.colors.txtPrimary, onTap: () => AppNav.push(context, const AdminAdvancesScreen())),
                 _buildActionButton(title: 'Manage Sites', icon: Icons.business, color: context.colors.bgSurface, textColor: context.colors.txtPrimary, onTap: () => AppNav.push(context, const AdminSitesScreen())),
               ],
             ).animate().fadeIn(delay: 800.ms).slideY(),
@@ -368,7 +367,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     Navigator.pop(context);
                     AppNav.push(context, const AdminLeavesScreen());
                   }),
-                  _buildDrawerItem(Icons.account_balance_wallet, 'Advances', false, () {
+                  _buildDrawerItem(Icons.account_balance_wallet, 'Deductions', false, () {
                     Navigator.pop(context);
                     AppNav.push(context, const AdminAdvancesScreen());
                   }),
