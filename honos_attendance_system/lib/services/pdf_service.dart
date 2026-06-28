@@ -15,7 +15,8 @@ import '../models/advance.dart';
 class PdfService {
   static Future<String?> generateAndPrintGuardReport({
     required Guard guard,
-    required DateTime month,
+    required DateTime fromDate,
+    required DateTime toDate,
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
@@ -42,8 +43,9 @@ class PdfService {
       }
     }
 
-    final monthStr = DateFormat('MMMM yyyy').format(month);
-    
+    final dateRangeStr = '${DateFormat('dd MMM yyyy').format(fromDate)} – ${DateFormat('dd MMM yyyy').format(toDate)}';
+    final fileRangeStr = '${DateFormat('dd_MMM_yyyy').format(fromDate)}_to_${DateFormat('dd_MMM_yyyy').format(toDate)}';
+
     // Calculate total hours
     double totalHours = 0;
     for (var a in attendanceRecords) {
@@ -77,7 +79,13 @@ class PdfService {
       }
     }
     double totalAdvances = advAmt + uniAmt + messAmt + othAmt;
-    double netPay = guard.salary - totalAdvances;
+
+    // Pro-rata earned salary: (salary / days in range) × days worked
+    final daysInRange = toDate.difference(fromDate).inDays + 1;
+    final daysWorked = attendanceRecords.map((a) => a.date).toSet().length;
+    final earnedSalary = daysInRange > 0 ? (guard.salary / daysInRange) * daysWorked : 0.0;
+    double netPay = earnedSalary - totalAdvances;
+
 
     pdf.addPage(
       pw.MultiPage(
@@ -95,7 +103,7 @@ class PdfService {
                   children: [
                     pw.Text('REPORT: ${guard.name.toUpperCase()}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
                     pw.SizedBox(height: 6),
-                    pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
+                    pw.Text('Attendance Record: $dateRangeStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
                 ),
                 if (profileImage != null)
@@ -212,7 +220,7 @@ class PdfService {
 
     // Share / Print PDF
     final bytes = await pdf.save();
-    final filename = '${guard.name.replaceAll(' ', '_')}_Report_${DateFormat('MMM_yyyy').format(month)}.pdf';
+    final filename = '${guard.name.replaceAll(' ', '_')}_Report_$fileRangeStr.pdf';
     
     if (share) {
       await Printing.sharePdf(bytes: bytes, filename: filename);
@@ -239,7 +247,8 @@ class PdfService {
 
   static Future<String?> generateAndPrintSupervisorReport({
     required AppUser supervisor,
-    required DateTime month,
+    required DateTime fromDate,
+    required DateTime toDate,
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
@@ -266,7 +275,8 @@ class PdfService {
       }
     }
 
-    final monthStr = DateFormat('MMMM yyyy').format(month);
+    final dateRangeStr = '${DateFormat('dd MMM yyyy').format(fromDate)} – ${DateFormat('dd MMM yyyy').format(toDate)}';
+    final fileRangeStr = '${DateFormat('dd_MMM_yyyy').format(fromDate)}_to_${DateFormat('dd_MMM_yyyy').format(toDate)}';
     final displayRole = supervisor.role.toUpperCase();
     
     // Calculate total hours
@@ -320,7 +330,7 @@ class PdfService {
                   children: [
                     pw.Text('REPORT: ${supervisor.name.toUpperCase()}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
                     pw.SizedBox(height: 6),
-                    pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
+                    pw.Text('Attendance Record: $dateRangeStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
                 ),
                 if (profileImage != null)
@@ -443,7 +453,7 @@ class PdfService {
 
     // Share / Print PDF
     final bytes = await pdf.save();
-    final filename = '${supervisor.name.replaceAll(' ', '_')}_Report_${DateFormat('MMM_yyyy').format(month)}.pdf';
+    final filename = '${supervisor.name.replaceAll(' ', '_')}_Report_$fileRangeStr.pdf';
     
     if (share) {
       await Printing.sharePdf(bytes: bytes, filename: filename);

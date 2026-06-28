@@ -236,6 +236,8 @@ class _ScanIdentifyScreenState extends ConsumerState<ScanIdentifyScreen>
           await refFile.writeAsBytes(refBytes);
           final embedding = await FaceMatchService.getEmbeddings(refFile);
           if (embedding != null) _embeddingCache[guard.id] = embedding;
+          // Clean up temp file immediately after use
+          try { await refFile.delete(); } catch (_) {}
         } catch (_) {
           // Skip guards with bad photos — they simply won't appear as candidates
         }

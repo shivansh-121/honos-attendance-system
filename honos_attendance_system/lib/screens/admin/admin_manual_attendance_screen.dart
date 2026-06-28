@@ -200,7 +200,8 @@ class _ManualAttendanceFormState extends ConsumerState<_ManualAttendanceForm> {
 
     if (_existingRecord != null) {
       _status = _existingRecord!.status;
-      if (_status == 'Present') {
+      if (_status.toLowerCase() == 'present') {
+
         if (_existingRecord!.time.isNotEmpty) {
           final parts = _existingRecord!.time.split(':');
           if (parts.length >= 2) {
@@ -264,7 +265,7 @@ class _ManualAttendanceFormState extends ConsumerState<_ManualAttendanceForm> {
                         context: context,
                         initialDate: _currentDate,
                         firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 30)),
+                        lastDate: DateTime.now(),
                         builder: (context, child) {
                           return Theme(
                             data: Theme.of(context).copyWith(

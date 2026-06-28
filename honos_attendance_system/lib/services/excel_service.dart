@@ -5,14 +5,14 @@ import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
 import '../models/guard.dart';
 
 class ExcelService {
   static Future<void> exportCentralLedger({
-    required DateTime month,
+    required DateTime fromDate,
+    required DateTime toDate,
     required List<Guard> allGuards,
     required List<AppUser> allUsers,
     required bool includeGuards,
@@ -22,6 +22,10 @@ class ExcelService {
   }) async {
     final db = FirebaseFirestore.instance;
 
+    // Normalise to midnight so comparisons are date-only
+    final rangeStart = DateTime(fromDate.year, fromDate.month, fromDate.day);
+    final rangeEnd   = DateTime(toDate.year,   toDate.month,   toDate.day, 23, 59, 59);
+
     final attendanceSnap = await db.collection('attendance').get();
     final allRecords = attendanceSnap.docs.map((d) => d.data()).toList();
     
@@ -29,21 +33,25 @@ class ExcelService {
     final allAdvances = advancesSnap.docs.map((d) => d.data()).toList();
 
     final bytes = await Isolate.run(() {
+      // Filter attendance within selected date range (inclusive)
       final monthAtt = allRecords.where((a) {
-        final dateStr = a['markedAt'] as String? ?? '';
+        final dateStr = (a['markedAt'] as String?)?.isNotEmpty == true
+            ? a['markedAt'] as String
+            : a['date'] as String? ?? '';
         try {
           final d = DateTime.parse(dateStr);
-          return d.year == month.year && d.month == month.month;
+          return !d.isBefore(rangeStart) && !d.isAfter(rangeEnd);
         } catch (_) {
           return false;
         }
       }).toList();
 
+      // Filter advances within selected date range (inclusive)
       final monthAdv = allAdvances.where((a) {
         final dateStr = a['date'] as String? ?? '';
         try {
           final d = DateTime.parse(dateStr);
-          return d.year == month.year && d.month == month.month;
+          return !d.isBefore(rangeStart) && !d.isAfter(rangeEnd);
         } catch (_) {
           return false;
         }
@@ -67,13 +75,15 @@ class ExcelService {
       titleCell.value = TextCellValue("Honos Protection Services Pvt. Ltd.");
       titleCell.cellStyle = CellStyle(bold: true, fontSize: 16, horizontalAlign: HorizontalAlign.Center);
 
+      final rangeLabelShort = '${DateFormat('dd MMM yy').format(fromDate)} – ${DateFormat('dd MMM yy').format(toDate)}';
+
       sheet.merge(CellIndex.indexByString("A2"), CellIndex.indexByString("C2"));
       var siteCell = sheet.cell(CellIndex.indexByString("A2"));
       siteCell.value = TextCellValue("Name of Point :- Central Ledger");
       siteCell.cellStyle = CellStyle(bold: true);
 
       var monthCell = sheet.cell(CellIndex.indexByString("S2"));
-      monthCell.value = TextCellValue("Month :- ${DateFormat('MMM-yy').format(month)}");
+      monthCell.value = TextCellValue("Period :- $rangeLabelShort");
       monthCell.cellStyle = CellStyle(bold: true, horizontalAlign: HorizontalAlign.Right);
 
       final headers = [
@@ -110,7 +120,8 @@ class ExcelService {
       int currentRow = 4;
       int srNo = 1;
 
-      final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+      // Total days in the selected range (used as denominator for pro-rata salary)
+      final daysInRange = toDate.difference(fromDate).inDays + 1;
 
       final List<dynamic> includedPeople = [];
       if (includeGuards) includedPeople.addAll(allGuards);
@@ -135,7 +146,7 @@ class ExcelService {
         final myUniqueDates = myAtt.map((a) => a['date']).toSet();
         final daysWorked = myUniqueDates.length;
 
-        final earnedSalary = (salary / daysInMonth) * daysWorked;
+        final earnedSalary = daysInRange > 0 ? (salary / daysInRange) * daysWorked : 0.0;
 
         final myAdv = monthAdv.where((a) => a['userId'] == id).toList();
         double advAmt = 0;
@@ -196,10 +207,12 @@ class ExcelService {
       if (b == null) throw Exception("Failed to encode Excel file");
       return b;
     });
-    final monthStr = DateFormat('MMM yyyy').format(month);
+
+    final fromStr = DateFormat('dd_MMM_yyyy').format(fromDate);
+    final toStr   = DateFormat('dd_MMM_yyyy').format(toDate);
+    final rangeLabel = '${DateFormat('dd MMM yyyy').format(fromDate)} – ${DateFormat('dd MMM yyyy').format(toDate)}';
     final dir = await getTemporaryDirectory();
-    final currentDate = DateFormat('yyyy_MM_dd').format(DateTime.now());
-    final fileName = 'Central_Ledger_$currentDate.xlsx';
+    final fileName = 'Central_Ledger_${fromStr}_to_$toStr.xlsx';
     final file = File('${dir.path}/$fileName');
     
     await file.writeAsBytes(bytes);
@@ -207,7 +220,7 @@ class ExcelService {
     await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
-        text: 'Monthly Payroll Ledger ($monthStr)',
+        text: 'Payroll Ledger ($rangeLabel)',
       ),
     );
   }

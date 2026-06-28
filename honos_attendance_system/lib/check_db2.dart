@@ -6,9 +6,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   final snap = await FirebaseFirestore.instance.collection('advances').get();
-  print('--- ADVANCES DUMP ---');
+  debugPrint('--- ADVANCES DUMP ---');
   for (var d in snap.docs) {
-    print(d.data());
+    debugPrint(d.data().toString());
   }
-  print('--- END ---');
+  debugPrint('--- END ---');
+
 }
