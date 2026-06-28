@@ -10,7 +10,6 @@ import '../../models/advance.dart';
 import '../../models/guard.dart';
 import '../../models/app_user.dart';
 import '../../models/site.dart';
-import '../../models/attendance.dart';
 
 class AdminAdvancesScreen extends ConsumerStatefulWidget {
   const AdminAdvancesScreen({super.key});
@@ -31,7 +30,6 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     final guardsAsync = ref.watch(guardsStreamProvider);
     final usersAsync = ref.watch(usersStreamProvider);
     final sitesAsync = ref.watch(sitesStreamProvider);
-    final attendanceAsync = ref.watch(attendanceStreamProvider);
 
     return Scaffold(
       backgroundColor: context.colors.bgBase,
@@ -39,10 +37,9 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
         onPressed: () => _showAddAdvanceDialog(
             guardsAsync.value ?? [], 
             usersAsync.value ?? [],
-            sitesAsync.value ?? [],
-            attendanceAsync.value ?? []),
+            sitesAsync.value ?? []),
         icon: Icon(Icons.add, color: context.colors.bgBase),
-        label: Text('Give Advance',
+        label: Text('Add Deduction/Advance',
             style: TextStyle(
                 color: context.colors.bgBase,
                 fontWeight: FontWeight.bold,
@@ -71,7 +68,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
               ],
               titlePadding:
                   const EdgeInsets.only(left: 24, bottom: 20, right: 24),
-              title: const Text('Advances & Salary',
+              title: const Text('Advances & Accommodations',
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -457,7 +454,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                         : context.colors.bgBase,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text('Adv: ${totalAdvance.toStringAsFixed(0)}',
+                  child: Text('Ded: ${totalAdvance.toStringAsFixed(0)}',
                       style: TextStyle(
                           color: totalAdvance > 0
                               ? context.colors.red
@@ -495,7 +492,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        Text('Advances Taken',
+                        Text('Deductions & Advances',
                             style: TextStyle(
                                 color: context.colors.txtPrimary,
                                 fontWeight: FontWeight.bold,
@@ -507,13 +504,20 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                             decoration: BoxDecoration(
                                 color: context.colors.bgSurface,
                                 borderRadius: BorderRadius.circular(12)),
-                            child: Text('No advances taken this month.',
+                            child: Text('No deductions taken this month.',
                                 style: TextStyle(
                                     color: context.colors.txtMuted,
                                     fontStyle: FontStyle.italic)),
                           )
                         else
-                          ...userAdvances.map((a) => Container(
+                          ...userAdvances.map((a) {
+                                String typeLabel = 'Advance';
+                                Color typeColor = context.colors.primary;
+                                if (a.type == 'uniform') { typeLabel = 'Uniform'; typeColor = Colors.orange; }
+                                else if (a.type == 'mess') { typeLabel = 'Mess/Canteen'; typeColor = Colors.teal; }
+                                else if (a.type == 'other') { typeLabel = a.otherExpenseName.isNotEmpty ? a.otherExpenseName : 'Other'; typeColor = Colors.purple; }
+
+                                return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
@@ -532,14 +536,28 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                              DateFormat('dd MMM yyyy').format(
-                                                  DateTime.parse(a.date)),
-                                              style: TextStyle(
-                                                  color:
-                                                      context.colors.txtPrimary,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600)),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                  DateFormat('dd MMM yyyy').format(
+                                                      DateTime.parse(a.date)),
+                                                  style: TextStyle(
+                                                      color:
+                                                          context.colors.txtPrimary,
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w600)),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: typeColor.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: typeColor.withValues(alpha: 0.3)),
+                                                ),
+                                                child: Text(typeLabel, style: TextStyle(color: typeColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                                              ),
+                                            ],
+                                          ),
                                           if (a.reason.isNotEmpty) ...[
                                             const SizedBox(height: 4),
                                             Text(a.reason,
@@ -557,7 +575,8 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                                             fontWeight: FontWeight.bold)),
                                   ],
                                 ),
-                              )),
+                              );
+                            }),
                       ],
                     ),
                   ),
@@ -572,33 +591,26 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     );
   }
 
-  void _showAddAdvanceDialog(List<Guard> guards, List<AppUser> allStaff, List<Site> sites, List<Attendance> attendances) {
+  void _showAddAdvanceDialog(List<Guard> guards, List<AppUser> allStaff, List<Site> sites) {
     String selectedType = _selectedTab;
     String? selectedUserId;
     String? selectedSiteId;
+    String deductionType = 'advance'; // 'advance', 'uniform', 'mess', 'other'
     final amountCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
+    final otherNameCtrl = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: context.colors.bgSurface,
-        title: Text('Give Advance',
-            style: TextStyle(color: context.colors.txtPrimary)),
-        content: StatefulBuilder(
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: StatefulBuilder(
           builder: (ctx, setSt) {
             List<DropdownMenuItem<String>> items = [];
             if (selectedType == 'guard') {
               List<Guard> filteredGuards = [];
               if (selectedSiteId != null) {
-                final guardsWithAttendance = attendances.where((a) {
-                  if (a.siteId != selectedSiteId) return false;
-                  final d = DateTime.tryParse(a.date);
-                  if (d == null) return false;
-                  return d.year == _selectedMonth.year && d.month == _selectedMonth.month;
-                }).map((a) => a.guardId).toSet();
-                
-                filteredGuards = guards.where((g) => guardsWithAttendance.contains(g.id)).toList();
+                filteredGuards = guards.where((g) => g.siteId == selectedSiteId).toList();
               }
 
               items = filteredGuards
@@ -619,143 +631,238 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                   .toList();
             }
 
-            // Ensure selectedUserId is valid or null
             if (selectedUserId != null &&
                 !items.any((i) => i.value == selectedUserId)) {
               selectedUserId = null;
             }
 
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Radio<String>(
-                        value: 'guard',
-                        groupValue: selectedType,
-                        activeColor: context.colors.primary,
-                        onChanged: (val) => setSt(() {
-                          selectedType = val!;
-                          selectedSiteId = null;
-                          selectedUserId = null;
-                        }),
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: context.colors.bgSurface,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  )
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Add Deduction/Advance',
+                        style: TextStyle(
+                            color: context.colors.txtPrimary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5)),
+                    const SizedBox(height: 24),
+                    
+                    Text('Employee Type', style: TextStyle(color: context.colors.txtSec, fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: context.colors.bgBase,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      Text('Guard',
-                          style: TextStyle(color: context.colors.txtPrimary)),
-                      Radio<String>(
-                        value: 'supervisor',
-                        groupValue: selectedType,
-                        activeColor: context.colors.primary,
-                        onChanged: (val) => setSt(() {
-                          selectedType = val!;
-                          selectedSiteId = null;
-                          selectedUserId = null;
-                        }),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildRoleSelector('Guard', 'guard', selectedType, (val) => setSt(() {
+                              selectedType = val;
+                              selectedSiteId = null;
+                              selectedUserId = null;
+                            })),
+                          ),
+                          Expanded(
+                            child: _buildRoleSelector('Sup.', 'supervisor', selectedType, (val) => setSt(() {
+                              selectedType = val;
+                              selectedSiteId = null;
+                              selectedUserId = null;
+                            })),
+                          ),
+                          Expanded(
+                            child: _buildRoleSelector('Exec.', 'executive', selectedType, (val) => setSt(() {
+                              selectedType = val;
+                              selectedSiteId = null;
+                              selectedUserId = null;
+                            })),
+                          ),
+                        ],
                       ),
-                      Text('Supervisor',
-                          style: TextStyle(color: context.colors.txtPrimary)),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Radio<String>(
-                        value: 'executive',
-                        groupValue: selectedType,
-                        activeColor: context.colors.primary,
-                        onChanged: (val) => setSt(() {
-                          selectedType = val!;
-                          selectedSiteId = null;
-                          selectedUserId = null;
-                        }),
-                      ),
-                      Text('Executive',
-                          style: TextStyle(color: context.colors.txtPrimary)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (selectedType == 'guard') ...[
-                    DropdownButtonFormField<String>(
-                      value: selectedSiteId,
-                      hint: Text('Select Site',
-                          style: TextStyle(color: context.colors.txtSec)),
-                      dropdownColor: context.colors.bgBase,
-                      items: sites
-                          .map((s) => DropdownMenuItem(
-                              value: s.id,
-                              child: Text(s.name,
-                                  style: TextStyle(
-                                      color: context.colors.txtPrimary,
-                                      fontSize: 14))))
-                          .toList(),
-                      onChanged: (val) => setSt(() {
-                        selectedSiteId = val;
-                        selectedUserId = null;
-                      }),
                     ),
                     const SizedBox(height: 16),
+
+                    if (selectedType == 'guard') ...[
+                      _buildDropdown(
+                        value: selectedSiteId,
+                        hint: 'Select Site',
+                        items: sites.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
+                        onChanged: (val) => setSt(() {
+                          selectedSiteId = val;
+                          selectedUserId = null;
+                        }),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildDropdown(
+                      value: selectedUserId,
+                      hint: selectedType == 'guard' && selectedSiteId == null ? 'Please select a site first' : 'Select Employee',
+                      items: items,
+                      onChanged: (val) => setSt(() => selectedUserId = val),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Text('Deduction Category', style: TextStyle(color: context.colors.txtSec, fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    _buildDropdown(
+                      value: deductionType,
+                      hint: 'Select Category',
+                      items: const [
+                        DropdownMenuItem(value: 'advance', child: Text('Advance')),
+                        DropdownMenuItem(value: 'uniform', child: Text('Uniform Fee')),
+                        DropdownMenuItem(value: 'mess', child: Text('Mess/Canteen Fee')),
+                        DropdownMenuItem(value: 'other', child: Text('Other Expense')),
+                      ],
+                      onChanged: (val) => setSt(() => deductionType = val!),
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (deductionType == 'other') ...[
+                      _buildTextField(otherNameCtrl, 'Expense Name (e.g., Penalty)'),
+                      const SizedBox(height: 16),
+                    ],
+
+                    _buildTextField(amountCtrl, 'Amount (INR)', isNumber: true),
+                    const SizedBox(height: 16),
+                    _buildTextField(reasonCtrl, 'Reason / Notes (Optional)'),
+                    
+                    const SizedBox(height: 32),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            child: Text('Cancel', style: TextStyle(color: context.colors.txtSec, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (selectedUserId == null || amountCtrl.text.isEmpty || (deductionType == 'other' && otherNameCtrl.text.trim().isEmpty)) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all required fields.')));
+                                return;
+                              }
+                              final amount = double.tryParse(amountCtrl.text);
+                              if (amount == null || amount <= 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid amount.')));
+                                return;
+                              }
+
+                              final advance = Advance(
+                                id: const Uuid().v4(),
+                                userId: selectedUserId!,
+                                userType: selectedType,
+                                amount: amount,
+                                date: DateTime(_selectedMonth.year, _selectedMonth.month, DateTime.now().day.clamp(1, 28), DateTime.now().hour, DateTime.now().minute).toIso8601String(),
+                                reason: reasonCtrl.text.trim(),
+                                type: deductionType,
+                                otherExpenseName: deductionType == 'other' ? otherNameCtrl.text.trim() : '',
+                              );
+
+                              await ref.read(dbProvider).saveAdvance(advance);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: context.colors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            child: const Text('Save Deduction', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                  DropdownButtonFormField<String>(
-                    value: selectedUserId,
-                    hint: Text(selectedType == 'guard' && selectedSiteId == null ? 'Please select a site first' : 'Select Employee',
-                        style: TextStyle(color: context.colors.txtSec)),
-                    dropdownColor: context.colors.bgBase,
-                    items: items,
-                    onChanged: (val) => setSt(() => selectedUserId = val),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: amountCtrl,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(color: context.colors.txtPrimary),
-                    decoration:
-                        const InputDecoration(labelText: 'Amount (INR)'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: reasonCtrl,
-                    style: TextStyle(color: context.colors.txtPrimary),
-                    decoration:
-                        const InputDecoration(labelText: 'Reason (Optional)'),
-                  ),
-                ],
+                ),
               ),
             );
           },
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedUserId == null || amountCtrl.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Please fill all required fields.')));
-                return;
-              }
-              final amount = double.tryParse(amountCtrl.text);
-              if (amount == null || amount <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Invalid amount.')));
-                return;
-              }
+      ),
+    );
+  }
 
-              final advance = Advance(
-                id: const Uuid().v4(),
-                userId: selectedUserId!,
-                userType: selectedType,
-                amount: amount,
-                date: DateTime.now().toIso8601String(),
-                reason: reasonCtrl.text.trim(),
-              );
+  Widget _buildRoleSelector(String label, String value, String selectedValue, Function(String) onTap) {
+    final isSelected = value == selectedValue;
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? context.colors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.center,
+        child: Text(label, style: TextStyle(
+          color: isSelected ? Colors.white : context.colors.txtSec,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+          fontSize: 12
+        )),
+      ),
+    );
+  }
 
-              await ref.read(dbProvider).saveAdvance(advance);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+  Widget _buildDropdown({required String? value, required String hint, required List<DropdownMenuItem<String>> items, required Function(String?) onChanged}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.colors.bgBase,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.bord.withValues(alpha: 0.5)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          hint: Text(hint, style: TextStyle(color: context.colors.txtSec, fontSize: 14)),
+          isExpanded: true,
+          dropdownColor: context.colors.bgSurface,
+          icon: Icon(Icons.keyboard_arrow_down_rounded, color: context.colors.txtMuted),
+          items: items,
+          onChanged: onChanged,
+          style: TextStyle(color: context.colors.txtPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String hint, {bool isNumber = false}) {
+    return TextField(
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      style: TextStyle(color: context.colors.txtPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: context.colors.txtSec, fontSize: 14),
+        filled: true,
+        fillColor: context.colors.bgBase,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: context.colors.bord.withValues(alpha: 0.5))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: context.colors.primary, width: 1.5)),
       ),
     );
   }

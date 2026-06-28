@@ -1,10 +1,9 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:image/image.dart' as img;
 
 /// Service for Face Recognition using MobileFaceNet (TFLite) and ML Kit for Cropping.
 class FaceMatchService {
@@ -63,45 +62,47 @@ class FaceMatchService {
       final face = faces.first;
       final boundingBox = face.boundingBox;
 
-      // 2. Fast Decode using Native Engine
+      // 2. Decode using package:image to properly handle EXIF orientation
       final bytes = await imageFile.readAsBytes();
-      final ui.Image fullImage = await decodeImageFromList(bytes);
+      img.Image? decodedImage = img.decodeImage(bytes);
+      if (decodedImage == null) return null;
 
-      // 3. Hardware-Accelerated Crop and Scale to 112x112
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder);
-      const dstRect = ui.Rect.fromLTWH(0, 0, 112, 112);
-      
-      final srcRect = ui.Rect.fromLTRB(
-        max(0, boundingBox.left),
-        max(0, boundingBox.top),
-        min(fullImage.width.toDouble(), boundingBox.right),
-        min(fullImage.height.toDouble(), boundingBox.bottom),
+      // Bake orientation so coordinates match ML Kit's bounding box
+      decodedImage = img.bakeOrientation(decodedImage);
+
+      // 3. Crop to the exact face bounding box safely
+      int cropX = max(0, boundingBox.left.toInt());
+      int cropY = max(0, boundingBox.top.toInt());
+      int cropRight = min(decodedImage.width, boundingBox.right.toInt());
+      int cropBottom = min(decodedImage.height, boundingBox.bottom.toInt());
+      int cropWidth = cropRight - cropX;
+      int cropHeight = cropBottom - cropY;
+
+      if (cropWidth <= 0 || cropHeight <= 0) {
+        debugPrint("FaceMatchService: Invalid crop dimensions.");
+        return null;
+      }
+
+      final croppedImg = img.copyCrop(
+        decodedImage,
+        x: cropX,
+        y: cropY,
+        width: cropWidth,
+        height: cropHeight,
       );
 
-      canvas.drawImageRect(fullImage, srcRect, dstRect, ui.Paint());
-      final picture = recorder.endRecording();
-      final croppedUiImage = await picture.toImage(112, 112);
-      
-      // 4. Extract Raw RGBA Pixels
-      final byteData = await croppedUiImage.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (byteData == null) return null;
+      // 4. Scale to 112x112 for the model
+      final resizedImg = img.copyResize(croppedImg, width: 112, height: 112);
 
       // 5. Convert image to float32 tensor [1, 112, 112, 3] with normalization
       var input = List.generate(1, (i) => List.generate(112, (y) => List.generate(112, (x) => List.generate(3, (c) => 0.0))));
       
-      int offset = 0;
       for (int py = 0; py < 112; py++) {
         for (int px = 0; px < 112; px++) {
-          final r = byteData.getUint8(offset);
-          final g = byteData.getUint8(offset + 1);
-          final b = byteData.getUint8(offset + 2);
-          
-          input[0][py][px][0] = (r - 127.5) / 128.0; 
-          input[0][py][px][1] = (g - 127.5) / 128.0; 
-          input[0][py][px][2] = (b - 127.5) / 128.0; 
-          
-          offset += 4; // Skip Alpha
+          final pixel = resizedImg.getPixel(px, py);
+          input[0][py][px][0] = (pixel.r - 127.5) / 128.0; 
+          input[0][py][px][1] = (pixel.g - 127.5) / 128.0; 
+          input[0][py][px][2] = (pixel.b - 127.5) / 128.0; 
         }
       }
 

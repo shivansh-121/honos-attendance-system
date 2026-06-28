@@ -299,7 +299,7 @@ class DbService {
 
   // --- Notifications ---
   Stream<List<AppNotification>> notificationsStream() {
-    return _firestore.collection('notifications').orderBy('timestamp', descending: true).snapshots().map((snapshot) {
+    return _firestore.collection('notifications').orderBy('timestamp', descending: true).limit(50).snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => AppNotification.fromJson(doc.data())).toList();
     });
   }

@@ -31,6 +31,8 @@ class TakeAttendanceScreen extends ConsumerStatefulWidget {
   final bool isCheckOutFlow;
   final Guard? preselectedGuard;
   final Attendance? existingRecord;
+  /// When true, skip the GPS check step (GPS already verified by caller).
+  final bool skipGpsCheck;
 
   const TakeAttendanceScreen({
     super.key,
@@ -38,6 +40,7 @@ class TakeAttendanceScreen extends ConsumerStatefulWidget {
     this.isCheckOutFlow = false,
     this.preselectedGuard,
     this.existingRecord,
+    this.skipGpsCheck = false,
   });
 
   @override
@@ -65,7 +68,14 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       _existingRecord = widget.existingRecord;
       _step = _Step.liveness;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkGps());
+    if (widget.skipGpsCheck) {
+      // GPS was already verified by ScanIdentifyScreen — skip to guard step
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() { _gpsOk = true; _checkingGps = false; _step = _Step.guard; });
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkGps());
+    }
   }
 
   Future<void> _checkGps() async {
@@ -168,11 +178,14 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         await db.saveAttendance(record);
       }
 
-      final updatedGuard = _selectedGuard!.copyWith(
-        siteId: widget.site.id,
-        supervisorId: supervisor?.id ?? '',
-      );
-      await db.saveGuard(updatedGuard);
+      // Only update the guard's home site if they were reassigned to a different site
+      if (_selectedGuard!.siteId != widget.site.id) {
+        final updatedGuard = _selectedGuard!.copyWith(
+          siteId: widget.site.id,
+          supervisorId: supervisor?.id ?? '',
+        );
+        await db.saveGuard(updatedGuard);
+      }
 
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
@@ -775,16 +788,16 @@ class _FaceMatchStepState extends State<_FaceMatchStep> {
         return;
       }
 
-      // Extract embedding from reference photo (guard.photo is base64)
+      // Block attendance for guards with no reference photo on file
       if (widget.guard.photo.length < 200) {
-        // No reference photo, we might just skip verification or fail
-        setState(() => _msg = 'Optimizing verification photo...');
-        final compressedBytes = await compute(_compressImageBytes, bytes);
-        final finalB64 =
-            compressedBytes != null ? base64Encode(compressedBytes) : b64;
-        widget.onVerified(finalB64);
+        setState(() {
+          _msg = 'No reference photo on file.\n'
+              'Please contact Admin to upload a photo for ${widget.guard.name} first.';
+          _busy = false;
+        });
         return;
       }
+
 
       final refBytes = base64Decode(widget.guard.photo);
       final tempDir = await getTemporaryDirectory();

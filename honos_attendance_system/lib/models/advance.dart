@@ -1,10 +1,12 @@
 class Advance {
   final String id;
   final String userId;
-  final String userType; // 'guard' or 'supervisor'
+  final String userType; // 'guard', 'supervisor', 'executive'
   final double amount;
   final String date;
   final String reason;
+  final String type; // 'advance', 'uniform', 'mess', 'other'
+  final String otherExpenseName;
 
   const Advance({
     required this.id,
@@ -13,6 +15,8 @@ class Advance {
     required this.amount,
     required this.date,
     this.reason = '',
+    this.type = 'advance',
+    this.otherExpenseName = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -22,6 +26,8 @@ class Advance {
     'amount': amount,
     'date': date,
     'reason': reason,
+    'type': type,
+    'otherExpenseName': otherExpenseName,
   };
 
   factory Advance.fromJson(Map<String, dynamic> j) => Advance(
@@ -31,5 +37,7 @@ class Advance {
     amount: (j['amount'] ?? 0).toDouble(),
     date: j['date'] ?? '',
     reason: j['reason'] ?? '',
+    type: j['type'] ?? 'advance',
+    otherExpenseName: j['otherExpenseName'] ?? '',
   );
 }

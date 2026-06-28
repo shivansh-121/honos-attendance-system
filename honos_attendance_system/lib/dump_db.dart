@@ -7,9 +7,10 @@ void main() async {
   await Firebase.initializeApp();
 
   final db = FirebaseFirestore.instance;
-  
+
   debugPrint('SUPERVISORS:');
-  final users = await db.collection('users').where('role', isEqualTo: 'supervisor').get();
+  final users =
+      await db.collection('users').where('role', isEqualTo: 'supervisor').get();
   for (var d in users.docs) {
     debugPrint('${d.id}: ${d.data()['username']} - siteId: ${d.data()['siteId']}');
   }
@@ -17,7 +18,8 @@ void main() async {
   debugPrint('\nGUARDS:');
   final guards = await db.collection('guards').get();
   for (var d in guards.docs) {
-    debugPrint('${d.id}: ${d.data()['name']} - siteId: ${d.data()['siteId']} - supervisorId: ${d.data()['supervisorId']}');
+    debugPrint(
+        '${d.id}: ${d.data()['name']} - siteId: ${d.data()['siteId']} - supervisorId: ${d.data()['supervisorId']}');
   }
 
   debugPrint('\nSITES:');

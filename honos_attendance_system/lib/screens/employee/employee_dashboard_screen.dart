@@ -41,8 +41,8 @@ class _EmployeeDashboardScreenState
 
   Future<void> _uploadPhoto(AppUser user) async {
     final picker = ImagePicker();
-    final xfile =
-        await picker.pickImage(source: ImageSource.camera, maxWidth: 600);
+    final xfile = await picker.pickImage(
+        source: ImageSource.camera, maxWidth: 600, imageQuality: 60);
     if (xfile == null) return;
 
     if (mounted) {

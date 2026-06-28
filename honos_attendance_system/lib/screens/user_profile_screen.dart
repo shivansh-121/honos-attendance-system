@@ -464,7 +464,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _sectionTitle('Advances & Payroll', Icons.money),
+                _sectionTitle('Deductions & Payroll', Icons.money),
                 Text(DateFormat('MMM yyyy').format(_selectedMonth),
                     style: TextStyle(
                         color: context.colors.primary,
@@ -482,7 +482,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                   Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Total Advances',
+                        Text('Total Deductions',
                             style: TextStyle(
                                 color: context.colors.txtSec, fontSize: 12)),
                         Text('₹${totalAdv.toStringAsFixed(0)}',
@@ -506,24 +506,50 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ),
             if (monthAdvances.isNotEmpty) ...[
               const SizedBox(height: 12),
-              ...monthAdvances.map((a) => Padding(
+              ...monthAdvances.map((a) {
+                    String typeLabel = 'Advance';
+                    Color typeColor = context.colors.primary;
+                    if (a.type == 'uniform') { typeLabel = 'Uniform'; typeColor = Colors.orange; }
+                    else if (a.type == 'mess') { typeLabel = 'Mess'; typeColor = Colors.teal; }
+                    else if (a.type == 'other') { typeLabel = a.otherExpenseName.isNotEmpty ? a.otherExpenseName : 'Other'; typeColor = Colors.purple; }
+
+                    return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                            DateFormat('dd MMM').format(DateTime.parse(a.date)),
-                            style: TextStyle(color: context.colors.txtSec)),
-                        Text(a.reason.isNotEmpty ? a.reason : 'Advance',
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Text(
+                                  DateFormat('dd MMM').format(DateTime.parse(a.date)),
+                                  style: TextStyle(color: context.colors.txtSec, fontSize: 12)),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: typeColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: typeColor.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(typeLabel, style: TextStyle(color: typeColor, fontSize: 9, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(a.reason.isNotEmpty ? a.reason : '',
                             style: TextStyle(
-                                color: context.colors.txtSec, fontSize: 12)),
+                                color: context.colors.txtSec, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                         Text('₹${a.amount.toStringAsFixed(0)}',
                             style: TextStyle(
                                 color: context.colors.red,
                                 fontWeight: FontWeight.bold)),
                       ],
                     ),
-                  ))
+                  );
+                })
             ]
           ],
         ),

@@ -15,7 +15,8 @@ import '../models/advance.dart';
 class PdfService {
   static Future<String?> generateAndPrintGuardReport({
     required Guard guard,
-    required DateTime month,
+    required DateTime fromDate,
+    required DateTime toDate,
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
@@ -42,8 +43,9 @@ class PdfService {
       }
     }
 
-    final monthStr = DateFormat('MMMM yyyy').format(month);
-    
+    final dateRangeStr = '${DateFormat('dd MMM yyyy').format(fromDate)} – ${DateFormat('dd MMM yyyy').format(toDate)}';
+    final fileRangeStr = '${DateFormat('dd_MMM_yyyy').format(fromDate)}_to_${DateFormat('dd_MMM_yyyy').format(toDate)}';
+
     // Calculate total hours
     double totalHours = 0;
     for (var a in attendanceRecords) {
@@ -59,12 +61,31 @@ class PdfService {
       }
     }
 
-    // Calculate Advances
-    double totalAdvances = 0;
+    // Calculate Advances and Deductions
+    double advAmt = 0;
+    double uniAmt = 0;
+    double messAmt = 0;
+    double othAmt = 0;
+
     for (var adv in monthAdvances) {
-      totalAdvances += adv.amount;
+      if (adv.type == 'uniform') {
+        uniAmt += adv.amount;
+      } else if (adv.type == 'mess') {
+        messAmt += adv.amount;
+      } else if (adv.type == 'other') {
+        othAmt += adv.amount;
+      } else {
+        advAmt += adv.amount;
+      }
     }
-    double netPay = guard.salary - totalAdvances;
+    double totalAdvances = advAmt + uniAmt + messAmt + othAmt;
+
+    // Pro-rata earned salary: (salary / days in range) × days worked
+    final daysInRange = toDate.difference(fromDate).inDays + 1;
+    final daysWorked = attendanceRecords.map((a) => a.date).toSet().length;
+    final earnedSalary = daysInRange > 0 ? (guard.salary / daysInRange) * daysWorked : 0.0;
+    double netPay = earnedSalary - totalAdvances;
+
 
     pdf.addPage(
       pw.MultiPage(
@@ -82,7 +103,7 @@ class PdfService {
                   children: [
                     pw.Text('REPORT: ${guard.name.toUpperCase()}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
                     pw.SizedBox(height: 6),
-                    pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
+                    pw.Text('Attendance Record: $dateRangeStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
                 ),
                 if (profileImage != null)
@@ -153,7 +174,11 @@ class PdfService {
                             _buildDetailRow('Bank Name', guard.bankName),
                             _buildDetailRow('Account No', guard.accountNo),
                             _buildDetailRow('IFSC Code', guard.ifsc),
-                            _buildDetailRow('Total Advances', totalAdvances > 0 ? 'INR ${totalAdvances.toStringAsFixed(0)}' : '--'),
+                            if (advAmt > 0) _buildDetailRow('Advances Taken', 'INR ${advAmt.toStringAsFixed(0)}'),
+                            if (uniAmt > 0) _buildDetailRow('Uniform Fee', 'INR ${uniAmt.toStringAsFixed(0)}'),
+                            if (messAmt > 0) _buildDetailRow('Mess/Canteen Fee', 'INR ${messAmt.toStringAsFixed(0)}'),
+                            if (othAmt > 0) _buildDetailRow('Other Deductions', 'INR ${othAmt.toStringAsFixed(0)}'),
+                            if (totalAdvances == 0) _buildDetailRow('Deductions', '--'),
                             _buildDetailRow('Est. Net Pay', 'INR ${netPay.toStringAsFixed(0)}'),
                           ],
                         ),
@@ -195,7 +220,7 @@ class PdfService {
 
     // Share / Print PDF
     final bytes = await pdf.save();
-    final filename = '${guard.name.replaceAll(' ', '_')}_Report_${DateFormat('MMM_yyyy').format(month)}.pdf';
+    final filename = '${guard.name.replaceAll(' ', '_')}_Report_$fileRangeStr.pdf';
     
     if (share) {
       await Printing.sharePdf(bytes: bytes, filename: filename);
@@ -222,7 +247,8 @@ class PdfService {
 
   static Future<String?> generateAndPrintSupervisorReport({
     required AppUser supervisor,
-    required DateTime month,
+    required DateTime fromDate,
+    required DateTime toDate,
     required List<Attendance> attendanceRecords,
     required Map<String, String> siteNames,
     required Map<String, String> supervisorNames,
@@ -249,7 +275,8 @@ class PdfService {
       }
     }
 
-    final monthStr = DateFormat('MMMM yyyy').format(month);
+    final dateRangeStr = '${DateFormat('dd MMM yyyy').format(fromDate)} – ${DateFormat('dd MMM yyyy').format(toDate)}';
+    final fileRangeStr = '${DateFormat('dd_MMM_yyyy').format(fromDate)}_to_${DateFormat('dd_MMM_yyyy').format(toDate)}';
     final displayRole = supervisor.role.toUpperCase();
     
     // Calculate total hours
@@ -267,11 +294,24 @@ class PdfService {
       }
     }
 
-    // Calculate Advances
-    double totalAdvances = 0;
+    // Calculate Advances and Deductions
+    double advAmt = 0;
+    double uniAmt = 0;
+    double messAmt = 0;
+    double othAmt = 0;
+
     for (var adv in monthAdvances) {
-      totalAdvances += adv.amount;
+      if (adv.type == 'uniform') {
+        uniAmt += adv.amount;
+      } else if (adv.type == 'mess') {
+        messAmt += adv.amount;
+      } else if (adv.type == 'other') {
+        othAmt += adv.amount;
+      } else {
+        advAmt += adv.amount;
+      }
     }
+    double totalAdvances = advAmt + uniAmt + messAmt + othAmt;
     double netPay = supervisor.salary - totalAdvances;
 
     pdf.addPage(
@@ -290,7 +330,7 @@ class PdfService {
                   children: [
                     pw.Text('REPORT: ${supervisor.name.toUpperCase()}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1a237e'))),
                     pw.SizedBox(height: 6),
-                    pw.Text('Monthly Attendance Record: $monthStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
+                    pw.Text('Attendance Record: $dateRangeStr', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#424242'), fontStyle: pw.FontStyle.italic)),
                   ],
                 ),
                 if (profileImage != null)
@@ -362,7 +402,11 @@ class PdfService {
                             _buildDetailRow('Bank Name', supervisor.bankName),
                             _buildDetailRow('Account No', supervisor.accountNo),
                             _buildDetailRow('IFSC Code', supervisor.ifsc),
-                            _buildDetailRow('Total Advances', totalAdvances > 0 ? 'INR ${totalAdvances.toStringAsFixed(0)}' : '--'),
+                            if (advAmt > 0) _buildDetailRow('Advances Taken', 'INR ${advAmt.toStringAsFixed(0)}'),
+                            if (uniAmt > 0) _buildDetailRow('Uniform Fee', 'INR ${uniAmt.toStringAsFixed(0)}'),
+                            if (messAmt > 0) _buildDetailRow('Mess/Canteen Fee', 'INR ${messAmt.toStringAsFixed(0)}'),
+                            if (othAmt > 0) _buildDetailRow('Other Deductions', 'INR ${othAmt.toStringAsFixed(0)}'),
+                            if (totalAdvances == 0) _buildDetailRow('Deductions', '--'),
                             _buildDetailRow('Est. Net Pay', 'INR ${netPay.toStringAsFixed(0)}'),
                           ],
                         ),
@@ -409,7 +453,7 @@ class PdfService {
 
     // Share / Print PDF
     final bytes = await pdf.save();
-    final filename = '${supervisor.name.replaceAll(' ', '_')}_Report_${DateFormat('MMM_yyyy').format(month)}.pdf';
+    final filename = '${supervisor.name.replaceAll(' ', '_')}_Report_$fileRangeStr.pdf';
     
     if (share) {
       await Printing.sharePdf(bytes: bytes, filename: filename);
