@@ -708,10 +708,14 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
         includeSupervisors: _includeSupervisors,
         includeExecutives: _includeExecutives,
         includeEmployees: _includeEmployees,
+        siteId: siteId,
+        share: share,
       );
 
-      if (!share && mounted) {
-        _showSnack('Ledger exported successfully ($_dateRangeLabel)');
+      if (mounted) {
+        _showSnack(share
+            ? 'Ledger shared successfully'
+            : 'Ledger exported successfully ($_dateRangeLabel)');
       }
     } catch (e) {
       if (mounted) {
@@ -737,11 +741,19 @@ class _ExportHubScreenState extends ConsumerState<ExportHubScreen> {
       final rangeStart = DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
       final rangeEnd   = DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
 
-      // Fetch attendance
-      final attSnap = await db
-          .collection('attendance')
-          .where('guardId', isEqualTo: userId)
-          .get();
+      // Fetch attendance — guards are stored with guardId, supervisors/AppUsers with supervisorId
+      final QuerySnapshot<Map<String, dynamic>> attSnap;
+      if (isGuard) {
+        attSnap = await db
+            .collection('attendance')
+            .where('guardId', isEqualTo: userId)
+            .get();
+      } else {
+        attSnap = await db
+            .collection('attendance')
+            .where('supervisorId', isEqualTo: userId)
+            .get();
+      }
       final records = attSnap.docs
           .map<Attendance>((d) => Attendance.fromJson(d.data()))
           .where((r) {

@@ -77,7 +77,7 @@ final leavesStreamProvider = StreamProvider<List<Leave>>((ref) {
 });
 
 class DbService {
-  final _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   // --- Users ---
   Stream<List<AppUser>> usersStream() {

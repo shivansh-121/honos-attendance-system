@@ -30,18 +30,24 @@ class AuthNotifier extends StateNotifier<AppUser?> {
   void _startUserListener() {
     _userSub?.cancel();
     if (state == null) return;
-    
-    _userSub = FirebaseFirestore.instance.collection('users').doc(state!.id).snapshots().listen((doc) {
-      if (!doc.exists) {
-        logout();
-      } else {
-        final data = doc.data();
-        // Fallback inactive check if status field is added later
-        if (data != null && data['status'] == 'inactive') {
+    try {
+      _userSub = FirebaseFirestore.instance.collection('users').doc(state!.id).snapshots().listen((doc) {
+        if (!doc.exists) {
           logout();
+        } else {
+          final data = doc.data();
+          // Fallback inactive check if status field is added later
+          if (data != null && data['status'] == 'inactive') {
+            logout();
+          }
         }
-      }
-    });
+      }, onError: (e) {
+        // Firestore stream error — non-fatal, session still valid locally.
+      });
+    } catch (e) {
+      // Firebase not yet initialized (e.g., Windows cold start).
+      // Session is still valid from Hive; listener will not run.
+    }
   }
 
   @override

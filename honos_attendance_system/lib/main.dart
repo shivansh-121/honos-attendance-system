@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -21,92 +23,172 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Bulletproof error widget — no custom theme, no extensions, cannot crash.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Container(
+        color: const Color(0xFF1a1a1a),
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Rendering Error',
+                style: TextStyle(
+                  color: Color(0xFFFF5C5C),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                details.exceptionAsString(),
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
+  // ── Step 1: Hive ─────────────────────────────────────────────────
+  String? fatalError;
+
   try {
     await Hive.initFlutter();
     await Hive.openBox('session');
   } catch (e) {
-    debugPrint("Hive error: $e");
-  }
-
-  bool firebaseInitialized = false;
-  String? firebaseInitError;
-
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    if (e.toString().contains('duplicate-app')) {
-      debugPrint("Firebase CORE already initialized natively.");
-    } else {
-      debugPrint("Firebase CORE init failed: $e");
-      firebaseInitError = "Firebase Core Error: $e";
+    debugPrint('Hive open error, attempting recovery: $e');
+    try {
+      await Hive.deleteBoxFromDisk('session');
+      await Hive.openBox('session');
+    } catch (e2) {
+      debugPrint('Hive recovery failed: $e2');
+      fatalError = 'Storage Error: $e2';
     }
   }
 
-  if (firebaseInitError == null) {
+  // ── Step 2: Firebase Core ────────────────────────────────────────
+  // On Windows the C++ Firebase SDK initializes natively — we pass web
+  // credentials so the Dart plugin can talk to the same project, but
+  // we must NOT treat a channel-error as fatal; the native SDK is fine.
+  if (fatalError == null) {
     try {
-      // ── Enable Firestore offline persistence (huge speed boost) ──
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint('Firebase initialized successfully.');
+    } on FirebaseException catch (e) {
+      if (e.code == 'duplicate-app') {
+        // Already initialized by the native layer — perfectly fine.
+        debugPrint('Firebase already initialized (duplicate-app is OK).');
+      } else {
+        debugPrint('Firebase Core init failed: $e');
+        fatalError = 'Firebase Error [${e.code}]: ${e.message}';
+      }
+    } catch (e, stack) {
+      final msg = e.toString();
+      debugPrint('FIREBASE INIT ERROR: $msg');
+      debugPrint('STACKTRACE: $stack');
+      if (msg.contains('channel-error') || msg.contains('Unable to establish connection')) {
+        // We cannot safely continue if the Dart channel handshake timed out,
+        // because the Dart Firebase App is not registered and accessing
+        // Dart Firebase plugins (like Firestore) will throw a core/no-app error.
+        debugPrint('Firebase channel-error on Windows — failing. ($msg)');
+        fatalError = 'Firebase Error: Dart failed to connect to native SDK ($msg)';
+      } else {
+        debugPrint('Firebase Core init failed (unknown): $e');
+        fatalError = 'Firebase Error: $e';
+      }
+    }
+  }
+
+  // ── Step 3: Firestore settings ────────────────────────────────────
+  if (fatalError == null) {
+    try {
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: true,
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
-      firebaseInitialized = true;
     } catch (e) {
-      debugPrint("Firestore init failed: $e");
-      firebaseInitError = "Firestore Error: $e";
+      debugPrint('Firestore settings failed (non-fatal): $e');
     }
   }
 
-  // Fire-and-forget non-critical inits (Skip on Windows to prevent crashes)
-  try {
-    initBackgroundService();
-  } catch (e) {
-    debugPrint("Background service init skipped: $e");
-  }
-  try {
-    LocalPushService.initialize();
-  } catch (e) {
-    debugPrint("Local Push init skipped: $e");
+  // ── Step 4: Mobile-only background services ───────────────────────
+  if (fatalError == null && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    try {
+      await initBackgroundService();
+    } catch (e) {
+      debugPrint('Background service init skipped: $e');
+    }
+    try {
+      await LocalPushService.initialize();
+    } catch (e) {
+      debugPrint('Local Push init skipped: $e');
+    }
   }
 
+  // ── Launch ────────────────────────────────────────────────────────
   runApp(
     ProviderScope(
-      child: firebaseInitialized 
-          ? const HonosApp() 
-          : InitializationErrorApp(error: firebaseInitError),
+      child: fatalError != null
+          ? _FatalErrorApp(error: fatalError!)
+          : const HonosApp(),
     ),
   );
 }
 
-class InitializationErrorApp extends StatelessWidget {
-  final String? error;
-  const InitializationErrorApp({super.key, this.error});
+/// Shown only when Hive fails completely.
+/// Uses ZERO custom theme extensions — cannot crash.
+class _FatalErrorApp extends StatelessWidget {
+  final String error;
+  const _FatalErrorApp({required this.error});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Honos Attendance',
-      theme: AppTheme.dark,
       debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(),
       home: Scaffold(
+        backgroundColor: const Color(0xFF111111),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(32.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 64),
-                const SizedBox(height: 16),
+                const Icon(Icons.error_outline,
+                    color: Color(0xFFFF5C5C), size: 72),
+                const SizedBox(height: 24),
                 const Text(
-                  'Initialization Error',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  'Initialization Failed',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Failed to initialize Firebase. If you just added Firebase to the project, please completely stop the app and run it again (Hot Restart is not enough).\n\nDetails: $error',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: context.colors.txtSec),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1C),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0x30FFFFFF)),
+                  ),
+                  child: SelectableText(
+                    error,
+                    style: const TextStyle(
+                      color: Color(0xFFAAAAAA),
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -124,8 +206,8 @@ class HonosApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authUser = ref.watch(authProvider);
     final themeMode = ref.watch(themeProvider);
-    
-    // Watch the push notification manager so it stays alive while the app is running
+
+    // Keep push notification manager alive while app is running
     if (authUser != null) {
       ref.watch(pushNotificationManagerProvider);
     }

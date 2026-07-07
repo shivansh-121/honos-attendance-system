@@ -5,6 +5,8 @@ import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 
 import '../models/app_user.dart';
 import '../models/guard.dart';
@@ -19,6 +21,8 @@ class ExcelService {
     required bool includeSupervisors,
     required bool includeExecutives,
     required bool includeEmployees,
+    String? siteId,
+    bool share = false,
   }) async {
     final db = FirebaseFirestore.instance;
 
@@ -26,9 +30,14 @@ class ExcelService {
     final rangeStart = DateTime(fromDate.year, fromDate.month, fromDate.day);
     final rangeEnd   = DateTime(toDate.year,   toDate.month,   toDate.day, 23, 59, 59);
 
-    final attendanceSnap = await db.collection('attendance').get();
-    final allRecords = attendanceSnap.docs.map((d) => d.data()).toList();
-    
+    // Fetch attendance – filter by siteId at the Firestore level when possible
+    Query attendanceQuery = db.collection('attendance');
+    if (siteId != null) {
+      attendanceQuery = attendanceQuery.where('siteId', isEqualTo: siteId);
+    }
+    final attendanceSnap = await attendanceQuery.get();
+    final allRecords = attendanceSnap.docs.map((d) => d.data() as Map<String, dynamic>).toList();
+
     final advancesSnap = await db.collection('advances').get();
     final allAdvances = advancesSnap.docs.map((d) => d.data()).toList();
 
@@ -38,9 +47,10 @@ class ExcelService {
         final dateStr = (a['markedAt'] as String?)?.isNotEmpty == true
             ? a['markedAt'] as String
             : a['date'] as String? ?? '';
+        final matchesSite = siteId == null || a['siteId'] == siteId;
         try {
           final d = DateTime.parse(dateStr);
-          return !d.isBefore(rangeStart) && !d.isAfter(rangeEnd);
+          return !d.isBefore(rangeStart) && !d.isAfter(rangeEnd) && matchesSite;
         } catch (_) {
           return false;
         }
@@ -120,14 +130,40 @@ class ExcelService {
       int currentRow = 4;
       int srNo = 1;
 
-      // Total days in the selected range (used as denominator for pro-rata salary)
       final daysInRange = toDate.difference(fromDate).inDays + 1;
 
+      // When a specific site is selected, restrict the people list to that site only.
+      // Guards have a direct siteId field; AppUsers (supervisors/executives/employees)
+      // also have a siteId field. If siteId is null (All Sites), include everyone.
       final List<dynamic> includedPeople = [];
-      if (includeGuards) includedPeople.addAll(allGuards);
-      if (includeSupervisors) includedPeople.addAll(allUsers.where((u) => u.role == 'supervisor'));
-      if (includeExecutives) includedPeople.addAll(allUsers.where((u) => u.role == 'executive'));
-      if (includeEmployees) includedPeople.addAll(allUsers.where((u) => u.role == 'employee'));
+      if (includeGuards) {
+        includedPeople.addAll(
+          siteId == null
+              ? allGuards
+              : allGuards.where((g) => g.siteId == siteId),
+        );
+      }
+      if (includeSupervisors) {
+        includedPeople.addAll(
+          allUsers.where((u) =>
+              u.role == 'supervisor' &&
+              (siteId == null || u.siteId == siteId)),
+        );
+      }
+      if (includeExecutives) {
+        includedPeople.addAll(
+          allUsers.where((u) =>
+              u.role == 'executive' &&
+              (siteId == null || u.siteId == siteId)),
+        );
+      }
+      if (includeEmployees) {
+        includedPeople.addAll(
+          allUsers.where((u) =>
+              (u.role == 'employee' || u.role == 'office_employee') &&
+              (siteId == null || u.siteId == siteId)),
+        );
+      }
 
       for (var person in includedPeople) {
         final isGuard = person is Guard;
@@ -136,7 +172,10 @@ class ExcelService {
         final role = isGuard ? 'Guard' : (person as AppUser).role.toUpperCase();
         final salaryStr = isGuard ? person.salary : (person as AppUser).salary;
         final salary = double.tryParse(salaryStr.toString()) ?? 0.0;
-        final bankDetails = isGuard ? 'A/c: ${person.accountNo} | IFSC: ${person.ifsc}' : '';
+        final appUser = isGuard ? null : (person as AppUser);
+        final bankDetails = isGuard
+            ? 'A/c: ${person.accountNo} | IFSC: ${person.ifsc}'
+            : 'A/c: ${appUser!.accountNo} | IFSC: ${appUser.ifsc}';
 
         final myAtt = monthAtt.where((a) {
           if (isGuard) return a['guardId'] == id;
@@ -176,21 +215,21 @@ class ExcelService {
           TextCellValue(name),
           TextCellValue(role),
           DoubleCellValue(salary),
-          const IntCellValue(0), // O.T. Salary
+          const IntCellValue(0),
           IntCellValue(daysWorked),
-          const IntCellValue(0), // O.T. Attn
-          IntCellValue(daysWorked), // Total Attn
+          const IntCellValue(0),
+          IntCellValue(daysWorked),
           DoubleCellValue(double.parse(earnedSalary.toStringAsFixed(2))),
-          const IntCellValue(0), // O.T. Amt
-          DoubleCellValue(double.parse(earnedSalary.toStringAsFixed(2))), // Total Amt
-          DoubleCellValue(advAmt), // Adv.
-          DoubleCellValue(uniAmt), // Uniform
-          DoubleCellValue(messAmt), // Mess
-          DoubleCellValue(othAmt), // Oth. Ded.
-          DoubleCellValue(totalAdvances), // Total Ded.
+          const IntCellValue(0),
+          DoubleCellValue(double.parse(earnedSalary.toStringAsFixed(2))),
+          DoubleCellValue(advAmt),
+          DoubleCellValue(uniAmt),
+          DoubleCellValue(messAmt),
+          DoubleCellValue(othAmt),
+          DoubleCellValue(totalAdvances),
           DoubleCellValue(double.parse(netPayable.toStringAsFixed(2))),
           TextCellValue(bankDetails),
-          TextCellValue(''), // Signature
+          TextCellValue(''),
         ];
 
         for (int col = 0; col < rowData.length; col++) {
@@ -208,20 +247,47 @@ class ExcelService {
       return b;
     });
 
-    final fromStr = DateFormat('dd_MMM_yyyy').format(fromDate);
-    final toStr   = DateFormat('dd_MMM_yyyy').format(toDate);
-    final rangeLabel = '${DateFormat('dd MMM yyyy').format(fromDate)} – ${DateFormat('dd MMM yyyy').format(toDate)}';
-    final dir = await getTemporaryDirectory();
-    final fileName = 'Central_Ledger_${fromStr}_to_$toStr.xlsx';
-    final file = File('${dir.path}/$fileName');
-    
-    await file.writeAsBytes(bytes);
+    // ── Save / Share the generated bytes ──────────────────────────────────────
+    final fileRangeStr = '${DateFormat('dd_MMM_yyyy').format(fromDate)}_to_${DateFormat('dd_MMM_yyyy').format(toDate)}';
+    final fileName = 'Central_Ledger_$fileRangeStr.xlsx';
 
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        text: 'Payroll Ledger ($rangeLabel)',
-      ),
-    );
+    if (share) {
+      // Mobile: share via system share sheet
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(bytes);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Central Ledger – $fileRangeStr',
+        ),
+      );
+    } else {
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        // Desktop: show native Save-As dialog
+        final FileSaveLocation? result = await getSaveLocation(
+          suggestedName: fileName,
+          acceptedTypeGroups: const [
+            XTypeGroup(label: 'Excel', extensions: ['xlsx']),
+          ],
+        );
+        if (result == null) return; // user cancelled
+        final file = File(result.path);
+        await file.writeAsBytes(bytes);
+      } else if (Platform.isAndroid) {
+        // Android: write to temp then show save dialog
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+        await FlutterFileDialog.saveFile(
+          params: SaveFileDialogParams(sourceFilePath: file.path),
+        );
+      } else {
+        // iOS / fallback: save to documents directory
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+      }
+    }
   }
 }

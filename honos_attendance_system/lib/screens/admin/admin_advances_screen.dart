@@ -595,6 +595,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
     String selectedType = _selectedTab;
     String? selectedUserId;
     String? selectedSiteId;
+    String? selectedUserName; // display label for the chosen person
     String deductionType = 'advance'; // 'advance', 'uniform', 'mess', 'other'
     final amountCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
@@ -606,36 +607,8 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
         backgroundColor: Colors.transparent,
         child: StatefulBuilder(
           builder: (ctx, setSt) {
-            List<DropdownMenuItem<String>> items = [];
-            if (selectedType == 'guard') {
-              List<Guard> filteredGuards = [];
-              if (selectedSiteId != null) {
-                filteredGuards = guards.where((g) => g.siteId == selectedSiteId).toList();
-              }
-
-              items = filteredGuards
-                  .map((g) => DropdownMenuItem(
-                      value: g.id,
-                      child: Text('${g.name} ${g.empId.isNotEmpty ? "(ID: ${g.empId})" : ""}'.trim(),
-                          style: TextStyle(
-                              color: context.colors.txtPrimary, fontSize: 14))))
-                  .toList();
-            } else {
-              items = allStaff
-                  .where((s) => s.role == selectedType)
-                  .map((s) => DropdownMenuItem(
-                      value: s.id,
-                      child: Text('${s.name} ${s.empId.isNotEmpty ? "(ID: ${s.empId})" : ""}'.trim(),
-                          style: TextStyle(
-                              color: context.colors.txtPrimary, fontSize: 14))))
-                  .toList();
-            }
-
-            if (selectedUserId != null &&
-                !items.any((i) => i.value == selectedUserId)) {
-              selectedUserId = null;
-            }
-
+            // When the role type or site changes and a person was already chosen,
+            // clear the selection so the field resets cleanly.
             return Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -677,6 +650,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                               selectedType = val;
                               selectedSiteId = null;
                               selectedUserId = null;
+                              selectedUserName = null;
                             })),
                           ),
                           Expanded(
@@ -684,6 +658,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                               selectedType = val;
                               selectedSiteId = null;
                               selectedUserId = null;
+                              selectedUserName = null;
                             })),
                           ),
                           Expanded(
@@ -691,6 +666,7 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                               selectedType = val;
                               selectedSiteId = null;
                               selectedUserId = null;
+                              selectedUserName = null;
                             })),
                           ),
                         ],
@@ -706,15 +682,45 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
                         onChanged: (val) => setSt(() {
                           selectedSiteId = val;
                           selectedUserId = null;
+                          selectedUserName = null;
                         }),
                       ),
                       const SizedBox(height: 16),
                     ],
-                    _buildDropdown(
-                      value: selectedUserId,
-                      hint: selectedType == 'guard' && selectedSiteId == null ? 'Please select a site first' : 'Select Employee',
-                      items: items,
-                      onChanged: (val) => setSt(() => selectedUserId = val),
+                    _buildSearchablePersonField(
+                      label: selectedUserName,
+                      hint: selectedType == 'guard' && selectedSiteId == null
+                          ? 'Please select a site first'
+                          : 'Select Employee',
+                      enabled: !(selectedType == 'guard' && selectedSiteId == null),
+                      onTap: () async {
+                        // Build the list of (id, label) pairs to search from
+                        final List<({String id, String label})> people;
+                        if (selectedType == 'guard') {
+                          people = guards
+                              .where((g) => g.siteId == selectedSiteId)
+                              .map((g) => (
+                                    id: g.id,
+                                    label: '${g.name}${g.empId.isNotEmpty ? " (ID: ${g.empId})" : ""}'
+                                  ))
+                              .toList();
+                        } else {
+                          people = allStaff
+                              .where((s) => s.role == selectedType)
+                              .map((s) => (
+                                    id: s.id,
+                                    label: '${s.name}${s.empId.isNotEmpty ? " (ID: ${s.empId})" : ""}'
+                                  ))
+                              .toList();
+                        }
+                        final result = await _showPersonPickerSheet(people);
+                        if (result != null) {
+                          setSt(() {
+                            selectedUserId = result.id;
+                            selectedUserName = result.label;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 20),
 
@@ -846,6 +852,261 @@ class _AdminAdvancesScreenState extends ConsumerState<AdminAdvancesScreen> {
           style: TextStyle(color: context.colors.txtPrimary, fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
+    );
+  }
+
+  /// Tappable field that opens the searchable person picker sheet.
+  Widget _buildSearchablePersonField({
+    required String? label,
+    required String hint,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        decoration: BoxDecoration(
+          color: enabled ? context.colors.bgBase : context.colors.bgSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: enabled
+                ? context.colors.bord.withValues(alpha: 0.5)
+                : context.colors.bord.withValues(alpha: 0.2),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label ?? hint,
+                style: TextStyle(
+                  color: label != null
+                      ? context.colors.txtPrimary
+                      : context.colors.txtSec,
+                  fontSize: 14,
+                  fontWeight: label != null ? FontWeight.w500 : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(
+              Icons.search_rounded,
+              color: enabled ? context.colors.primary : context.colors.txtMuted,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Opens a bottom sheet with a live search bar + scrollable list.
+  /// Returns the selected ({id, label}) or null if dismissed.
+  Future<({String id, String label})?> _showPersonPickerSheet(
+      List<({String id, String label})> people) async {
+    return showModalBottomSheet<({String id, String label})>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (sheetCtx, sheetSt) {
+            final filtered = query.isEmpty
+                ? people
+                : people
+                    .where((p) =>
+                        p.label.toLowerCase().contains(query.toLowerCase()))
+                    .toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.4,
+              maxChildSize: 0.95,
+              snap: true,
+              snapSizes: const [0.5, 0.75, 0.95],
+              builder: (_, scrollCtrl) => Container(
+                decoration: BoxDecoration(
+                  color: context.colors.bgSurface,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  children: [
+                    // ── drag handle ──
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 8),
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: context.colors.bord,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    // ── title ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_search_rounded,
+                              color: context.colors.primary, size: 22),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Select Employee',
+                            style: TextStyle(
+                              color: context.colors.txtPrimary,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (people.isNotEmpty)
+                            Text(
+                              '${filtered.length} of ${people.length}',
+                              style: TextStyle(
+                                  color: context.colors.txtMuted, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // ── search bar ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: TextField(
+                        autofocus: true,
+                        onChanged: (v) => sheetSt(() => query = v),
+                        style: TextStyle(
+                            color: context.colors.txtPrimary, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Search by name or ID...',
+                          hintStyle:
+                              TextStyle(color: context.colors.txtMuted),
+                          prefixIcon: Icon(Icons.search_rounded,
+                              color: context.colors.primary, size: 20),
+                          suffixIcon: query.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear,
+                                      color: context.colors.txtMuted,
+                                      size: 18),
+                                  onPressed: () =>
+                                      sheetSt(() => query = ''),
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: context.colors.bgBase,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                                color: context.colors.bord
+                                    .withValues(alpha: 0.5)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                                color: context.colors.primary, width: 1.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    // ── results list ──
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.search_off_rounded,
+                                      size: 52,
+                                      color: context.colors.txtMuted
+                                          .withValues(alpha: 0.4)),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No results for "$query"',
+                                    style: TextStyle(
+                                        color: context.colors.txtSec,
+                                        fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              controller: scrollCtrl,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 4),
+                              itemBuilder: (_, i) {
+                                final p = filtered[i];
+                                return InkWell(
+                                  onTap: () =>
+                                      Navigator.pop(sheetCtx, p),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor: context
+                                              .colors.primary
+                                              .withValues(alpha: 0.12),
+                                          child: Text(
+                                            p.label.isNotEmpty
+                                                ? p.label[0].toUpperCase()
+                                                : '?',
+                                            style: TextStyle(
+                                              color: context.colors.primary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Text(
+                                            p.label,
+                                            style: TextStyle(
+                                              color:
+                                                  context.colors.txtPrimary,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(Icons.chevron_right_rounded,
+                                            color: context.colors.txtMuted,
+                                            size: 18),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
